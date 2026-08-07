@@ -26,6 +26,9 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
     costPrice: initialData?.costPrice || '',
     sku: initialData?.sku || '',
     barcode: initialData?.barcode || '',
+    gtin: initialData?.gtin || '',
+    mpn: initialData?.mpn || '',
+    condition: initialData?.condition || 'new',
     stock: initialData?.inventory?.quantity || 0,
     lowStockThreshold: initialData?.inventory?.lowStockThreshold || 10,
     trackInventory: initialData?.trackInventory === false ? false : true,
@@ -114,8 +117,29 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
                   <Input name="sku" value={formData.sku} onChange={handleChange} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Barcode (UPC, GTIN)</label>
+                  <label className="text-sm font-medium">Barcode</label>
                   <Input name="barcode" value={formData.barcode} onChange={handleChange} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">GTIN</label>
+                  <Input name="gtin" value={formData.gtin} onChange={handleChange} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">MPN</label>
+                  <Input name="mpn" value={formData.mpn} onChange={handleChange} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium">Condition</label>
+                  <select
+                    name="condition"
+                    value={formData.condition}
+                    onChange={handleChange}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="new">New</option>
+                    <option value="refurbished">Refurbished</option>
+                    <option value="used">Used</option>
+                  </select>
                 </div>
               </div>
 

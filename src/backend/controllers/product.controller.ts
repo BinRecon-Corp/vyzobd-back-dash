@@ -30,7 +30,14 @@ export const getAllProducts = asyncHandler(async (req: Request, res: Response) =
     },
     orderBy: { createdAt: "desc" },
   });
-  res.status(200).json({ success: true, data: products });
+
+  const formattedProducts = products.map(p => ({
+    ...p,
+    compareAtPrice: p.variants?.[0]?.compareAtPrice || null,
+    costPrice: p.variants?.[0]?.costPrice || null,
+  }));
+
+  res.status(200).json({ success: true, data: formattedProducts });
 });
 
 export const getProductById = asyncHandler(async (req: Request, res: Response) => {
@@ -59,6 +66,8 @@ export const getProductById = asyncHandler(async (req: Request, res: Response) =
     success: true, 
     data: {
       ...product,
+      compareAtPrice: product.variants?.[0]?.compareAtPrice || null,
+      costPrice: product.variants?.[0]?.costPrice || null,
       ga4Event: ga4Validation.isValid ? ga4Validation.data : ga4Payload
     } 
   });
@@ -71,6 +80,7 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     metaTitle, metaDescription, ogImage,
     trackInventory, status,
     sku, price, compareAtPrice, costPrice, stock, lowStockThreshold, barcode,
+    gtin, mpn, condition,
     image, galleryImages,
     tags
   } = req.body;
@@ -104,6 +114,9 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
       sku,
       price: price ? parseFloat(price) : null,
       barcode,
+      gtin,
+      mpn,
+      condition,
       // Create primary image if provided
       ...(image && {
         images: {
@@ -122,7 +135,17 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
             lowStockThreshold: parseInt(lowStockThreshold) || 10
           }
         }
-      })
+      }),
+      variants: {
+        create: {
+          sku: sku || generatedSlug,
+          price: price ? parseFloat(price) : 0,
+          compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+          costPrice: costPrice ? parseFloat(costPrice) : null,
+          barcode: barcode || null,
+          isActive: status === "Active"
+        }
+      }
     },
     include: {
       category: true,
@@ -168,11 +191,15 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
     metaTitle, metaDescription, ogImage,
     trackInventory, status,
     sku, price, compareAtPrice, costPrice, stock, lowStockThreshold, barcode,
+    gtin, mpn, condition,
     image, galleryImages,
     tags
   } = req.body;
 
-  const existingProduct = await prisma.product.findFirst({ where: { id, deletedAt: null } });
+  const existingProduct = await prisma.product.findFirst({ 
+    where: { id, deletedAt: null },
+    include: { variants: true }
+  });
 
   if (!existingProduct) {
     throw new AppError("Product not found", 404, "NOT_FOUND");
@@ -198,6 +225,9 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
       sku,
       price: price ? parseFloat(price) : undefined,
       barcode,
+      gtin,
+      mpn,
+      condition,
       ...(stock !== undefined && trackInventory !== false && {
         inventory: {
           upsert: {
@@ -247,6 +277,31 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
     }
   }
 
+  const defaultVariant = existingProduct.variants?.[0];
+  if (defaultVariant) {
+    await prisma.productVariant.update({
+      where: { id: defaultVariant.id },
+      data: {
+        compareAtPrice: compareAtPrice !== undefined ? (compareAtPrice ? parseFloat(compareAtPrice) : null) : undefined,
+        costPrice: costPrice !== undefined ? (costPrice ? parseFloat(costPrice) : null) : undefined,
+        price: price !== undefined ? (price ? parseFloat(price) : null) : undefined,
+        sku: sku || undefined,
+        barcode: barcode || undefined,
+      }
+    });
+  } else if (compareAtPrice || costPrice) {
+    await prisma.productVariant.create({
+      data: {
+        productId: id,
+        sku: sku || existingProduct.slug,
+        price: price ? parseFloat(price) : 0,
+        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+        costPrice: costPrice ? parseFloat(costPrice) : null,
+        barcode: barcode || null,
+      }
+    });
+  }
+
   const updatedProduct = await prisma.product.findUnique({
     where: { id },
     include: {
@@ -254,10 +309,17 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
       inventory: true,
       images: true,
       tags: true,
+      variants: true,
     },
   });
 
-  res.status(200).json({ success: true, data: updatedProduct });
+  const responseData = {
+    ...updatedProduct,
+    compareAtPrice: updatedProduct?.variants?.[0]?.compareAtPrice || null,
+    costPrice: updatedProduct?.variants?.[0]?.costPrice || null,
+  };
+
+  res.status(200).json({ success: true, data: responseData });
 });
 
 export const deleteProduct = asyncHandler(async (req: Request, res: Response) => {
@@ -269,10 +331,26 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError("Product not found", 404, "NOT_FOUND");
   }
 
-  await prisma.product.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
+  const deleteDate = new Date();
+
+  await prisma.$transaction([
+    prisma.product.update({
+      where: { id },
+      data: { deletedAt: deleteDate, isActive: false, status: "Archived" },
+    }),
+    prisma.productVariant.updateMany({
+      where: { productId: id, deletedAt: null },
+      data: { deletedAt: deleteDate, isActive: false },
+    }),
+    prisma.productImage.updateMany({
+      where: { productId: id, deletedAt: null },
+      data: { deletedAt: deleteDate },
+    }),
+    prisma.inventory.updateMany({
+      where: { productId: id, deletedAt: null },
+      data: { deletedAt: deleteDate },
+    }),
+  ]);
 
   res.status(200).json({ success: true, message: "Product deleted successfully" });
 });

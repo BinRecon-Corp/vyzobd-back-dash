@@ -9,7 +9,7 @@ export interface AppError extends Error {
 }
 
 export const errorHandler = (
-  err: AppError | ZodError | Error,
+  err: any,
   req: Request,
   res: Response,
   next: NextFunction
@@ -30,9 +30,21 @@ export const errorHandler = (
     });
   }
 
-  const statusCode = (err as AppError).statusCode || 500;
-  const code = (err as AppError).code || "INTERNAL_SERVER_ERROR";
-  const message = (err as AppError).isOperational ? err.message : err.message;
+  if (err.code === "P2002") {
+    const target = err.meta?.target as string[] | string;
+    const field = Array.isArray(target) ? target.join(", ") : (target || "field");
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: "UNIQUE_CONSTRAINT_VIOLATION",
+        message: `A record with this ${field} already exists.`,
+      },
+    });
+  }
+
+  const statusCode = err.statusCode || 500;
+  const code = err.code || "INTERNAL_SERVER_ERROR";
+  const message = err.isOperational ? err.message : (err.message || "Internal Server Error");
 
   res.status(statusCode).json({
     success: false,

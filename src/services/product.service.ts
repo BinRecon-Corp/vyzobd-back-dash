@@ -20,6 +20,9 @@ export interface Product {
   isActive: boolean;
   
   barcode: string | null;
+  gtin: string | null;
+  mpn: string | null;
+  condition: string | null;
   
   category?: { id: string; name: string };
   brand?: { id: string; name: string };

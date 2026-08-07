@@ -79,6 +79,18 @@ export function ProductView() {
                     <p className="text-lg">{product.barcode || 'N/A'}</p>
                   </div>
                   <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">GTIN</h3>
+                    <p className="text-lg">{product.gtin || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">MPN</h3>
+                    <p className="text-lg">{product.mpn || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Condition</h3>
+                    <p className="text-lg capitalize">{product.condition || 'New'}</p>
+                  </div>
+                  <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Stock</h3>
                     <p className="text-lg">
                       {product.trackInventory ? (product.inventory?.quantity || 0) : 'Not Tracked'}
