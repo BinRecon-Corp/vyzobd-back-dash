@@ -4,15 +4,29 @@ export interface Product {
   id: string;
   name: string;
   slug: string;
-  sku: string;
+  sku: string | null;
   description: string | null;
-  price: string;
+  shortDescription: string | null;
+  price: number | null;
   categoryId: string;
   brandId: string | null;
+  
+  metaTitle: string | null;
+  metaDescription: string | null;
+  ogImage: string | null;
+  
+  trackInventory: boolean;
+  status: string;
   isActive: boolean;
+  
+  barcode: string | null;
+  
   category?: { id: string; name: string };
   brand?: { id: string; name: string };
-  inventory?: { quantity: number; lowStock: number };
+  inventory?: { quantity: number; lowStockThreshold: number; quantityAvailable: number };
+  images?: { id: string; url: string; isPrimary: boolean }[];
+  tags?: any[];
+  variants?: any[];
 }
 
 export const getProducts = async (): Promise<Product[]> => {
@@ -25,12 +39,12 @@ export const getProductById = async (id: string): Promise<Product> => {
   return data.data;
 };
 
-export const createProduct = async (productData: Partial<Product>): Promise<Product> => {
+export const createProduct = async (productData: any): Promise<Product> => {
   const { data } = await api.post("/products", productData);
   return data.data;
 };
 
-export const updateProduct = async (id: string, productData: Partial<Product>): Promise<Product> => {
+export const updateProduct = async (id: string, productData: any): Promise<Product> => {
   const { data } = await api.put(`/products/${id}`, productData);
   return data.data;
 };

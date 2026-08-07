@@ -13,6 +13,12 @@ import { swaggerSpec } from "./src/backend/config/swagger";
 // import authRouter from "./src/backend/routes/auth.routes";
 import analyticsRouter from "./src/backend/routes/analytics.routes";
 import productRouter from "./src/backend/routes/product.routes";
+import categoryRouter from "./src/backend/routes/category.routes";
+import brandRouter from "./src/backend/routes/brand.routes";
+import attributeRouter from "./src/backend/routes/attribute.routes";
+import attributeValueRouter from "./src/backend/routes/attribute-value.routes";
+import variantRouter from "./src/backend/routes/variant.routes";
+import inventoryRouter from "./src/backend/routes/inventory.routes";
 
 async function startServer() {
   const app = express();
@@ -39,6 +45,12 @@ async function startServer() {
   // apiRouter.use("/auth", authRouter);
   apiRouter.use("/analytics", analyticsRouter);
   apiRouter.use("/products", productRouter);
+  apiRouter.use("/categories", categoryRouter);
+  apiRouter.use("/brands", brandRouter);
+  apiRouter.use("/attributes", attributeRouter);
+  apiRouter.use("/attribute-values", attributeValueRouter);
+  apiRouter.use("/variants", variantRouter);
+  apiRouter.use("/inventory", inventoryRouter);
   
   app.use("/api/v1", apiRouter);
 

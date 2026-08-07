@@ -12,7 +12,8 @@ import {
   getOrdersMetrics, 
   getProductsMetrics,
   getCategoryMetrics,
-  getGa4Metrics
+  getGa4Metrics,
+  getBrandMetrics
 } from '../services/analytics.service';
 
 export function Analytics() {
@@ -41,13 +42,18 @@ export function Analytics() {
     queryFn: getCategoryMetrics
   });
 
+  const { data: brands, isLoading: brandsLoading, isError: brandsError } = useQuery({
+    queryKey: ['analytics-brands'],
+    queryFn: getBrandMetrics
+  });
+
   const { data: ga4, isLoading: ga4Loading, isError: ga4Error } = useQuery({
     queryKey: ['analytics-ga4'],
     queryFn: getGa4Metrics,
     staleTime: 5 * 60 * 1000 // GA4 data might take longer, cache it for 5 min
   });
 
-  const isLoading = overviewLoading || revenueLoading || ordersLoading || productsLoading || categoriesLoading || ga4Loading;
+  const isLoading = overviewLoading || revenueLoading || ordersLoading || productsLoading || categoriesLoading || ga4Loading || brandsLoading;
   const isError = overviewError || revenueError || ordersError || productsError || categoriesError;
 
   if (isLoading) {
@@ -69,6 +75,7 @@ export function Analytics() {
   const ordersTrend = orders?.trend || [];
   const topProducts = products?.topProducts || [];
   const categorySales = categories?.categoryData || [];
+  const brandSales = brands || [];
 
   return (
     <div className="space-y-8">
@@ -249,6 +256,25 @@ export function Analytics() {
                   <YAxis fontSize={12} tickFormatter={(value) => `$${value}`} />
                   <RechartsTooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Sales']} />
                   <Bar dataKey="sales" fill="#8b5cf6" name="Sales" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Brand Sales</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={brandSales}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                  <XAxis dataKey="name" fontSize={12} tickMargin={10} />
+                  <YAxis fontSize={12} tickFormatter={(value) => `${value}`} />
+                  <RechartsTooltip formatter={(value: number) => [`${value.toFixed(2)}`, 'Sales']} />
+                  <Bar dataKey="sales" fill="#ec4899" name="Sales" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

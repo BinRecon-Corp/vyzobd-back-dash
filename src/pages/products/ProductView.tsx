@@ -2,10 +2,11 @@ import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProductById } from '../../services/product.service';
-import { ArrowLeft, Edit } from 'lucide-react';
+import { ArrowLeft, Edit, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Badge } from '@/src/components/ui/badge';
+import { ProductVariants } from './ProductVariants';
 
 export function ProductView() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,8 @@ export function ProductView() {
   if (!product) {
     return <div className="p-8 text-center text-destructive">Product not found</div>;
   }
+  
+  const primaryImage = product.images?.find(i => i.isPrimary)?.url;
 
   return (
     <div className="space-y-6">
@@ -39,46 +42,102 @@ export function ProductView() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl">{product.name}</CardTitle>
-            <Badge variant={product.isActive ? 'success' : 'secondary'} className="text-sm px-3 py-1">
-              {product.isActive ? 'Active' : 'Inactive'}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">SKU</h3>
-                <p className="text-lg">{product.sku}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-2xl">{product.name}</CardTitle>
+                <Badge variant={product.status === 'Active' ? 'success' : 'secondary'} className="text-sm px-3 py-1">
+                  {product.status || 'Draft'}
+                </Badge>
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Price</h3>
-                <p className="text-lg">${Number(product.price).toFixed(2)}</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">SKU</h3>
+                    <p className="text-lg">{product.sku || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Price</h3>
+                    <p className="text-lg">{product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Category</h3>
+                    <p className="text-lg">{product.category?.name || 'Uncategorized'}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Brand</h3>
+                    <p className="text-lg">{product.brand?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Barcode</h3>
+                    <p className="text-lg">{product.barcode || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Stock</h3>
+                    <p className="text-lg">
+                      {product.trackInventory ? (product.inventory?.quantity || 0) : 'Not Tracked'}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Stock Quantity</h3>
-                <p className="text-lg">{product.inventory?.quantity || 0}</p>
+              
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Short Description</h3>
+                <p className="text-base whitespace-pre-wrap">
+                  {product.shortDescription || 'No short description provided.'}
+                </p>
               </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Category</h3>
-                <p className="text-lg">{product.category?.name || 'Uncategorized'}</p>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
                 <p className="text-base text-muted-foreground whitespace-pre-wrap">
                   {product.description || 'No description provided.'}
                 </p>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>Media</CardTitle></CardHeader>
+            <CardContent>
+              {primaryImage ? (
+                <div className="aspect-square w-full overflow-hidden rounded-md border">
+                  <img src={primaryImage} alt={product.name} className="object-cover w-full h-full" />
+                </div>
+              ) : (
+                <div className="aspect-square w-full rounded-md border bg-muted flex flex-col items-center justify-center text-muted-foreground">
+                  <ImageIcon className="h-10 w-10 mb-2 opacity-20" />
+                  <span>No image</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader><CardTitle>SEO Meta</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Meta Title</h3>
+                <p className="text-sm mt-1">{product.metaTitle || 'N/A'}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Meta Description</h3>
+                <p className="text-sm mt-1 text-muted-foreground">{product.metaDescription || 'N/A'}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <ProductVariants productId={product.id} />
     </div>
   );
 }

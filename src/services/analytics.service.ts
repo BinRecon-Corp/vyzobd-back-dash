@@ -29,3 +29,8 @@ export const getGa4Metrics = async () => {
   const { data } = await api.get("/analytics/ga4");
   return data.data;
 };
+
+export const getBrandMetrics = async () => {
+  const { data } = await api.get("/analytics/brands");
+  return data.data.brandData;
+};

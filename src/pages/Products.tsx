@@ -14,7 +14,7 @@ export function Products() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading } = useQuery<any[]>({
     queryKey: ['products'],
     queryFn: getProducts,
   });
@@ -85,8 +85,8 @@ export function Products() {
                     <TableCell>${Number(product.price).toFixed(2)}</TableCell>
                     <TableCell>{product.inventory?.quantity || 0}</TableCell>
                     <TableCell>
-                      <Badge variant={product.isActive ? 'success' : 'secondary'}>
-                        {product.isActive ? 'Active' : 'Inactive'}
+                      <Badge variant={product.status === 'Active' ? 'success' : 'secondary'}>
+                        {product.status || 'Draft'}
                       </Badge>
                     </TableCell>
                     <TableCell>

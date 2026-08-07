@@ -8,7 +8,10 @@ import {
   BarChart3, 
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FolderTree,
+  Tag,
+  Boxes
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '../ui/button';
@@ -20,7 +23,10 @@ interface SidebarProps {
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+  { icon: FolderTree, label: 'Categories', href: '/categories' },
+  { icon: Tag, label: 'Brands', href: '/brands' },
   { icon: Package, label: 'Products', href: '/products' },
+  { icon: Boxes, label: 'Inventory', href: '/inventory' },
   { icon: ShoppingCart, label: 'Orders', href: '/orders' },
   { icon: Users, label: 'Customers', href: '/customers' },
   { icon: BarChart3, label: 'Analytics', href: '/analytics' },

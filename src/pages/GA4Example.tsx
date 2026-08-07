@@ -1,13 +1,8 @@
 import React from 'react';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/src/components/ui/card';
-import { 
-  trackViewItem, 
-  trackAddToCart, 
-  trackBeginCheckout, 
-  trackPurchase,
-  GA4Item 
-} from '@/src/lib/ga4';
+import { useGA4 } from '@/src/hooks/useGA4';
+import { GA4Item } from '@/src/lib/ga4-ecommerce';
 
 const sampleProduct: GA4Item = {
   item_id: 'SKU_12345',
@@ -26,6 +21,8 @@ const sampleProduct: GA4Item = {
 };
 
 export function GA4Example() {
+  const { trackViewItem, trackAddToCart, trackBeginCheckout, trackPurchase } = useGA4();
+
   const handleViewItem = () => {
     trackViewItem({
       currency: 'USD',

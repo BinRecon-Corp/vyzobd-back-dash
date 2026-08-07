@@ -1,0 +1,131 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
+import { Button } from '@/src/components/ui/button';
+import { Badge } from '@/src/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/src/components/ui/dropdown-menu';
+import { Plus, MoreHorizontal, Edit, Trash2, FolderTree, Folder } from 'lucide-react';
+import { getCategories, deleteCategory } from '../../services/category.service';
+
+export function CategoryList() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Fetch as tree for hierarchical display
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['categories', 'tree'],
+    queryFn: () => getCategories(true),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error?.message || 'Failed to delete category');
+    }
+  });
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this category?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const renderCategoryRows = (cats: any[], level = 0) => {
+    return cats.map((category) => (
+      <React.Fragment key={category.id}>
+        <TableRow>
+          <TableCell className="font-medium">
+            <div className="flex items-center" style={{ paddingLeft: `${level * 24}px` }}>
+              {category.children && category.children.length > 0 ? (
+                <FolderTree className="h-4 w-4 mr-2 text-primary" />
+              ) : (
+                <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
+              )}
+              {category.name}
+            </div>
+          </TableCell>
+          <TableCell className="text-muted-foreground">{category.slug}</TableCell>
+          <TableCell>{category.sortOrder}</TableCell>
+          <TableCell>
+            <Badge variant={category.isActive ? 'success' : 'secondary'}>
+              {category.isActive ? 'Active' : 'Inactive'}
+            </Badge>
+          </TableCell>
+          <TableCell>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate(`/categories/${category.id}/edit`)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleDelete(category.id)}
+                  className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+        {category.children && category.children.length > 0 && renderCategoryRows(category.children, level + 1)}
+      </React.Fragment>
+    ));
+  };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading categories...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
+        <Button onClick={() => navigate('/categories/new')}>
+          <Plus className="mr-2 h-4 w-4" /> Add Category
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader className="py-4">
+          <div className="text-sm text-muted-foreground">Manage your product categories. Categories support infinite nesting.</div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category Name</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Sort Order</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {categories.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    No categories found. Create one to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                renderCategoryRows(categories)
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
