@@ -12,6 +12,7 @@ import { swaggerSpec } from "./src/backend/config/swagger";
 // Import routers here once created
 // import authRouter from "./src/backend/routes/auth.routes";
 import analyticsRouter from "./src/backend/routes/analytics.routes";
+import productRouter from "./src/backend/routes/product.routes";
 
 async function startServer() {
   const app = express();
@@ -37,6 +38,7 @@ async function startServer() {
   // Mount routes
   // apiRouter.use("/auth", authRouter);
   apiRouter.use("/analytics", analyticsRouter);
+  apiRouter.use("/products", productRouter);
   
   app.use("/api/v1", apiRouter);
 

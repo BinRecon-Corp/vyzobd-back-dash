@@ -1,25 +1,46 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Badge } from '@/src/components/ui/badge';
-import { Plus, Search, MoreHorizontal } from 'lucide-react';
-
-const products = [
-  { id: '1', name: 'MacBook Pro 14"', sku: 'APP-MBP-14', price: 1999.00, stock: 45, status: 'Active', category: 'Electronics' },
-  { id: '2', name: 'iPhone 15 Pro', sku: 'APP-IP15-P', price: 999.00, stock: 12, status: 'Low Stock', category: 'Electronics' },
-  { id: '3', name: 'AirPods Max', sku: 'APP-APM', price: 549.00, stock: 0, status: 'Out of Stock', category: 'Audio' },
-  { id: '4', name: 'Magic Keyboard', sku: 'APP-MK', price: 149.00, stock: 120, status: 'Active', category: 'Accessories' },
-  { id: '5', name: 'iPad Air', sku: 'APP-IPA', price: 599.00, stock: 85, status: 'Active', category: 'Electronics' },
-];
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/src/components/ui/dropdown-menu';
+import { Plus, Search, MoreHorizontal, Edit, Eye, Trash2 } from 'lucide-react';
+import { getProducts, deleteProduct } from '../services/product.service';
 
 export function Products() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: getProducts,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading products...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Products</h2>
-        <Button>
+        <Button onClick={() => navigate('/products/new')}>
           <Plus className="mr-2 h-4 w-4" /> Add Product
         </Button>
       </div>
@@ -43,7 +64,6 @@ export function Products() {
               <TableRow>
                 <TableHead>Product</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Status</TableHead>
@@ -51,28 +71,53 @@ export function Products() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{product.sku}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>${product.price.toFixed(2)}</TableCell>
-                  <TableCell>{product.stock}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      product.status === 'Active' ? 'success' : 
-                      product.status === 'Low Stock' ? 'warning' : 'destructive'
-                    }>
-                      {product.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" aria-label={`Actions for ${product.name}`}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
+              {products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No products found. Create one to get started.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{product.sku}</TableCell>
+                    <TableCell>${Number(product.price).toFixed(2)}</TableCell>
+                    <TableCell>{product.inventory?.quantity || 0}</TableCell>
+                    <TableCell>
+                      <Badge variant={product.isActive ? 'success' : 'secondary'}>
+                        {product.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label={`Actions for ${product.name}`}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/products/${product.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate(`/products/${product.id}/edit`)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(product.id)}
+                            className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Products } from './pages/Products';
+import { ProductCreate } from './pages/products/ProductCreate';
+import { ProductEdit } from './pages/products/ProductEdit';
+import { ProductView } from './pages/products/ProductView';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 
 const queryClient = new QueryClient({
@@ -23,6 +26,9 @@ export default function App() {
           <Route path="/" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="products" element={<Products />} />
+            <Route path="products/new" element={<ProductCreate />} />
+            <Route path="products/:id" element={<ProductView />} />
+            <Route path="products/:id/edit" element={<ProductEdit />} />
             <Route path="orders" element={<PlaceholderPage title="Orders" />} />
             <Route path="customers" element={<PlaceholderPage title="Customers" />} />
             <Route path="analytics" element={<PlaceholderPage title="Analytics" />} />
