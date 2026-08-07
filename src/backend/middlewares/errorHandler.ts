@@ -32,7 +32,7 @@ export const errorHandler = (
 
   const statusCode = (err as AppError).statusCode || 500;
   const code = (err as AppError).code || "INTERNAL_SERVER_ERROR";
-  const message = (err as AppError).isOperational ? err.message : "Something went wrong";
+  const message = (err as AppError).isOperational ? err.message : err.message;
 
   res.status(statusCode).json({
     success: false,

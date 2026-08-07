@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -88,7 +88,7 @@ model Product {
   name        String
   slug        String         @unique
   description String?
-  price       Decimal        @db.Decimal(10, 2)
+  price       Decimal        
   sku         String         @unique
   categoryId  String
   category    Category       @relation(fields: [categoryId], references: [id])
@@ -129,8 +129,8 @@ model Order {
   orderNumber String      @unique
   customerId  String
   customer    Customer    @relation(fields: [customerId], references: [id])
-  status      OrderStatus @default(PENDING)
-  totalAmount Decimal     @db.Decimal(10, 2)
+  status      String @default("PENDING")
+  totalAmount Decimal     
   couponId    String?
   coupon      Coupon?     @relation(fields: [couponId], references: [id])
   items       OrderItem[]
@@ -146,7 +146,7 @@ model OrderItem {
   productId String
   product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Decimal  @db.Decimal(10, 2)
+  price     Decimal  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -154,8 +154,8 @@ model OrderItem {
 model Coupon {
   id            String       @id @default(uuid())
   code          String       @unique
-  discountType  DiscountType
-  discountValue Decimal      @db.Decimal(10, 2)
+  discountType  String
+  discountValue Decimal      
   validFrom     DateTime
   validUntil    DateTime
   isActive      Boolean      @default(true)
@@ -186,21 +186,9 @@ model ActivityLog {
   action     String
   entityType String
   entityId   String?
-  details    Json?
+  details    String?
   ipAddress  String?
   createdAt  DateTime @default(now())
 }
 
-enum OrderStatus {
-  PENDING
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-  REFUNDED
-}
 
-enum DiscountType {
-  PERCENTAGE
-  FIXED_AMOUNT
-}

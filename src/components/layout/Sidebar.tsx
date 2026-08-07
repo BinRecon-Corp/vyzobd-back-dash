@@ -24,6 +24,7 @@ const navItems = [
   { icon: ShoppingCart, label: 'Orders', href: '/orders' },
   { icon: Users, label: 'Customers', href: '/customers' },
   { icon: BarChart3, label: 'Analytics', href: '/analytics' },
+  { icon: BarChart3, label: 'GA4 Tracking', href: '/analytics/ga4-example' },
   { icon: Settings, label: 'Settings', href: '/settings' },
 ];
 

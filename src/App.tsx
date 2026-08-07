@@ -7,7 +7,9 @@ import { Products } from './pages/Products';
 import { ProductCreate } from './pages/products/ProductCreate';
 import { ProductEdit } from './pages/products/ProductEdit';
 import { ProductView } from './pages/products/ProductView';
+import { Analytics } from './pages/Analytics';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { GA4Example } from './pages/GA4Example';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,7 +33,8 @@ export default function App() {
             <Route path="products/:id/edit" element={<ProductEdit />} />
             <Route path="orders" element={<PlaceholderPage title="Orders" />} />
             <Route path="customers" element={<PlaceholderPage title="Customers" />} />
-            <Route path="analytics" element={<PlaceholderPage title="Analytics" />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="analytics/ga4-example" element={<GA4Example />} />
             <Route path="settings" element={<PlaceholderPage title="Settings" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

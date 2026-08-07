@@ -12,6 +12,8 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
   GA_MEASUREMENT_ID: z.string().optional(),
   GA_API_SECRET: z.string().optional(),
+  GA_PROPERTY_ID: z.string().optional(),
+  GOOGLE_CREDENTIALS_JSON: z.string().optional(),
 });
 
 const _env = envSchema.safeParse(process.env);
