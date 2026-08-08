@@ -9,17 +9,20 @@ import {
   getBrandMetrics,
   getGa4Metrics
 } from "../controllers/analytics.controller";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
 const router = Router();
 
-router.post("/track-purchase", trackServerPurchase);
+router.use(requireAuth);
 
-router.get("/overview", getOverviewMetrics);
-router.get("/revenue", getRevenueMetrics);
-router.get("/orders", getOrdersMetrics);
-router.get("/products", getProductsMetrics);
-router.get("/categories", getCategoryMetrics);
-router.get("/brands", getBrandMetrics);
-router.get("/ga4", getGa4Metrics);
+router.post("/track-purchase", requirePermission("Analytics", "write"), trackServerPurchase);
+
+router.get("/overview", requirePermission("Analytics", "read"), getOverviewMetrics);
+router.get("/revenue", requirePermission("Analytics", "read"), getRevenueMetrics);
+router.get("/orders", requirePermission("Analytics", "read"), getOrdersMetrics);
+router.get("/products", requirePermission("Analytics", "read"), getProductsMetrics);
+router.get("/categories", requirePermission("Analytics", "read"), getCategoryMetrics);
+router.get("/brands", requirePermission("Analytics", "read"), getBrandMetrics);
+router.get("/ga4", requirePermission("Analytics", "read"), getGa4Metrics);
 
 export default router;

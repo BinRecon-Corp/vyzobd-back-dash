@@ -7,18 +7,21 @@ import {
   updateCategory,
   deleteCategory,
 } from "../controllers/category.controller";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
 const router = express.Router();
 
-router.route("/")
-  .get(getAllCategories)
-  .post(createCategory);
+router.use(requireAuth);
 
-router.get("/:id/breadcrumb", getCategoryBreadcrumb);
+router.route("/")
+  .get(requirePermission("Categories", "read"), getAllCategories)
+  .post(requirePermission("Categories", "write"), createCategory);
+
+router.get("/:id/breadcrumb", requirePermission("Categories", "read"), getCategoryBreadcrumb);
 
 router.route("/:id")
-  .get(getCategoryById)
-  .put(updateCategory)
-  .delete(deleteCategory);
+  .get(requirePermission("Categories", "read"), getCategoryById)
+  .put(requirePermission("Categories", "write"), updateCategory)
+  .delete(requirePermission("Categories", "delete"), deleteCategory);
 
 export default router;

@@ -51,21 +51,55 @@ export const errorHandler = (
     });
   }
 
-  if (err.code === "P2002") {
-    const target = err.meta?.target as string[] | string;
-    const field = Array.isArray(target) ? target.join(", ") : (target || "field");
-    return res.status(400).json({
-      success: false,
-      error: {
-        code: "UNIQUE_CONSTRAINT_VIOLATION",
-        message: `A record with this ${field} already exists.`,
-      },
-    });
-  }
+  const isProd = process.env.NODE_ENV === "production";
 
-  const statusCode = err.statusCode || 500;
-  const code = err.code || "INTERNAL_SERVER_ERROR";
-  const message = err.isOperational ? err.message : (err.message || "Internal Server Error");
+  // Part 11 - Error Handling & Obfuscation for Database (Prisma/SQL), JWT, Paths
+  let statusCode = err.statusCode || 500;
+  let code = err.code || "INTERNAL_SERVER_ERROR";
+  let message = err.message || "Internal Server Error";
+
+  const isPrismaError = 
+    err.name?.includes("Prisma") || 
+    err.message?.includes("prisma") || 
+    err.code?.startsWith("P20") || 
+    err.message?.toLowerCase().includes("select ") ||
+    err.message?.toLowerCase().includes("insert into") ||
+    err.message?.toLowerCase().includes("sqlite");
+
+  const isJwtError = 
+    err.name?.includes("JsonWebTokenError") || 
+    err.name?.includes("NotBeforeError") || 
+    err.name?.includes("TokenExpiredError") || 
+    err.message?.toLowerCase().includes("jwt");
+
+  if (isProd) {
+    if (isPrismaError) {
+      statusCode = 400;
+      code = "DATABASE_ERROR";
+      message = "A database operation error occurred. Please verify your data constraints.";
+    } else if (isJwtError) {
+      statusCode = 401;
+      code = "INVALID_TOKEN";
+      message = "Invalid or expired authentication token.";
+    } else if (!err.isOperational) {
+      // General non-operational errors
+      statusCode = 500;
+      code = "INTERNAL_SERVER_ERROR";
+      message = "An unexpected server error occurred.";
+    }
+
+    // Clean up any leaked server paths from the message just in case
+    if (typeof message === "string") {
+      message = message.replace(/\/[\w\-\.\/]+/g, "[path]");
+    }
+  } else {
+    // In development, we can still format them clearly but preserve debugging value
+    if (isPrismaError) {
+      code = "DATABASE_DEBUG_ERROR";
+    } else if (isJwtError) {
+      code = "JWT_DEBUG_ERROR";
+    }
+  }
 
   res.status(statusCode).json({
     success: false,

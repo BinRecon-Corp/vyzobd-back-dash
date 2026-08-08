@@ -17,6 +17,7 @@ import { Analytics } from './pages/Analytics';
 import { Inventory } from './pages/Inventory';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { GA4Example } from './pages/GA4Example';
+import { AuditLogs } from './pages/AuditLogs';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="analytics/ga4-example" element={<GA4Example />} />
             <Route path="settings" element={<PlaceholderPage title="Settings" />} />
+            <Route path="settings/audit-logs" element={<AuditLogs />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

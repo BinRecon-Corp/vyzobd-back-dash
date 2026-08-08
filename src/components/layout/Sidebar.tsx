@@ -11,7 +11,8 @@ import {
   ChevronRight,
   FolderTree,
   Tag,
-  Boxes
+  Boxes,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '../ui/button';
@@ -31,6 +32,7 @@ const navItems = [
   { icon: Users, label: 'Customers', href: '/customers' },
   { icon: BarChart3, label: 'Analytics', href: '/analytics' },
   { icon: BarChart3, label: 'GA4 Tracking', href: '/analytics/ga4-example' },
+  { icon: ShieldCheck, label: 'Audit Logs', href: '/settings/audit-logs' },
   { icon: Settings, label: 'Settings', href: '/settings' },
 ];
 

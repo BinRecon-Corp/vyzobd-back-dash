@@ -12,18 +12,40 @@ datasource db {
 // ------------------------------------------------------
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String
-  firstName    String
-  lastName     String?
-  roleId       String
-  role         Role          @relation(fields: [roleId], references: [id])
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?
-  activityLogs ActivityLog[]
+  id                   String         @id @default(uuid())
+  email                String         @unique
+  passwordHash         String
+  firstName            String
+  lastName             String?
+  roleId               String
+  role                 Role           @relation(fields: [roleId], references: [id])
+  isActive             Boolean        @default(true)
+  failedLoginAttempts  Int            @default(0)
+  lockedUntil          DateTime?
+  passwordResetToken   String?        @unique
+  passwordResetExpires DateTime?
+  refreshTokens        RefreshToken[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  deletedAt            DateTime?
+  activityLogs         ActivityLog[]
+}
+
+model RefreshToken {
+  id              String    @id @default(uuid())
+  token           String    @unique
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  replacedByToken String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([token])
 }
 
 model Role {
@@ -339,4 +361,9 @@ model ActivityLog {
   details    String?
   ipAddress  String?
   createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
 }
