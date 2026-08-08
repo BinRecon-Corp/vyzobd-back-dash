@@ -24,6 +24,7 @@ import storefrontProductRouter from "./src/backend/routes/storefront/product.rou
 import storefrontCategoryRouter from "./src/backend/routes/storefront/category.routes";
 import storefrontBrandRouter from "./src/backend/routes/storefront/brand.routes";
 import storefrontSearchRouter from "./src/backend/routes/storefront/search.routes";
+import storefrontMerchantRouter from "./src/backend/routes/storefront/merchant.routes";
 import { storefrontRequestLogger } from "./src/backend/middlewares/storefront/logging.middleware";
 
 async function startServer() {
@@ -67,6 +68,7 @@ async function startServer() {
   storefrontRouter.use("/categories", storefrontCategoryRouter);
   storefrontRouter.use("/brands", storefrontBrandRouter);
   storefrontRouter.use("/search", storefrontSearchRouter);
+  storefrontRouter.use("/merchant", storefrontMerchantRouter);
   
   app.use("/api/storefront/v1", storefrontRouter);
 
