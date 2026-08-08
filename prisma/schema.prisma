@@ -69,6 +69,8 @@ model Permission {
   roles       Role[]   @relation("RolePermissions")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([module, action])
 }
 
 model Customer {
@@ -96,6 +98,8 @@ model CustomerNote {
   note       String
   author     String?
   createdAt  DateTime @default(now())
+
+  @@index([customerId])
 }
 
 // ------------------------------------------------------
@@ -334,6 +338,10 @@ model Order {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   deletedAt       DateTime?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -348,6 +356,8 @@ model OrderItem {
   price            Decimal
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+
+  @@index([orderId])
 }
 
 model OrderTimeline {
@@ -390,6 +400,9 @@ model Coupon {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
+
+  @@index([validFrom])
+  @@index([validUntil])
 }
 
 model Promotion {
@@ -407,6 +420,9 @@ model Promotion {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
+
+  @@index([startDate])
+  @@index([endDate])
 }
 
 model MarketingCampaign {
@@ -526,6 +542,7 @@ model LandingPage {
   seoMetadata     SeoMetadata?  @relation(fields: [seoMetadataId], references: [id])
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
 }
 
 // ------------------------------------------------------
@@ -620,6 +637,7 @@ model MediaAsset {
   blogPosts   BlogPost[] @relation("FeaturedImage")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
 }
 
 // ------------------------------------------------------
@@ -645,4 +663,7 @@ model FAQ {
   isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  @@index([categoryId])
 }

@@ -44,6 +44,10 @@ import storefrontBrandRouter from "./src/backend/routes/storefront/brand.routes"
 import storefrontSearchRouter from "./src/backend/routes/storefront/search.routes";
 import storefrontMerchantRouter from "./src/backend/routes/storefront/merchant.routes";
 import storefrontSeoRouter from "./src/backend/routes/storefront/seo.routes";
+import storefrontPageRouter from "./src/backend/routes/storefront/page.routes";
+import storefrontBlogRouter from "./src/backend/routes/storefront/blog.routes";
+import storefrontFaqRouter from "./src/backend/routes/storefront/faq.routes";
+import storefrontLandingPageRouter from "./src/backend/routes/storefront/landing-page.routes";
 import { storefrontRequestLogger } from "./src/backend/middlewares/storefront/logging.middleware";
 import { globalLimiter } from "./src/backend/middlewares/rateLimiter";
 import { sanitizeMiddleware } from "./src/backend/middlewares/validation";
@@ -172,6 +176,10 @@ async function startServer() {
   storefrontRouter.use("/search", storefrontSearchRouter);
   storefrontRouter.use("/merchant", storefrontMerchantRouter);
   storefrontRouter.use("/seo", storefrontSeoRouter);
+  storefrontRouter.use("/pages", storefrontPageRouter);
+  storefrontRouter.use("/blog", storefrontBlogRouter);
+  storefrontRouter.use("/faqs", storefrontFaqRouter);
+  storefrontRouter.use("/landing-pages", storefrontLandingPageRouter);
   
   app.use("/api/storefront/v1", storefrontRouter);
 

@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await prisma.mediaAsset.findMany();
+    const data = await prisma.mediaAsset.findMany({ where: { deletedAt: null } });
     res.json(data);
   } catch (error) {
     next(error);
@@ -16,7 +16,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const item = await prisma.mediaAsset.findUnique({ where: { id } });
+    const item = await prisma.mediaAsset.findFirst({ where: { id, deletedAt: null } });
     if (!item) throw new AppError('mediaAsset not found', 404, "NOT_FOUND");
     res.json(item);
   } catch (error) {
@@ -46,7 +46,10 @@ export const update = async (req: Request, res: Response, next: NextFunction) =>
 export const remove = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    await prisma.mediaAsset.delete({ where: { id } });
+    await prisma.mediaAsset.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     res.status(204).send();
   } catch (error) {
     next(error);
