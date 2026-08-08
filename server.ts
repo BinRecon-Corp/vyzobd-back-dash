@@ -26,6 +26,11 @@ import auditRouter from "./src/backend/routes/audit.routes";
 import sessionRouter from "./src/backend/routes/session.routes";
 import orderRouter from "./src/backend/routes/order.routes";
 import customerRouter from "./src/backend/routes/customer.routes";
+import couponRouter from "./src/backend/routes/coupon.routes";
+import promotionRouter from "./src/backend/routes/promotion.routes";
+import marketingRouter from "./src/backend/routes/marketing.routes";
+import bannerRouter from "./src/backend/routes/banner.routes";
+import popupRouter from "./src/backend/routes/popup.routes";
 
 import storefrontProductRouter from "./src/backend/routes/storefront/product.routes";
 import storefrontCategoryRouter from "./src/backend/routes/storefront/category.routes";
@@ -138,6 +143,11 @@ async function startServer() {
   apiRouter.use("/sessions", sessionRouter);
   apiRouter.use("/orders", orderRouter);
   apiRouter.use("/customers", customerRouter);
+  apiRouter.use("/coupons", couponRouter);
+  apiRouter.use("/promotions", promotionRouter);
+  apiRouter.use("/marketing", marketingRouter);
+  apiRouter.use("/banners", bannerRouter);
+  apiRouter.use("/popups", popupRouter);
   
   app.use("/api/v1", apiRouter);
 

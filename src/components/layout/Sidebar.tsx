@@ -14,7 +14,12 @@ import {
   Boxes,
   ShieldCheck,
   UserCog,
-  Key
+  Key,
+  Ticket,
+  Zap,
+  Megaphone,
+  Image,
+  Layers
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '../ui/button';
@@ -36,6 +41,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { icon: Boxes, label: 'Inventory', href: '/inventory', module: 'Inventory' },
     { icon: ShoppingCart, label: 'Orders', href: '/orders', module: 'Orders' },
     { icon: Users, label: 'Customers', href: '/customers', module: 'Customers' },
+    { icon: Ticket, label: 'Coupons', href: '/admin/coupons', module: 'Coupons' },
+    { icon: Zap, label: 'Promotions', href: '/admin/promotions', module: 'Promotions' },
+    { icon: Megaphone, label: 'Marketing', href: '/admin/marketing', module: 'Marketing' },
+    { icon: Image, label: 'Banners', href: '/admin/banners', module: 'Banners' },
+    { icon: Layers, label: 'Popups', href: '/admin/popups', module: 'Banners' },
     { icon: BarChart3, label: 'Analytics', href: '/analytics', module: 'Analytics' },
     { icon: ShieldCheck, label: 'Audit Logs', href: '/admin/audit-logs', module: 'Security' },
     { icon: UserCog, label: 'Users', href: '/admin/users', module: 'Users' },

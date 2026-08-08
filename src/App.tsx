@@ -35,6 +35,11 @@ import { OrdersList } from './pages/admin/orders/OrdersList';
 import { OrderDetail } from './pages/admin/orders/OrderDetail';
 import { CustomersList } from './pages/admin/customers/CustomersList';
 import { CustomerDetail } from './pages/admin/customers/CustomerDetail';
+import { CouponsList } from './pages/admin/coupons/CouponsList';
+import { PromotionsList } from './pages/admin/promotions/PromotionsList';
+import { MarketingList } from './pages/admin/marketing/MarketingList';
+import { BannersList } from './pages/admin/banners/BannersList';
+import { PopupsList } from './pages/admin/popups/PopupsList';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +86,12 @@ export default function App() {
               <Route path="customers/:id" element={<RoutePermissionGuard module="Customers" action="read"><CustomerDetail /></RoutePermissionGuard>} />
               <Route path="admin/customers" element={<RoutePermissionGuard module="Customers" action="read"><CustomersList /></RoutePermissionGuard>} />
               <Route path="admin/customers/:id" element={<RoutePermissionGuard module="Customers" action="read"><CustomerDetail /></RoutePermissionGuard>} />
+
+              <Route path="admin/coupons" element={<RoutePermissionGuard module="Coupons" action="read"><CouponsList /></RoutePermissionGuard>} />
+              <Route path="admin/promotions" element={<RoutePermissionGuard module="Promotions" action="read"><PromotionsList /></RoutePermissionGuard>} />
+              <Route path="admin/marketing" element={<RoutePermissionGuard module="Marketing" action="read"><MarketingList /></RoutePermissionGuard>} />
+              <Route path="admin/banners" element={<RoutePermissionGuard module="Banners" action="read"><BannersList /></RoutePermissionGuard>} />
+              <Route path="admin/popups" element={<RoutePermissionGuard module="Banners" action="read"><PopupsList /></RoutePermissionGuard>} />
               
               <Route path="analytics" element={<RoutePermissionGuard module="Analytics" action="read"><Analytics /></RoutePermissionGuard>} />
               <Route path="analytics/ga4-example" element={<GA4Example />} />

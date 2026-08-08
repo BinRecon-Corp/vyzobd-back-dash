@@ -13,7 +13,7 @@ async function main() {
     throw new Error('ADMIN_PASSWORD environment variable is required to seed the admin user.');
   }
 
-  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Settings', 'Security', 'Orders', 'Customers'];
+  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Settings', 'Security', 'Orders', 'Customers', 'Coupons', 'Promotions', 'Marketing', 'Banners'];
   const actions = ['read', 'write', 'delete'];
 
   console.log('Seeding Permissions...');
@@ -63,10 +63,10 @@ async function main() {
     },
     {
       name: 'MarketingManager',
-      description: 'Manages promotional analytics, categories, and catalog view',
+      description: 'Manages promotional campaigns, coupons, marketing, banners, and analytics',
       permissions: getPermissionsByFilter(
         (p) =>
-          ['Analytics'].includes(p.module) ||
+          ['Analytics', 'Coupons', 'Promotions', 'Marketing', 'Banners'].includes(p.module) ||
           (['Products', 'Categories', 'Brands'].includes(p.module) && p.action === 'read')
       ),
     },
