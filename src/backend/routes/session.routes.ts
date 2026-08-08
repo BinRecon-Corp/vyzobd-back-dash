@@ -3,13 +3,13 @@ import {
   getActiveSessions,
   revokeSession
 } from "../controllers/session.controller";
-import { requireAuth, requireSuperAdmin } from "../middlewares/auth";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
 const router = express.Router();
 
 router.use(requireAuth);
 
-router.get("/", requireSuperAdmin, getActiveSessions);
-router.delete("/:id", requireSuperAdmin, revokeSession);
+router.get("/", requirePermission("Sessions", "read"), getActiveSessions);
+router.delete("/:id", requirePermission("Sessions", "delete"), revokeSession);
 
 export default router;

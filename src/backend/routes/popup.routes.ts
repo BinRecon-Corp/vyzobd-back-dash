@@ -17,12 +17,12 @@ router.get("/public", getAllPopups);
 router.use(requireAuth);
 
 router.route("/")
-  .get(requirePermission("Banners", "read"), getAllPopups)
-  .post(requirePermission("Banners", "write"), createPopup);
+  .get(requirePermission("Popups", "read"), getAllPopups)
+  .post(requirePermission("Popups", "write"), createPopup);
 
 router.route("/:id")
-  .get(requirePermission("Banners", "read"), getPopupById)
-  .put(requirePermission("Banners", "write"), updatePopup)
-  .delete(requirePermission("Banners", "delete"), deletePopup);
+  .get(requirePermission("Popups", "read"), getPopupById)
+  .put(requirePermission("Popups", "write"), updatePopup)
+  .delete(requirePermission("Popups", "delete"), deletePopup);
 
 export default router;

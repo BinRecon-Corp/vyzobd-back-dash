@@ -50,7 +50,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { icon: Zap, label: 'Promotions', href: '/admin/promotions', module: 'Promotions' },
     { icon: Megaphone, label: 'Marketing', href: '/admin/marketing', module: 'Marketing' },
     { icon: Image, label: 'Banners', href: '/admin/banners', module: 'Banners' },
-    { icon: Layers, label: 'Popups', href: '/admin/popups', module: 'Banners' },
+    { icon: Layers, label: 'Popups', href: '/admin/popups', module: 'Popups' },
     { icon: FileText, label: 'CMS Pages', href: '/admin/cms', module: 'CMS' },
     { icon: PenTool, label: 'Blog', href: '/admin/blog', module: 'Blog' },
     { icon: Search, label: 'SEO Settings', href: '/admin/seo', module: 'SEO' },
@@ -58,10 +58,10 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { icon: Image, label: 'Media Library', href: '/admin/media', module: 'Media' },
     { icon: HelpCircle, label: 'FAQs', href: '/admin/faqs', module: 'FAQ' },
     { icon: BarChart3, label: 'Analytics', href: '/analytics', module: 'Analytics' },
-    { icon: ShieldCheck, label: 'Audit Logs', href: '/admin/audit-logs', module: 'Security' },
+    { icon: ShieldCheck, label: 'Audit Logs', href: '/admin/audit-logs', module: 'AuditLogs' },
     { icon: UserCog, label: 'Users', href: '/admin/users', module: 'Users' },
     { icon: Key, label: 'Roles', href: '/admin/roles', module: 'Roles' },
-    { icon: ShieldCheck, label: 'Sessions', href: '/admin/sessions', module: 'Security' },
+    { icon: ShieldCheck, label: 'Sessions', href: '/admin/sessions', module: 'Sessions' },
     { icon: Settings, label: 'Settings', href: '/settings', module: 'Settings' },
   ];
 

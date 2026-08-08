@@ -207,3 +207,70 @@ export const sanitizeMiddleware = async (req: Request, res: Response, next: Next
     next(err);
   }
 };
+
+// CMS Validation schemas
+export const createPageSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Invalid slug format"),
+  content: z.string().min(1, "Content is required"),
+  status: z.enum(["DRAFT", "PUBLISHED", "SCHEDULED"]).optional().default("DRAFT"),
+  pageType: z.enum(["HOME", "ABOUT", "CONTACT", "POLICY", "CUSTOM"]).optional().default("CUSTOM"),
+  publishedAt: z.string().datetime().optional().nullable(),
+  scheduledFor: z.string().datetime().optional().nullable(),
+});
+
+export const updatePageSchema = createPageSchema.partial();
+
+export const createLandingPageSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Invalid slug format"),
+  content: z.string().min(1, "Content is required"),
+  status: z.enum(["DRAFT", "PUBLISHED", "SCHEDULED"]).optional().default("DRAFT"),
+});
+
+export const updateLandingPageSchema = createLandingPageSchema.partial();
+
+export const createBlogPostSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Invalid slug format"),
+  excerpt: z.string().optional().nullable(),
+  content: z.string().min(1, "Content is required"),
+  status: z.enum(["DRAFT", "PUBLISHED", "SCHEDULED"]).optional().default("DRAFT"),
+  publishedAt: z.string().datetime().optional().nullable(),
+  scheduledFor: z.string().datetime().optional().nullable(),
+  authorId: z.string().uuid("Invalid author ID").optional().nullable(),
+  featuredImageId: z.string().uuid("Invalid image ID").optional().nullable(),
+  categoryId: z.string().uuid("Invalid category ID").optional().nullable(),
+});
+
+export const updateBlogPostSchema = createBlogPostSchema.partial();
+
+export const createFAQSchema = z.object({
+  question: z.string().min(1, "Question is required"),
+  answer: z.string().min(1, "Answer is required"),
+  categoryId: z.string().uuid("Invalid category ID").optional().nullable(),
+  orderIndex: z.number().int().optional().default(0),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const updateFAQSchema = createFAQSchema.partial();
+
+export const createMediaAssetSchema = z.object({
+  filename: z.string().min(1),
+  originalName: z.string().min(1),
+  mimeType: z.string().min(1),
+  size: z.number().int().min(0),
+  url: z.string().url("Invalid URL"),
+  folder: z.string().optional().default("root"),
+  altText: z.string().optional().nullable(),
+});
+
+export const updateMediaAssetSchema = createMediaAssetSchema.partial();
+
+export const updateGlobalSeoSchema = z.object({
+  siteTitle: z.string().min(1, "Site title is required"),
+  siteDescription: z.string().min(1, "Site description is required"),
+  metaKeywords: z.string().optional().nullable(),
+  defaultOgImage: z.string().url("Invalid URL").optional().nullable(),
+  robotsConfig: z.string().optional().nullable(),
+});

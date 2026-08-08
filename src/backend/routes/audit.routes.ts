@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, AuthRequest } from "../middlewares/auth";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 import {
   getAllAuditLogs,
   getAuditLogById,
@@ -10,23 +10,11 @@ import { AppError } from "../utils/AppError";
 
 const router = Router();
 
-const requireAuditAccess = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    return next(new AppError("User not authenticated", 401, "UNAUTHORIZED"));
-  }
-  const allowedRoles = ["SuperAdmin", "Admin", "Viewer"];
-  if (!allowedRoles.includes(req.user.roleName)) {
-    return next(new AppError("Access denied: insufficient permissions to view audit logs", 403, "FORBIDDEN"));
-  }
-  next();
-};
-
 router.use(requireAuth);
-router.use(requireAuditAccess);
 
 // Place /export before /:id to prevent routing clash
-router.get("/export", exportAuditLogs);
-router.get("/", getAllAuditLogs);
-router.get("/:id", getAuditLogById);
+router.get("/export", requirePermission("AuditLogs", "read"), exportAuditLogs);
+router.get("/", requirePermission("AuditLogs", "read"), getAllAuditLogs);
+router.get("/:id", requirePermission("AuditLogs", "read"), getAuditLogById);
 
 export default router;

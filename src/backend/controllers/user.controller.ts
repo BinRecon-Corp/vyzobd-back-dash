@@ -119,7 +119,7 @@ export const createUser = async (req: AuthRequest, res: Response, next: NextFunc
       return next(new AppError("Role not found", 404, "ROLE_NOT_FOUND"));
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
@@ -439,7 +439,7 @@ export const adminResetPassword = async (req: AuthRequest, res: Response, next: 
       return next(new AppError("User not found", 404, "NOT_FOUND"));
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.$transaction([
       prisma.user.update({

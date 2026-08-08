@@ -67,7 +67,7 @@ export function Roles() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Roles</h1>
-        {user?.role?.name === "SuperAdmin" && (
+        {hasPermission("Roles", "write") && (
           <Button onClick={() => handleOpenModal()}><ShieldPlus className="mr-2 h-4 w-4" /> Create Role</Button>
         )}
       </div>
@@ -93,24 +93,24 @@ export function Roles() {
                   <TableCell>{role._count?.users || 0}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {user?.role?.name === "SuperAdmin" && (
+                      {hasPermission("Roles", "write") && (
                         <Button variant="ghost" size="icon" title="Clone" onClick={() => handleOpenModal(role, true)}>
                           <Copy className="h-4 w-4" />
                         </Button>
                       )}
-                      {user?.role?.name === "SuperAdmin" && (
+                      {hasPermission("Roles", "write") && (
                         <Link to={`/admin/roles/${role.id}`}>
                           <Button variant="ghost" size="icon" title="Permissions">
                             <ShieldAlert className="h-4 w-4 text-primary" />
                           </Button>
                         </Link>
                       )}
-                      {user?.role?.name === "SuperAdmin" && role.name !== "SuperAdmin" && (
+                      {hasPermission("Roles", "write") && role.name !== "SuperAdmin" && (
                         <Button variant="ghost" size="icon" title="Edit" onClick={() => handleOpenModal(role)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
-                      {user?.role?.name === "SuperAdmin" && role.name !== "SuperAdmin" && (
+                      {hasPermission("Roles", "delete") && role.name !== "SuperAdmin" && (
                         <Button 
                           variant="ghost" 
                           size="icon" 

@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
+import * as bcrypt from 'bcryptjs';
+import * as dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -13,7 +13,7 @@ async function main() {
     throw new Error('ADMIN_PASSWORD environment variable is required to seed the admin user.');
   }
 
-  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Settings', 'Security', 'Orders', 'Customers', 'Coupons', 'Promotions', 'Marketing', 'Banners'];
+  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Permissions', 'Settings', 'Security', 'Orders', 'Customers', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups', 'Sessions', 'AuditLogs'];
   const actions = ['read', 'write', 'delete'];
 
   console.log('Seeding Permissions...');
@@ -66,7 +66,7 @@ async function main() {
       description: 'Manages promotional campaigns, coupons, marketing, banners, and analytics',
       permissions: getPermissionsByFilter(
         (p) =>
-          ['Analytics', 'Coupons', 'Promotions', 'Marketing', 'Banners'].includes(p.module) ||
+          ['Analytics', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups'].includes(p.module) ||
           (['Products', 'Categories', 'Brands'].includes(p.module) && p.action === 'read')
       ),
     },
@@ -109,7 +109,7 @@ async function main() {
 
   console.log('Seeding SuperAdmin User...');
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-  const passwordHash = await bcrypt.hash(adminPassword, 10);
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },

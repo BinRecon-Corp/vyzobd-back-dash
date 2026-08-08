@@ -57,7 +57,7 @@ export function Sessions() {
                     {format(new Date(session.createdAt), 'PP pp')}
                   </TableCell>
                   <TableCell className="text-right">
-                    {hasPermission("Security", "write") && (
+                    {hasPermission("Sessions", "delete") && (
                       <Button variant="outline" size="sm" onClick={() => revokeMutation.mutate(session.id)} className="text-destructive hover:bg-destructive/10">
                         <MonitorX className="mr-2 h-4 w-4" />
                         Revoke

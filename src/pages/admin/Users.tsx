@@ -209,7 +209,7 @@ export function Users() {
                             <Lock className="mr-2 h-4 w-4" /> Reset Password
                           </DropdownMenuItem>
 
-                          {hasPermission("Security", "write") && (
+                          {hasPermission("Users", "write") && (
                             <DropdownMenuItem onClick={async () => {
                               if (confirm(`Force logout all sessions for ${user.email}?`)) {
                                 await forceLogoutUser(user.id);
@@ -220,7 +220,7 @@ export function Users() {
                             </DropdownMenuItem>
                           )}
                           
-                          {currentUser?.role?.name === "SuperAdmin" && user.role?.name !== "SuperAdmin" && (
+                          {hasPermission("Users", "delete") && user.role?.name !== "SuperAdmin" && (
                             <DropdownMenuItem 
                               className="text-destructive focus:bg-destructive/10 cursor-pointer"
                               onClick={() => {
@@ -278,7 +278,7 @@ export function Users() {
                     <Input type="password" required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
                   </div>
                 )}
-                {currentUser?.role?.name === "SuperAdmin" && (
+                {hasPermission("Users", "write") && (
                   <div className="space-y-2 flex flex-col">
                     <label className="text-sm font-medium">Role</label>
                     <select 

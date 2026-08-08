@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.use(requireAuth);
 
-router.get("/", requirePermission("Roles", "read"), getAllPermissions);
+router.get("/", requirePermission("Permissions", "read"), getAllPermissions);
 
 export default router;

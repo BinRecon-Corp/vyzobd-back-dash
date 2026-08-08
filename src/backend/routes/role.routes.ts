@@ -7,7 +7,7 @@ import {
   deleteRole,
 } from "../controllers/role.controller";
 import { updateRolePermissions } from "../controllers/permission.controller";
-import { requireAuth, requirePermission, requireSuperAdmin } from "../middlewares/auth";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
 const router = express.Router();
 
@@ -15,13 +15,13 @@ router.use(requireAuth);
 
 router.route("/")
   .get(requirePermission("Roles", "read"), getAllRoles)
-  .post(requireSuperAdmin, createRole);
+  .post(requirePermission("Roles", "write"), createRole);
 
 router.route("/:id")
   .get(requirePermission("Roles", "read"), getRoleById)
-  .put(requireSuperAdmin, updateRole)
-  .delete(requireSuperAdmin, deleteRole);
+  .put(requirePermission("Roles", "write"), updateRole)
+  .delete(requirePermission("Roles", "delete"), deleteRole);
 
-router.patch("/:id/permissions", requireSuperAdmin, updateRolePermissions);
+router.patch("/:id/permissions", requirePermission("Roles", "write"), updateRolePermissions);
 
 export default router;

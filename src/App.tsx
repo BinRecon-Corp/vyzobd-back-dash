@@ -97,7 +97,7 @@ export default function App() {
               <Route path="admin/promotions" element={<RoutePermissionGuard module="Promotions" action="read"><PromotionsList /></RoutePermissionGuard>} />
               <Route path="admin/marketing" element={<RoutePermissionGuard module="Marketing" action="read"><MarketingList /></RoutePermissionGuard>} />
               <Route path="admin/banners" element={<RoutePermissionGuard module="Banners" action="read"><BannersList /></RoutePermissionGuard>} />
-              <Route path="admin/popups" element={<RoutePermissionGuard module="Banners" action="read"><PopupsList /></RoutePermissionGuard>} />
+              <Route path="admin/popups" element={<RoutePermissionGuard module="Popups" action="read"><PopupsList /></RoutePermissionGuard>} />
               <Route path="admin/cms" element={<RoutePermissionGuard module="CMS" action="read"><CmsPagesList /></RoutePermissionGuard>} />
               <Route path="admin/blog" element={<RoutePermissionGuard module="Blog" action="read"><BlogManagement /></RoutePermissionGuard>} />
               <Route path="admin/seo" element={<RoutePermissionGuard module="SEO" action="read"><SeoManagement /></RoutePermissionGuard>} />
@@ -113,11 +113,11 @@ export default function App() {
               <Route path="admin/users" element={<RoutePermissionGuard module="Users" action="read"><Users /></RoutePermissionGuard>} />
               <Route path="admin/roles" element={<RoutePermissionGuard module="Roles" action="read"><Roles /></RoutePermissionGuard>} />
               <Route path="admin/roles/:id" element={<RoutePermissionGuard module="Roles" action="read"><RolePermissions /></RoutePermissionGuard>} />
-              <Route path="admin/sessions" element={<RoutePermissionGuard module="Security" action="read"><Sessions /></RoutePermissionGuard>} />
+              <Route path="admin/sessions" element={<RoutePermissionGuard module="Sessions" action="read"><Sessions /></RoutePermissionGuard>} />
               <Route path="profile" element={<Profile />} />
               
               <Route path="settings" element={<PlaceholderPage title="Settings" />} />
-              <Route path="admin/audit-logs" element={<RoutePermissionGuard module="Security" action="read"><AuditLogs /></RoutePermissionGuard>} />
+              <Route path="admin/audit-logs" element={<RoutePermissionGuard module="AuditLogs" action="read"><AuditLogs /></RoutePermissionGuard>} />
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

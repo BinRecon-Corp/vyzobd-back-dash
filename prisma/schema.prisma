@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ------------------------------------------------------
@@ -30,6 +30,8 @@ model User {
   deletedAt            DateTime?
   activityLogs         ActivityLog[]
   assignedOrders       Order[]        @relation("AssignedOrders")
+
+  @@index([roleId])
 }
 
 model RefreshToken {
@@ -89,6 +91,8 @@ model Customer {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   deletedAt       DateTime?
+
+  @@index([isActive, deletedAt])
 }
 
 model CustomerNote {
@@ -165,101 +169,108 @@ model Brand {
 }
 
 model Tag {
-  id          String       @id @default(uuid())
-  name        String       @unique
-  slug        String       @unique
-  products    ProductTag[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id        String       @id @default(uuid())
+  name      String       @unique
+  slug      String       @unique
+  products  ProductTag[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }
 
 model ProductTag {
   productId String
   tagId     String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([productId, tagId])
 }
 
 model Attribute {
-  id          String           @id @default(uuid())
-  name        String           // e.g. "Color", "Size"
-  values      AttributeValue[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id        String           @id @default(uuid())
+  name      String // e.g. "Color", "Size"
+  values    AttributeValue[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 }
 
 model AttributeValue {
   id          String                  @id @default(uuid())
   attributeId String
   attribute   Attribute               @relation(fields: [attributeId], references: [id], onDelete: Cascade)
-  value       String                  // e.g. "Red", "XL"
+  value       String // e.g. "Red", "XL"
   variants    VariantAttributeValue[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
 }
 
 model Product {
-  id          String           @id @default(uuid())
-  vendorId    String?
-  vendor      Vendor?          @relation(fields: [vendorId], references: [id])
-  categoryId  String
-  category    Category         @relation(fields: [categoryId], references: [id])
-  brandId     String?
-  brand       Brand?           @relation(fields: [brandId], references: [id])
+  id               String   @id @default(uuid())
+  vendorId         String?
+  vendor           Vendor?  @relation(fields: [vendorId], references: [id])
+  categoryId       String
+  category         Category @relation(fields: [categoryId], references: [id])
+  brandId          String?
+  brand            Brand?   @relation(fields: [brandId], references: [id])
   name             String
-  slug             String           @unique
+  slug             String   @unique
   description      String?
   shortDescription String?
-  
-  metaTitle        String?
-  metaDescription  String?
-  ogImage          String?
-  
-  trackInventory   Boolean          @default(true)
-  status           String           @default("Draft") // Draft, Active, Archived
-  
+
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+
+  trackInventory Boolean @default(true)
+  status         String  @default("Draft") // Draft, Active, Archived
+
   // Google Merchant Center / Pixels fields
-  gtin        String?
-  mpn         String?
-  condition   String?          @default("new")
-  
+  gtin      String?
+  mpn       String?
+  condition String? @default("new")
+
   // Backwards compatibility for single-variant setup
-  sku         String?          @unique
-  barcode     String?
-  price       Decimal?         
-  
-  isActive    Boolean          @default(true)
-  images      ProductImage[]
-  variants    ProductVariant[]
-  tags        ProductTag[]
-  inventory   Inventory?
-  orderItems  OrderItem[]
-  reviews     Review[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  deletedAt   DateTime?
+  sku     String?  @unique
+  barcode String?
+  price   Decimal?
+
+  isActive   Boolean          @default(true)
+  images     ProductImage[]
+  variants   ProductVariant[]
+  tags       ProductTag[]
+  inventory  Inventory?
+  orderItems OrderItem[]
+  reviews    Review[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  deletedAt  DateTime?
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([vendorId])
+  @@index([status])
 }
 
 model ProductVariant {
-  id               String                  @id @default(uuid())
-  productId        String
-  product          Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sku              String                  @unique
-  price            Decimal                 
-  compareAtPrice   Decimal?                
-  costPrice        Decimal?                
-  barcode          String?                 // EAN, UPC, etc.
-  weight           Decimal?                
-  isActive         Boolean                 @default(true)
-  images           ProductImage[]
-  inventories      Inventory[]
-  attributes       VariantAttributeValue[]
-  orderItems       OrderItem[]
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  deletedAt        DateTime?
+  id             String                  @id @default(uuid())
+  productId      String
+  product        Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku            String                  @unique
+  price          Decimal
+  compareAtPrice Decimal?
+  costPrice      Decimal?
+  barcode        String? // EAN, UPC, etc.
+  weight         Decimal?
+  isActive       Boolean                 @default(true)
+  images         ProductImage[]
+  inventories    Inventory[]
+  attributes     VariantAttributeValue[]
+  orderItems     OrderItem[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  deletedAt      DateTime?
+
+  @@index([productId])
 }
 
 model VariantAttributeValue {
@@ -287,27 +298,27 @@ model ProductImage {
 }
 
 model Inventory {
-  id               String          @id @default(uuid())
-  warehouseId      String?
-  warehouse        Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  variantId        String?
-  variant          ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  
-  // Backwards compatibility for single-variant setup
-  productId        String?         @unique
-  product          Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  quantityAvailable Int            @default(0)
-  quantityReserved  Int            @default(0)
-  lowStockThreshold Int            @default(10)
-  
-  // Legacy aliases
-  quantity          Int            @default(0)
-  lowStock          Int            @default(10)
+  id          String          @id @default(uuid())
+  warehouseId String?
+  warehouse   Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  deletedAt        DateTime?
+  // Backwards compatibility for single-variant setup
+  productId String?  @unique
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantityAvailable Int @default(0)
+  quantityReserved  Int @default(0)
+  lowStockThreshold Int @default(10)
+
+  // Legacy aliases
+  quantity Int @default(0)
+  lowStock Int @default(10)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([warehouseId, variantId])
 }
@@ -342,6 +353,8 @@ model Order {
   @@index([customerId])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedStaffId])
+  @@index([couponId])
 }
 
 model OrderItem {
@@ -358,6 +371,8 @@ model OrderItem {
   updatedAt        DateTime        @updatedAt
 
   @@index([orderId])
+  @@index([productId])
+  @@index([productVariantId])
 }
 
 model OrderTimeline {
@@ -381,37 +396,38 @@ model OrderNote {
 }
 
 model Coupon {
-  id                   String       @id @default(uuid())
-  code                 String       @unique
-  discountType         String       // "fixed", "percentage", "free_shipping"
-  discountValue        Decimal      
+  id                   String    @id @default(uuid())
+  code                 String    @unique
+  discountType         String // "fixed", "percentage", "free_shipping"
+  discountValue        Decimal
   validFrom            DateTime
   validUntil           DateTime
-  isActive             Boolean      @default(true)
+  isActive             Boolean   @default(true)
   minOrderAmount       Decimal?
   maxDiscountAmount    Decimal?
   usageLimit           Int?
   usagePerCustomer     Int?
-  usedCount            Int          @default(0)
-  applicableCategories String?      // JSON array of category IDs
-  applicableProducts   String?      // JSON array of product IDs
-  applicableBrands     String?      // JSON array of brand IDs
+  usedCount            Int       @default(0)
+  applicableCategories String? // JSON array of category IDs
+  applicableProducts   String? // JSON array of product IDs
+  applicableBrands     String? // JSON array of brand IDs
   orders               Order[]
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
   deletedAt            DateTime?
 
   @@index([validFrom])
   @@index([validUntil])
+  @@index([isActive])
 }
 
 model Promotion {
   id            String    @id @default(uuid())
   name          String
-  type          String    // "buy_x_get_y", "category_discount", "brand_discount", "cart_discount", "bundle_discount"
-  discountType  String?   // "percentage", "fixed"
-  discountValue Decimal?  
-  rules         String?   // JSON configuration for conditions (e.g. buyQty, getQty, categoryIds, brandIds, minAmount)
+  type          String // "buy_x_get_y", "category_discount", "brand_discount", "cart_discount", "bundle_discount"
+  discountType  String? // "percentage", "fixed"
+  discountValue Decimal?
+  rules         String? // JSON configuration for conditions (e.g. buyQty, getQty, categoryIds, brandIds, minAmount)
   priority      Int       @default(0)
   isStackable   Boolean   @default(false)
   startDate     DateTime?
@@ -423,18 +439,19 @@ model Promotion {
 
   @@index([startDate])
   @@index([endDate])
+  @@index([isActive])
 }
 
 model MarketingCampaign {
   id          String    @id @default(uuid())
   name        String
-  type        String    // "Email", "SMS", "Push"
+  type        String // "Email", "SMS", "Push"
   subject     String?
   content     String
   status      String    @default("Draft") // "Draft", "Scheduled", "Sent", "Archived"
   scheduledAt DateTime?
   sentAt      DateTime?
-  metrics     String?   // JSON object e.g. { "openRate": "24%", "clickRate": "8%", "conversions": 14, "revenue": 1250 }
+  metrics     String? // JSON object e.g. { "openRate": "24%", "clickRate": "8%", "conversions": 14, "revenue": 1250 }
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -472,16 +489,16 @@ model Popup {
 }
 
 model Review {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   productId  String
-  product    Product  @relation(fields: [productId], references: [id])
+  product    Product   @relation(fields: [productId], references: [id])
   customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-  rating     Int      @default(5)
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  rating     Int       @default(5)
   comment    String?
-  isApproved Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  isApproved Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 }
 
@@ -500,6 +517,7 @@ model ActivityLog {
   @@index([userId])
   @@index([action])
   @@index([entityType])
+  @@index([entityType, entityId])
 }
 
 // ------------------------------------------------------
@@ -507,20 +525,22 @@ model ActivityLog {
 // ------------------------------------------------------
 
 model Page {
-  id              String        @id @default(uuid())
-  title           String
-  slug            String        @unique
-  content         String
-  status          String        @default("DRAFT") // DRAFT, PUBLISHED, SCHEDULED
-  pageType        String        @default("CUSTOM") // HOME, ABOUT, CONTACT, POLICY, CUSTOM
-  publishedAt     DateTime?
-  scheduledFor    DateTime?
-  seoMetadataId   String?       @unique
-  seoMetadata     SeoMetadata?  @relation(fields: [seoMetadataId], references: [id])
-  versions        PageVersion[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  id            String        @id @default(uuid())
+  title         String
+  slug          String        @unique
+  content       String
+  status        String        @default("DRAFT") // DRAFT, PUBLISHED, SCHEDULED
+  pageType      String        @default("CUSTOM") // HOME, ABOUT, CONTACT, POLICY, CUSTOM
+  publishedAt   DateTime?
+  scheduledFor  DateTime?
+  seoMetadataId String?       @unique
+  seoMetadata   SeoMetadata?  @relation(fields: [seoMetadataId], references: [id])
+  versions      PageVersion[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  @@index([status])
 }
 
 model PageVersion {
@@ -533,16 +553,16 @@ model PageVersion {
 }
 
 model LandingPage {
-  id              String        @id @default(uuid())
-  name            String
-  slug            String        @unique
-  status          String        @default("DRAFT")
-  content         String        // JSON string of blocks
-  seoMetadataId   String?       @unique
-  seoMetadata     SeoMetadata?  @relation(fields: [seoMetadataId], references: [id])
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  id            String       @id @default(uuid())
+  name          String
+  slug          String       @unique
+  status        String       @default("DRAFT")
+  content       String // JSON string of blocks
+  seoMetadataId String?      @unique
+  seoMetadata   SeoMetadata? @relation(fields: [seoMetadataId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
 }
 
 // ------------------------------------------------------
@@ -569,6 +589,10 @@ model BlogPost {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   deletedAt       DateTime?
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([authorId])
 }
 
 model BlogCategory {
@@ -582,11 +606,11 @@ model BlogCategory {
 }
 
 model BlogTag {
-  id          String     @id @default(uuid())
-  name        String     @unique
-  posts       BlogPost[] @relation("PostTags")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String     @id @default(uuid())
+  name      String     @unique
+  posts     BlogPost[] @relation("PostTags")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 // ------------------------------------------------------
@@ -594,31 +618,31 @@ model BlogTag {
 // ------------------------------------------------------
 
 model SeoMetadata {
-  id               String       @id @default(uuid())
-  title            String?
-  description      String?
-  keywords         String?
-  canonicalUrl     String?
-  ogTitle          String?
-  ogDescription    String?
-  ogImage          String?
-  twitterCard      String?
-  page             Page?
-  landingPage      LandingPage?
-  blogPost         BlogPost?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id            String       @id @default(uuid())
+  title         String?
+  description   String?
+  keywords      String?
+  canonicalUrl  String?
+  ogTitle       String?
+  ogDescription String?
+  ogImage       String?
+  twitterCard   String?
+  page          Page?
+  landingPage   LandingPage?
+  blogPost      BlogPost?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 model GlobalSeoSettings {
-  id               String   @id @default(uuid())
-  siteTitle        String
-  siteDescription  String
-  metaKeywords     String?
-  defaultOgImage   String?
-  robotsConfig     String?  // Contents of robots.txt
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(uuid())
+  siteTitle       String
+  siteDescription String
+  metaKeywords    String?
+  defaultOgImage  String?
+  robotsConfig    String? // Contents of robots.txt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // ------------------------------------------------------
@@ -626,18 +650,18 @@ model GlobalSeoSettings {
 // ------------------------------------------------------
 
 model MediaAsset {
-  id          String     @id @default(uuid())
-  filename    String
+  id           String     @id @default(uuid())
+  filename     String
   originalName String
-  mimeType    String
-  size        Int
-  url         String
-  folder      String?    @default("root")
-  altText     String?
-  blogPosts   BlogPost[] @relation("FeaturedImage")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
+  mimeType     String
+  size         Int
+  url          String
+  folder       String?    @default("root")
+  altText      String?
+  blogPosts    BlogPost[] @relation("FeaturedImage")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
 }
 
 // ------------------------------------------------------
@@ -654,16 +678,17 @@ model FAQCategory {
 }
 
 model FAQ {
-  id          String       @id @default(uuid())
-  question    String
-  answer      String
-  categoryId  String?
-  category    FAQCategory? @relation(fields: [categoryId], references: [id])
-  orderIndex  Int          @default(0)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  id         String       @id @default(uuid())
+  question   String
+  answer     String
+  categoryId String?
+  category   FAQCategory? @relation(fields: [categoryId], references: [id])
+  orderIndex Int          @default(0)
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
 
   @@index([categoryId])
+  @@index([isActive, orderIndex])
 }

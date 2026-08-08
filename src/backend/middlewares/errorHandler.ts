@@ -64,7 +64,7 @@ export const errorHandler = (
     err.code?.startsWith("P20") || 
     err.message?.toLowerCase().includes("select ") ||
     err.message?.toLowerCase().includes("insert into") ||
-    err.message?.toLowerCase().includes("sqlite");
+    err.message?.toLowerCase().includes("postgresql");
 
   const isJwtError = 
     err.name?.includes("JsonWebTokenError") || 

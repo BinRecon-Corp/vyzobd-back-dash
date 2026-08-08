@@ -241,7 +241,7 @@ export function AuditLogs() {
             <CardTitle className="text-2xl font-bold">{total}</CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">
-            Administrative staff logs persisted in SQLite / PostgreSQL.
+            Administrative staff logs persisted in PostgreSQL.
           </CardContent>
         </Card>
 

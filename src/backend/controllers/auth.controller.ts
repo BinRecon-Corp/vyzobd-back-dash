@@ -301,7 +301,7 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       return next(new AppError("Token has expired", 400, "EXPIRED_TOKEN"));
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -349,7 +349,7 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
       return next(new AppError("Incorrect current password", 401, "INVALID_CREDENTIALS"));
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     await prisma.user.update({
       where: { id: user.id },
