@@ -23,6 +23,7 @@ import userRouter from "./src/backend/routes/user.routes";
 import roleRouter from "./src/backend/routes/role.routes";
 import permissionRouter from "./src/backend/routes/permission.routes";
 import auditRouter from "./src/backend/routes/audit.routes";
+import sessionRouter from "./src/backend/routes/session.routes";
 
 import storefrontProductRouter from "./src/backend/routes/storefront/product.routes";
 import storefrontCategoryRouter from "./src/backend/routes/storefront/category.routes";
@@ -132,6 +133,7 @@ async function startServer() {
   apiRouter.use("/roles", roleRouter);
   apiRouter.use("/permissions", permissionRouter);
   apiRouter.use("/audit-logs", auditRouter);
+  apiRouter.use("/sessions", sessionRouter);
   
   app.use("/api/v1", apiRouter);
 

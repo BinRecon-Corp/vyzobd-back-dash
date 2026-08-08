@@ -18,7 +18,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { role: true },
+      include: { role: { include: { permissions: true } } },
     });
 
     if (!user) {
@@ -115,7 +115,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role.name,
+          role: {
+            id: user.role.id,
+            name: user.role.name,
+            permissions: user.role.permissions.map(p => ({ module: p.module, action: p.action }))
+          }
         },
       },
     });
@@ -371,7 +375,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      include: { role: true },
+      include: { role: { include: { permissions: true } } },
     });
 
     if (!user) {
@@ -381,12 +385,14 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
     res.status(200).json({
       status: "success",
       data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role.name,
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: {
+          id: user.role.id,
+          name: user.role.name,
+          permissions: user.role.permissions.map(p => ({ module: p.module, action: p.action }))
         },
       },
     });

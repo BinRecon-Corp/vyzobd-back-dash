@@ -1,7 +1,10 @@
 import React from 'react';
-import { Menu, Bell, Search, Sun, Moon } from 'lucide-react';
+import { Menu, Bell, Search, Sun, Moon, LogOut, User, Settings } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { useAuth } from '../../context/AuthContext';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -12,6 +15,9 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
   const [isDark, setIsDark] = React.useState(
     document.documentElement.classList.contains('dark')
   );
+  
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const toggleTheme = () => {
     const html = document.documentElement;
@@ -22,6 +28,11 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
       html.classList.add('dark');
       setIsDark(true);
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   return (
@@ -50,13 +61,45 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           <span className="sr-only">Toggle theme</span>
         </Button>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" className="mr-2">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Notifications</span>
         </Button>
-        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm cursor-pointer border border-primary/30">
-          AD
-        </div>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm cursor-pointer border border-primary/30">
+              {user?.firstName?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'A'}
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                <p className="text-xs font-semibold mt-1 text-primary">{user?.role?.name}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/profile" className="flex items-center cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/profile?tab=password" className="flex items-center cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Change Password</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

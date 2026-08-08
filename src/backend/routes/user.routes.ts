@@ -8,6 +8,7 @@ import {
   updateUserStatus,
   updateUserRole,
   adminResetPassword,
+  forceLogoutUser,
 } from "../controllers/user.controller";
 import { requireAuth, requirePermission, requireSuperAdmin } from "../middlewares/auth";
 import {
@@ -35,5 +36,6 @@ router.route("/:id")
 router.patch("/:id/status", requirePermission("Users", "write"), validateParamsUUID(["id"]), updateUserStatus);
 router.patch("/:id/role", requireSuperAdmin, validateParamsUUID(["id"]), updateUserRole);
 router.patch("/:id/reset-password", requirePermission("Users", "write"), validateParamsUUID(["id"]), adminResetPassword);
+router.post("/:id/force-logout", requirePermission("Security", "write"), validateParamsUUID(["id"]), forceLogoutUser);
 
 export default router;

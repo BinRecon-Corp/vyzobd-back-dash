@@ -388,6 +388,35 @@ export const updateUserRole = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
+// POST /api/v1/users/:id/force-logout
+export const forceLogoutUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
+    });
+
+    if (!user) {
+      return next(new AppError("User not found", 404, "NOT_FOUND"));
+    }
+
+    await prisma.refreshToken.updateMany({
+      where: { userId: id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await AuditService.logTokenRevoked(req.user?.id || null, id, "Manual force logout", req);
+
+    res.status(200).json({
+      status: "success",
+      message: "User logged out successfully (sessions revoked)",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // PATCH /api/v1/users/:id/reset-password
 export const adminResetPassword = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

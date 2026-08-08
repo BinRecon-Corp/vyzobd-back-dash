@@ -12,31 +12,42 @@ import {
   FolderTree,
   Tag,
   Boxes,
-  ShieldCheck
+  ShieldCheck,
+  UserCog,
+  Key
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '../ui/button';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
 }
 
-const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: FolderTree, label: 'Categories', href: '/categories' },
-  { icon: Tag, label: 'Brands', href: '/brands' },
-  { icon: Package, label: 'Products', href: '/products' },
-  { icon: Boxes, label: 'Inventory', href: '/inventory' },
-  { icon: ShoppingCart, label: 'Orders', href: '/orders' },
-  { icon: Users, label: 'Customers', href: '/customers' },
-  { icon: BarChart3, label: 'Analytics', href: '/analytics' },
-  { icon: BarChart3, label: 'GA4 Tracking', href: '/analytics/ga4-example' },
-  { icon: ShieldCheck, label: 'Audit Logs', href: '/settings/audit-logs' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
-];
-
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+  const { hasPermission } = useAuth();
+
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/', module: 'Dashboard' },
+    { icon: FolderTree, label: 'Categories', href: '/categories', module: 'Categories' },
+    { icon: Tag, label: 'Brands', href: '/brands', module: 'Brands' },
+    { icon: Package, label: 'Products', href: '/products', module: 'Products' },
+    { icon: Boxes, label: 'Inventory', href: '/inventory', module: 'Inventory' },
+    { icon: ShoppingCart, label: 'Orders', href: '/orders', module: 'Orders' },
+    { icon: Users, label: 'Customers', href: '/customers', module: 'Customers' },
+    { icon: BarChart3, label: 'Analytics', href: '/analytics', module: 'Analytics' },
+    { icon: ShieldCheck, label: 'Audit Logs', href: '/admin/audit-logs', module: 'Security' },
+    { icon: UserCog, label: 'Users', href: '/admin/users', module: 'Users' },
+    { icon: Key, label: 'Roles', href: '/admin/roles', module: 'Roles' },
+    { icon: ShieldCheck, label: 'Sessions', href: '/admin/sessions', module: 'Security' },
+    { icon: Settings, label: 'Settings', href: '/settings', module: 'Settings' },
+  ];
+
+  const visibleNavItems = navItems.filter(item => 
+    item.module === 'Dashboard' || hasPermission(item.module, 'read')
+  );
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -57,10 +68,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.href}
             to={item.href}
+            end={item.href === '/'}
             className={({ isActive }) => cn(
               "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium",
               isActive 
