@@ -1,0 +1,90 @@
+export interface StorefrontBrand {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  description: string | null;
+  
+  // SEO & Social (Computed/Fallback)
+  seoTitle: string;
+  seoDescription: string | null;
+  ogImage: string | null;
+}
+
+export interface StorefrontCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image: string | null;
+  icon: string | null;
+  parentId: string | null;
+  
+  // SEO & Social (Computed/Fallback)
+  seoTitle: string;
+  seoDescription: string | null;
+  ogImage: string | null;
+}
+
+export interface StorefrontProductImage {
+  id: string;
+  url: string;
+  altText: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
+}
+
+export interface StorefrontVariant {
+  id: string;
+  sku: string | null;
+  barcode: string | null;
+  price: number | null;
+  compareAtPrice: number | null;
+  stock: number;
+  inStock: boolean;
+  
+  // Note: costPrice and admin-only fields are intentionally omitted
+  
+  options: Record<string, string>;
+  image: string | null;
+}
+
+export interface StorefrontProduct {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  shortDescription: string | null;
+  
+  // Legacy / fallback price (if single variant)
+  price: number | null;
+  
+  // SEO & Social (Computed/Fallback)
+  seoTitle: string;
+  seoDescription: string | null;
+  ogImage: string | null;
+  
+  // Google Merchant Center / Metadata
+  gtin: string | null;
+  mpn: string | null;
+  condition: string | null;
+
+  // Relations
+  category?: StorefrontCategory;
+  brand?: StorefrontBrand | null;
+  images?: StorefrontProductImage[];
+  variants?: StorefrontVariant[];
+  tags?: string[];
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}

@@ -1,13 +1,8 @@
-import { Request, Response, NextFunction } from "express";
-import { ZodError } from "zod";
-import { logger } from "../config/logger";
+const fs = require('fs');
+const file = 'src/backend/middlewares/errorHandler.ts';
+let code = fs.readFileSync(file, 'utf8');
 
-export interface AppError extends Error {
-  statusCode?: number;
-  code?: string;
-  isOperational?: boolean;
-}
-
+const newHandler = `
 export const errorHandler = (
   err: any,
   req: Request,
@@ -23,7 +18,7 @@ export const errorHandler = (
       return res.status(400).json({
         success: false,
         message: "Validation Error",
-        details: ((err as any).errors || (err as any).issues || []).map((e: any) => ({
+        details: (err as any).errors.map((e: any) => ({
           field: e.path.join("."),
           message: e.message,
         }))
@@ -43,7 +38,7 @@ export const errorHandler = (
       error: {
         code: "VALIDATION_ERROR",
         message: "Invalid request payload",
-        details: ((err as any).errors || (err as any).issues || []).map((e: any) => ({
+        details: (err as any).errors.map((e: any) => ({
           field: e.path.join("."),
           message: e.message,
         })),
@@ -58,7 +53,7 @@ export const errorHandler = (
       success: false,
       error: {
         code: "UNIQUE_CONSTRAINT_VIOLATION",
-        message: `A record with this ${field} already exists.`,
+        message: \`A record with this \${field} already exists.\`,
       },
     });
   }
@@ -75,3 +70,7 @@ export const errorHandler = (
     },
   });
 };
+`;
+
+code = code.replace(/export const errorHandler = \([\s\S]*?^};/m, newHandler.trim());
+fs.writeFileSync(file, code);
