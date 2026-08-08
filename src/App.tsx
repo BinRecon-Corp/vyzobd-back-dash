@@ -41,7 +41,11 @@ import { MarketingList } from './pages/admin/marketing/MarketingList';
 import { BannersList } from './pages/admin/banners/BannersList';
 import { PopupsList } from './pages/admin/popups/PopupsList';
 import { CmsPagesList } from './pages/admin/cms/CmsPagesList';
+import { CmsPageCreate } from './pages/admin/cms/CmsPageCreate';
+import { CmsPageEdit } from './pages/admin/cms/CmsPageEdit';
 import { BlogManagement } from './pages/admin/blog/BlogManagement';
+import { BlogPostCreate } from './pages/admin/blog/BlogPostCreate';
+import { BlogPostEdit } from './pages/admin/blog/BlogPostEdit';
 import { SeoManagement } from './pages/admin/seo/SeoManagement';
 import { LandingPagesList } from './pages/admin/landing-pages/LandingPagesList';
 import { MediaLibrary } from './pages/admin/media/MediaLibrary';
@@ -99,7 +103,11 @@ export default function App() {
               <Route path="admin/banners" element={<RoutePermissionGuard module="Banners" action="read"><BannersList /></RoutePermissionGuard>} />
               <Route path="admin/popups" element={<RoutePermissionGuard module="Popups" action="read"><PopupsList /></RoutePermissionGuard>} />
               <Route path="admin/cms" element={<RoutePermissionGuard module="CMS" action="read"><CmsPagesList /></RoutePermissionGuard>} />
+              <Route path="admin/cms/new" element={<RoutePermissionGuard module="CMS" action="write"><CmsPageCreate /></RoutePermissionGuard>} />
+              <Route path="admin/cms/:id/edit" element={<RoutePermissionGuard module="CMS" action="write"><CmsPageEdit /></RoutePermissionGuard>} />
               <Route path="admin/blog" element={<RoutePermissionGuard module="Blog" action="read"><BlogManagement /></RoutePermissionGuard>} />
+              <Route path="admin/blog/new" element={<RoutePermissionGuard module="Blog" action="write"><BlogPostCreate /></RoutePermissionGuard>} />
+              <Route path="admin/blog/:id/edit" element={<RoutePermissionGuard module="Blog" action="write"><BlogPostEdit /></RoutePermissionGuard>} />
               <Route path="admin/seo" element={<RoutePermissionGuard module="SEO" action="read"><SeoManagement /></RoutePermissionGuard>} />
               <Route path="admin/landing-pages" element={<RoutePermissionGuard module="LandingPages" action="read"><LandingPagesList /></RoutePermissionGuard>} />
               <Route path="admin/media" element={<RoutePermissionGuard module="Media" action="read"><MediaLibrary /></RoutePermissionGuard>} />
