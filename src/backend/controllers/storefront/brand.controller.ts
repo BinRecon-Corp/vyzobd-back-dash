@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { storefrontBrandService } from "../../services/storefront/brand.service";
+import { ga4Service } from "../../services/storefront/ga4.service";
 
 const asyncHandler = (fn: any) => (req: Request, res: Response, next: any) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -14,11 +15,13 @@ export const getBrands = asyncHandler(async (req: Request, res: Response) => {
   };
 
   const result = await storefrontBrandService.getBrands(options);
+  const ga4 = ga4Service.getBrandListPayload(result.data);
 
   res.json({
     success: true,
     data: result.data,
-    meta: result.meta
+    meta: result.meta,
+    ga4
   });
 });
 

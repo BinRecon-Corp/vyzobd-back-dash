@@ -11,7 +11,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return next(new AppError("Please provide email and password", 400));
+      return next(new AppError("Please provide email and password", 400, "MISSING_CREDENTIALS"));
     }
 
     const user = await prisma.user.findUnique({
@@ -20,13 +20,13 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     });
 
     if (!user || !user.isActive) {
-      return next(new AppError("Invalid credentials or inactive user", 401));
+      return next(new AppError("Invalid credentials or inactive user", 401, "INVALID_CREDENTIALS"));
     }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordCorrect) {
-      return next(new AppError("Invalid credentials", 401));
+      return next(new AppError("Invalid credentials", 401, "INVALID_CREDENTIALS"));
     }
 
     const token = jwt.sign(
@@ -56,7 +56,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      return next(new AppError("Not authenticated", 401));
+      return next(new AppError("Not authenticated", 401, "UNAUTHORIZED"));
     }
 
     const user = await prisma.user.findUnique({
@@ -65,7 +65,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
     });
 
     if (!user) {
-      return next(new AppError("User not found", 404));
+      return next(new AppError("User not found", 404, "NOT_FOUND"));
     }
 
     res.status(200).json({

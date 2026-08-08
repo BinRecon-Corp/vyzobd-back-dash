@@ -29,9 +29,9 @@ export class StorefrontProductService {
 
     if (options.search) {
       where.OR = [
-        { name: { contains: options.search, mode: "insensitive" } },
-        { slug: { contains: options.search, mode: "insensitive" } },
-        { description: { contains: options.search, mode: "insensitive" } },
+        { name: { contains: options.search } },
+        { slug: { contains: options.search } },
+        { description: { contains: options.search } },
       ];
     }
 
