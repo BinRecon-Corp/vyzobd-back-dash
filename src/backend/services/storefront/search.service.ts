@@ -29,10 +29,10 @@ export const storefrontSearchService = {
     if (q) {
       andConditions.push({
         OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { slug: { contains: q, mode: "insensitive" } },
-          { shortDescription: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
+          { name: { contains: q } },
+          { slug: { contains: q } },
+          { shortDescription: { contains: q } },
+          { description: { contains: q } },
         ]
       });
     }
@@ -153,10 +153,10 @@ export const storefrontSearchService = {
     if (q) {
       andConditions.push({
         OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { slug: { contains: q, mode: "insensitive" } },
-          { shortDescription: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
+          { name: { contains: q } },
+          { slug: { contains: q } },
+          { shortDescription: { contains: q } },
+          { description: { contains: q } },
         ]
       });
     }

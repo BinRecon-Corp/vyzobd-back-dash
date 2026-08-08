@@ -58,10 +58,21 @@ export const trackServerPurchase = asyncHandler(async (req: Request, res: Respon
 export const getOverviewMetrics = asyncHandler(async (req: Request, res: Response) => {
   const validOrders = await prisma.order.findMany({
     where: {
-      status: { notIn: ["CANCELLED", "REFUNDED"] },
+      status: { notIn: ["CANCELLED", "REFUNDED", "Cancelled", "Refunded"] },
       deletedAt: null,
     },
-    select: { totalAmount: true }
+    select: { totalAmount: true, createdAt: true, status: true }
+  });
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todaysOrders = validOrders.filter((o) => new Date(o.createdAt) >= todayStart).length;
+  const pendingOrders = await prisma.order.count({
+    where: {
+      status: { in: ["PENDING", "Pending"] },
+      deletedAt: null,
+    },
   });
 
   const totalOrders = validOrders.length;
@@ -71,14 +82,40 @@ export const getOverviewMetrics = asyncHandler(async (req: Request, res: Respons
   const totalCustomers = await prisma.customer.count({ where: { deletedAt: null } });
   const totalProducts = await prisma.product.count({ where: { deletedAt: null } });
 
+  // Top customers by revenue
+  const customers = await prisma.customer.findMany({
+    where: { deletedAt: null },
+    include: {
+      orders: {
+        where: { deletedAt: null, status: { notIn: ["CANCELLED", "REFUNDED", "Cancelled", "Refunded"] } },
+        select: { totalAmount: true },
+      },
+    },
+    take: 10,
+  });
+
+  const topCustomers = customers
+    .map((c) => ({
+      id: c.id,
+      name: `${c.firstName} ${c.lastName || ""}`.trim(),
+      email: c.email,
+      totalOrders: c.orders.length,
+      revenue: c.orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0),
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
   res.status(200).json({
     success: true,
     data: {
       totalRevenue,
       totalOrders,
+      todaysOrders,
+      pendingOrders,
       totalCustomers,
       totalProducts,
-      averageOrderValue
+      averageOrderValue,
+      topCustomers,
     }
   });
 });

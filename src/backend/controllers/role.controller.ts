@@ -80,7 +80,7 @@ export const createRole = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     const existingRole = await prisma.role.findFirst({
-      where: { name: { equals: name, mode: "insensitive" }, deletedAt: null },
+      where: { name: { equals: name }, deletedAt: null },
     });
 
     if (existingRole) {
@@ -136,7 +136,7 @@ export const updateRole = async (req: AuthRequest, res: Response, next: NextFunc
 
     if (name && name.toLowerCase() !== role.name.toLowerCase()) {
       const existing = await prisma.role.findFirst({
-        where: { name: { equals: name, mode: "insensitive" }, deletedAt: null, NOT: { id } },
+        where: { name: { equals: name }, deletedAt: null, NOT: { id } },
       });
       if (existing) {
         return next(new AppError("A role with this name already exists", 400, "DUPLICATE_ROLE"));

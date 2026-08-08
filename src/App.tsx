@@ -31,6 +31,10 @@ import { Roles } from './pages/admin/Roles';
 import { RolePermissions } from './pages/admin/RolePermissions';
 import { Sessions } from './pages/admin/Sessions';
 import { Profile } from './pages/admin/Profile';
+import { OrdersList } from './pages/admin/orders/OrdersList';
+import { OrderDetail } from './pages/admin/orders/OrderDetail';
+import { CustomersList } from './pages/admin/customers/CustomersList';
+import { CustomerDetail } from './pages/admin/customers/CustomerDetail';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,8 +72,15 @@ export default function App() {
               <Route path="brands/new" element={<RoutePermissionGuard module="Brands" action="write"><BrandCreate /></RoutePermissionGuard>} />
               <Route path="brands/:id/edit" element={<RoutePermissionGuard module="Brands" action="write"><BrandEdit /></RoutePermissionGuard>} />
               
-              <Route path="orders" element={<PlaceholderPage title="Orders" />} />
-              <Route path="customers" element={<PlaceholderPage title="Customers" />} />
+              <Route path="orders" element={<RoutePermissionGuard module="Orders" action="read"><OrdersList /></RoutePermissionGuard>} />
+              <Route path="orders/:id" element={<RoutePermissionGuard module="Orders" action="read"><OrderDetail /></RoutePermissionGuard>} />
+              <Route path="admin/orders" element={<RoutePermissionGuard module="Orders" action="read"><OrdersList /></RoutePermissionGuard>} />
+              <Route path="admin/orders/:id" element={<RoutePermissionGuard module="Orders" action="read"><OrderDetail /></RoutePermissionGuard>} />
+              
+              <Route path="customers" element={<RoutePermissionGuard module="Customers" action="read"><CustomersList /></RoutePermissionGuard>} />
+              <Route path="customers/:id" element={<RoutePermissionGuard module="Customers" action="read"><CustomerDetail /></RoutePermissionGuard>} />
+              <Route path="admin/customers" element={<RoutePermissionGuard module="Customers" action="read"><CustomersList /></RoutePermissionGuard>} />
+              <Route path="admin/customers/:id" element={<RoutePermissionGuard module="Customers" action="read"><CustomerDetail /></RoutePermissionGuard>} />
               
               <Route path="analytics" element={<RoutePermissionGuard module="Analytics" action="read"><Analytics /></RoutePermissionGuard>} />
               <Route path="analytics/ga4-example" element={<GA4Example />} />

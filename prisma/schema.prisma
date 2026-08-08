@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // ------------------------------------------------------
@@ -29,6 +29,7 @@ model User {
   updatedAt            DateTime       @updatedAt
   deletedAt            DateTime?
   activityLogs         ActivityLog[]
+  assignedOrders       Order[]        @relation("AssignedOrders")
 }
 
 model RefreshToken {
@@ -71,16 +72,30 @@ model Permission {
 }
 
 model Customer {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  firstName String
-  lastName  String?
-  phone     String?
-  orders    Order[]
-  reviews   Review[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id              String         @id @default(uuid())
+  email           String         @unique
+  firstName       String
+  lastName        String?
+  phone           String?
+  isActive        Boolean        @default(true)
+  notes           String?
+  shippingAddress String?
+  billingAddress  String?
+  customerNotes   CustomerNote[]
+  orders          Order[]
+  reviews         Review[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+}
+
+model CustomerNote {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  note       String
+  author     String?
+  createdAt  DateTime @default(now())
 }
 
 // ------------------------------------------------------
@@ -237,6 +252,7 @@ model ProductVariant {
   images           ProductImage[]
   inventories      Inventory[]
   attributes       VariantAttributeValue[]
+  orderItems       OrderItem[]
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
   deletedAt        DateTime?
@@ -297,30 +313,61 @@ model Inventory {
 // ------------------------------------------------------
 
 model Order {
-  id          String      @id @default(uuid())
-  orderNumber String      @unique
-  customerId  String
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  status      String      @default("PENDING")
-  totalAmount Decimal     
-  couponId    String?
-  coupon      Coupon?     @relation(fields: [couponId], references: [id])
-  items       OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  deletedAt   DateTime?
+  id              String          @id @default(uuid())
+  orderNumber     String          @unique
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  status          String          @default("Pending")
+  paymentStatus   String          @default("Unpaid")
+  totalAmount     Decimal
+  shippingAddress String?
+  billingAddress  String?
+  paymentMethod   String?
+  assignedStaffId String?
+  assignedStaff   User?           @relation("AssignedOrders", fields: [assignedStaffId], references: [id])
+  internalNotes   String?
+  couponId        String?
+  coupon          Coupon?         @relation(fields: [couponId], references: [id])
+  items           OrderItem[]
+  timeline        OrderTimeline[]
+  orderNotes      OrderNote[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
 }
 
 model OrderItem {
+  id               String          @id @default(uuid())
+  orderId          String
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product         @relation(fields: [productId], references: [id])
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  quantity         Int
+  price            Decimal
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model OrderTimeline {
   id        String   @id @default(uuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Decimal  
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  action    String
+  userId    String?
+  userName  String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+model OrderNote {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  note      String
+  author    String?
+  createdAt DateTime @default(now())
 }
 
 model Coupon {

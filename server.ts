@@ -24,6 +24,8 @@ import roleRouter from "./src/backend/routes/role.routes";
 import permissionRouter from "./src/backend/routes/permission.routes";
 import auditRouter from "./src/backend/routes/audit.routes";
 import sessionRouter from "./src/backend/routes/session.routes";
+import orderRouter from "./src/backend/routes/order.routes";
+import customerRouter from "./src/backend/routes/customer.routes";
 
 import storefrontProductRouter from "./src/backend/routes/storefront/product.routes";
 import storefrontCategoryRouter from "./src/backend/routes/storefront/category.routes";
@@ -134,6 +136,8 @@ async function startServer() {
   apiRouter.use("/permissions", permissionRouter);
   apiRouter.use("/audit-logs", auditRouter);
   apiRouter.use("/sessions", sessionRouter);
+  apiRouter.use("/orders", orderRouter);
+  apiRouter.use("/customers", customerRouter);
   
   app.use("/api/v1", apiRouter);
 
