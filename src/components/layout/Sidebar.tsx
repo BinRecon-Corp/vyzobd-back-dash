@@ -19,7 +19,12 @@ import {
   Zap,
   Megaphone,
   Image,
-  Layers
+  Layers,
+  FileText,
+  PenTool,
+  Search,
+  LayoutTemplate,
+  HelpCircle
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Button } from '../ui/button';
@@ -46,6 +51,12 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { icon: Megaphone, label: 'Marketing', href: '/admin/marketing', module: 'Marketing' },
     { icon: Image, label: 'Banners', href: '/admin/banners', module: 'Banners' },
     { icon: Layers, label: 'Popups', href: '/admin/popups', module: 'Banners' },
+    { icon: FileText, label: 'CMS Pages', href: '/admin/cms', module: 'CMS' },
+    { icon: PenTool, label: 'Blog', href: '/admin/blog', module: 'Blog' },
+    { icon: Search, label: 'SEO Settings', href: '/admin/seo', module: 'SEO' },
+    { icon: LayoutTemplate, label: 'Landing Pages', href: '/admin/landing-pages', module: 'LandingPages' },
+    { icon: Image, label: 'Media Library', href: '/admin/media', module: 'Media' },
+    { icon: HelpCircle, label: 'FAQs', href: '/admin/faqs', module: 'FAQ' },
     { icon: BarChart3, label: 'Analytics', href: '/analytics', module: 'Analytics' },
     { icon: ShieldCheck, label: 'Audit Logs', href: '/admin/audit-logs', module: 'Security' },
     { icon: UserCog, label: 'Users', href: '/admin/users', module: 'Users' },
@@ -63,57 +74,66 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={onToggle}
         />
       )}
-      
-      <aside className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-background border-r transition-all duration-300 ease-in-out flex flex-col",
-        isOpen ? "w-64 translate-x-0" : "w-16 -translate-x-full md:translate-x-0"
-      )}>
-      <div className="flex h-16 items-center justify-between px-4 border-b">
-        {isOpen && <span className="font-bold text-lg tracking-tight">Admin<span className="text-primary">Pro</span></span>}
-        {!isOpen && <span className="font-bold text-lg tracking-tight mx-auto text-primary">A</span>}
-      </div>
 
-      <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-        {visibleNavItems.map((item) => (
-          <NavLink
-            key={item.href}
-            to={item.href}
-            end={item.href === '/'}
-            className={({ isActive }) => cn(
-              "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium",
-              isActive 
-                ? "bg-primary/10 text-primary" 
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              !isOpen && "justify-center px-0"
-            )}
-            title={!isOpen ? item.label : undefined}
-            onClick={() => {
-              if (window.innerWidth < 768) {
-                onToggle();
-              }
-            }}
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed lg:static inset-y-0 left-0 z-50",
+          "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
+          isOpen ? "w-64" : "w-16 -translate-x-full lg:translate-x-0"
+        )}
+      >
+        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border/50 shrink-0">
+          {isOpen && (
+            <span className="font-bold text-lg text-sidebar-foreground truncate">
+              Admin Portal
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto lg:flex hidden"
           >
-            <item.icon className="h-5 w-5 shrink-0" />
-            {isOpen && <span>{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
+            {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto lg:hidden"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        </div>
 
-      <div className="p-2 border-t">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={onToggle}
-          className="w-full flex justify-center"
-        >
-          {isOpen ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-        </Button>
-      </div>
-    </aside>
+        <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
+          <ul className="space-y-1 px-2">
+            {visibleNavItems.map((item) => (
+              <li key={item.label}>
+                <NavLink
+                  to={item.href}
+                  className={({ isActive }) => cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                    "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
+                    isActive && "bg-sidebar-accent text-sidebar-foreground font-medium",
+                    !isOpen && "justify-center px-0"
+                  )}
+                  title={!isOpen ? item.label : undefined}
+                >
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  {isOpen && <span className="truncate">{item.label}</span>}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
     </>
   );
 }

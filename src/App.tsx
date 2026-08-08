@@ -40,6 +40,12 @@ import { PromotionsList } from './pages/admin/promotions/PromotionsList';
 import { MarketingList } from './pages/admin/marketing/MarketingList';
 import { BannersList } from './pages/admin/banners/BannersList';
 import { PopupsList } from './pages/admin/popups/PopupsList';
+import { CmsPagesList } from './pages/admin/cms/CmsPagesList';
+import { BlogManagement } from './pages/admin/blog/BlogManagement';
+import { SeoManagement } from './pages/admin/seo/SeoManagement';
+import { LandingPagesList } from './pages/admin/landing-pages/LandingPagesList';
+import { MediaLibrary } from './pages/admin/media/MediaLibrary';
+import { FaqManagement } from './pages/admin/faqs/FaqManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +98,12 @@ export default function App() {
               <Route path="admin/marketing" element={<RoutePermissionGuard module="Marketing" action="read"><MarketingList /></RoutePermissionGuard>} />
               <Route path="admin/banners" element={<RoutePermissionGuard module="Banners" action="read"><BannersList /></RoutePermissionGuard>} />
               <Route path="admin/popups" element={<RoutePermissionGuard module="Banners" action="read"><PopupsList /></RoutePermissionGuard>} />
+              <Route path="admin/cms" element={<RoutePermissionGuard module="CMS" action="read"><CmsPagesList /></RoutePermissionGuard>} />
+              <Route path="admin/blog" element={<RoutePermissionGuard module="Blog" action="read"><BlogManagement /></RoutePermissionGuard>} />
+              <Route path="admin/seo" element={<RoutePermissionGuard module="SEO" action="read"><SeoManagement /></RoutePermissionGuard>} />
+              <Route path="admin/landing-pages" element={<RoutePermissionGuard module="LandingPages" action="read"><LandingPagesList /></RoutePermissionGuard>} />
+              <Route path="admin/media" element={<RoutePermissionGuard module="Media" action="read"><MediaLibrary /></RoutePermissionGuard>} />
+              <Route path="admin/faqs" element={<RoutePermissionGuard module="FAQ" action="read"><FaqManagement /></RoutePermissionGuard>} />
               
               <Route path="analytics" element={<RoutePermissionGuard module="Analytics" action="read"><Analytics /></RoutePermissionGuard>} />
               <Route path="analytics/ga4-example" element={<GA4Example />} />

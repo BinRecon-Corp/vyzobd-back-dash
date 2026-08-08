@@ -31,6 +31,12 @@ import promotionRouter from "./src/backend/routes/promotion.routes";
 import marketingRouter from "./src/backend/routes/marketing.routes";
 import bannerRouter from "./src/backend/routes/banner.routes";
 import popupRouter from "./src/backend/routes/popup.routes";
+import pageRouter from "./src/backend/routes/page.routes";
+import landingPageRouter from "./src/backend/routes/landing-page.routes";
+import blogRouter from "./src/backend/routes/blog.routes";
+import mediaRouter from "./src/backend/routes/media.routes";
+import faqRouter from "./src/backend/routes/faq.routes";
+import seoRouter from "./src/backend/routes/seo.routes";
 
 import storefrontProductRouter from "./src/backend/routes/storefront/product.routes";
 import storefrontCategoryRouter from "./src/backend/routes/storefront/category.routes";
@@ -148,6 +154,12 @@ async function startServer() {
   apiRouter.use("/marketing", marketingRouter);
   apiRouter.use("/banners", bannerRouter);
   apiRouter.use("/popups", popupRouter);
+  apiRouter.use("/pages", pageRouter);
+  apiRouter.use("/landing-pages", landingPageRouter);
+  apiRouter.use("/blog", blogRouter);
+  apiRouter.use("/media", mediaRouter);
+  apiRouter.use("/faqs", faqRouter);
+  apiRouter.use("/seo", seoRouter);
   
   app.use("/api/v1", apiRouter);
 
