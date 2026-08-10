@@ -36,7 +36,9 @@ export function mapBrandToStorefrontDTO(brand: any): StorefrontBrand & { website
 export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
   const images = product.images?.map((img: any): StorefrontProductImage => ({
     id: img.id,
-    url: img.url,
+    url: img.imageUrl || img.url,
+    imageUrl: img.imageUrl || img.url,
+    publicId: img.publicId || null,
     altText: img.altText,
     isPrimary: img.isPrimary,
     sortOrder: img.sortOrder,
@@ -52,12 +54,9 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
       }
     }
     
-    // Find variant image, assuming it might be linked via product images, 
-    // or just leave it null if not explicitly stored on variant.
-    // The schema has images ProductImage[] on ProductVariant, so:
     let image = null;
     if (v.images && v.images.length > 0) {
-      image = v.images[0].url;
+      image = v.images[0].imageUrl || v.images[0].url;
     }
 
     return {
@@ -66,14 +65,16 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
       barcode: v.barcode,
       price: v.price ? Number(v.price) : null,
       compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
-      stock: v.stock || 0, // Fallback if inventory is tracked differently
+      stock: v.stock || 0,
       inStock: v.stock > 0 || v.inventories?.some((i: any) => i.quantity > 0) || false,
       options,
       image,
     };
   }) || [];
 
-  const primaryImage = product.ogImage || (images.find((i: any) => i.isPrimary)?.url) || images[0]?.url || null;
+  const primaryImageObj = images.find((i: any) => i.isPrimary) || images[0] || null;
+  const primaryImageUrl = primaryImageObj?.imageUrl || primaryImageObj?.url || product.ogImage || null;
+  const gallery = images.filter((i: any) => !i.isPrimary);
 
   return {
     id: product.id,
@@ -84,7 +85,7 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     price: product.price ? Number(product.price) : null,
     seoTitle: product.metaTitle || product.name,
     seoDescription: product.metaDescription || product.shortDescription || null,
-    ogImage: primaryImage,
+    ogImage: primaryImageUrl,
     gtin: product.gtin,
     mpn: product.mpn,
     condition: product.condition,
@@ -93,5 +94,8 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     images,
     variants,
     tags: product.tags?.map((pt: any) => pt.tag?.name).filter(Boolean) || [],
+    thumbnail: primaryImageUrl,
+    gallery,
+    primaryImage: primaryImageObj || primaryImageUrl,
   };
 }

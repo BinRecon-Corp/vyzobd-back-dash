@@ -29,6 +29,8 @@ export interface StorefrontCategory {
 export interface StorefrontProductImage {
   id: string;
   url: string;
+  imageUrl?: string;
+  publicId?: string | null;
   altText: string | null;
   isPrimary: boolean;
   sortOrder: number;
@@ -75,6 +77,9 @@ export interface StorefrontProduct {
   images?: StorefrontProductImage[];
   variants?: StorefrontVariant[];
   tags?: string[];
+  thumbnail?: string | null;
+  gallery?: StorefrontProductImage[];
+  primaryImage?: StorefrontProductImage | string | null;
 }
 
 export interface PaginatedResponse<T> {

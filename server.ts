@@ -71,6 +71,8 @@ import { globalLimiter } from "./src/backend/middlewares/rateLimiter";
 import { sanitizeMiddleware } from "./src/backend/middlewares/validation";
 import { startRefreshTokenCleanupJob } from "./src/backend/controllers/auth.controller";
 
+import { ProductMediaService } from "./src/backend/services/product-media.service";
+
 async function startServer() {
   const app = express();
   const PORT = 3000; // Required by infrastructure
@@ -237,6 +239,11 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Migrate existing product image URL fields into ProductImage records
+  ProductMediaService.migrateExistingProductMedia().catch(err => {
+    logger.error("Error migrating product media on startup:", err);
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     logger.info(`Server running in ${env.NODE_ENV} mode on port ${PORT}`);

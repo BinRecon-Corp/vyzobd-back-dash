@@ -4,6 +4,7 @@ import { prisma } from "../config/db";
 import { GA4MappingService } from "../services/ga4.service";
 import { validateGA4EventParams } from "../../lib/ga4-ecommerce";
 import { AppError } from "../utils/AppError";
+import { ProductMediaService } from "../services/product-media.service";
 
 const generateSlug = (name: string) => {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
@@ -24,18 +25,21 @@ export const getAllProducts = asyncHandler(async (req: Request, res: Response) =
       category: { include: { parent: true } },
       brand: true,
       inventory: true,
-      images: true,
+      images: { orderBy: { sortOrder: 'asc' } },
       tags: true,
       variants: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const formattedProducts = products.map(p => ({
-    ...p,
-    compareAtPrice: p.variants?.[0]?.compareAtPrice || null,
-    costPrice: p.variants?.[0]?.costPrice || null,
-  }));
+  const formattedProducts = products.map(p => {
+    const formatted = ProductMediaService.formatProductMedia(p);
+    return {
+      ...formatted,
+      compareAtPrice: p.variants?.[0]?.compareAtPrice || null,
+      costPrice: p.variants?.[0]?.costPrice || null,
+    };
+  });
 
   res.status(200).json({ success: true, data: formattedProducts });
 });
@@ -48,7 +52,7 @@ export const getProductById = asyncHandler(async (req: Request, res: Response) =
       category: true,
       brand: true,
       inventory: true,
-      images: true,
+      images: { orderBy: { sortOrder: 'asc' } },
       tags: true,
       variants: true,
     },
@@ -58,6 +62,8 @@ export const getProductById = asyncHandler(async (req: Request, res: Response) =
     throw new AppError("Product not found", 404, "NOT_FOUND");
   }
 
+  const formattedProduct = ProductMediaService.formatProductMedia(product);
+
   // Generate GA4 payload for this product
   const ga4Payload = GA4MappingService.generateViewItemEvent(product);
   const ga4Validation = validateGA4EventParams(ga4Payload);
@@ -65,7 +71,7 @@ export const getProductById = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json({ 
     success: true, 
     data: {
-      ...product,
+      ...formattedProduct,
       compareAtPrice: product.variants?.[0]?.compareAtPrice || null,
       costPrice: product.variants?.[0]?.costPrice || null,
       ga4Event: ga4Validation.isValid ? ga4Validation.data : ga4Payload
@@ -353,4 +359,35 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
   ]);
 
   res.status(200).json({ success: true, message: "Product deleted successfully" });
+});
+
+export const uploadProductImage = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const image = await ProductMediaService.uploadImage(id, req.file, req.body);
+  res.status(201).json({ success: true, data: image });
+});
+
+export const deleteProductImage = asyncHandler(async (req: Request, res: Response) => {
+  const { id, imageId } = req.params;
+  await ProductMediaService.deleteImage(id, imageId);
+  res.status(200).json({ success: true, message: "Product image deleted successfully" });
+});
+
+export const reorderProductImages = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { imageIds, images } = req.body;
+  const ids: string[] = imageIds || (Array.isArray(images) ? images.map((i: any) => i.id) : []);
+
+  if (!ids || !Array.isArray(ids)) {
+    throw new AppError("imageIds array is required for reordering.", 400, "VALIDATION_ERROR");
+  }
+
+  const updatedImages = await ProductMediaService.reorderImages(id, ids);
+  res.status(200).json({ success: true, data: updatedImages });
+});
+
+export const setPrimaryProductImage = asyncHandler(async (req: Request, res: Response) => {
+  const { id, imageId } = req.params;
+  const updatedImages = await ProductMediaService.setPrimaryImage(id, imageId);
+  res.status(200).json({ success: true, data: updatedImages });
 });

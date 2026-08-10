@@ -78,45 +78,66 @@ export function Products() {
                   </TableCell>
                 </TableRow>
               ) : (
-                products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{product.sku}</TableCell>
-                    <TableCell>${Number(product.price).toFixed(2)}</TableCell>
-                    <TableCell>{product.inventory?.quantity || 0}</TableCell>
-                    <TableCell>
-                      <Badge variant={product.status === 'Active' ? 'success' : 'secondary'}>
-                        {product.status || 'Draft'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label={`Actions for ${product.name}`}>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`/products/${product.id}`)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/products/${product.id}/edit`)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDelete(product.id)}
-                            className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                products.map((product) => {
+                  const imageSrc = product.thumbnail ||
+                    (typeof product.primaryImage === 'string' ? product.primaryImage : product.primaryImage?.imageUrl || product.primaryImage?.url) ||
+                    product.images?.find((i: any) => i.isPrimary)?.imageUrl ||
+                    product.images?.find((i: any) => i.isPrimary)?.url ||
+                    product.images?.[0]?.imageUrl ||
+                    product.images?.[0]?.url ||
+                    product.ogImage;
+
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-md border overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                            {imageSrc ? (
+                              <img src={imageSrc} alt={product.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No img</span>
+                            )}
+                          </div>
+                          <span className="truncate max-w-[200px] sm:max-w-[300px]">{product.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{product.sku || 'N/A'}</TableCell>
+                      <TableCell>${product.price ? Number(product.price).toFixed(2) : '0.00'}</TableCell>
+                      <TableCell>{product.inventory?.quantity || 0}</TableCell>
+                      <TableCell>
+                        <Badge variant={product.status === 'Active' ? 'success' : 'secondary'}>
+                          {product.status || 'Draft'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" aria-label={`Actions for ${product.name}`}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/products/${product.id}`)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/products/${product.id}/edit`)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(product.id)}
+                              className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

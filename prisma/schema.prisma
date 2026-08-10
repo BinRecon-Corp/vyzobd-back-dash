@@ -310,12 +310,14 @@ model VariantAttributeValue {
 
 model ProductImage {
   id               String          @id @default(uuid())
-  url              String
-  altText          String?
-  isPrimary        Boolean         @default(false)
-  sortOrder        Int             @default(0)
   productId        String
   product          Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageUrl         String          @default("")
+  url              String          @default("")
+  publicId         String?
+  altText          String?
+  sortOrder        Int             @default(0)
+  isPrimary        Boolean         @default(false)
   productVariantId String?
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
   shipmentItems    ShipmentItem[]
@@ -323,6 +325,9 @@ model ProductImage {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   deletedAt        DateTime?
+
+  @@index([productId])
+  @@index([isPrimary])
 }
 
 model Inventory {
