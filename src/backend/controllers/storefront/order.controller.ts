@@ -67,3 +67,14 @@ export const getMyOrderTimeline = async (
     next(error);
   }
 };
+
+export const getMyOrderShipments = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customerId = req.customer!.id;
+    const { id } = req.params;
+    const shipments = await StorefrontOrderService.getOrderShipments(customerId, id);
+    res.status(200).json({ status: "success", data: { shipments } });
+  } catch (error) {
+    next(error);
+  }
+};

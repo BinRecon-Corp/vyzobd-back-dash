@@ -147,4 +147,20 @@ export class StorefrontOrderService {
       timeline,
     };
   }
+
+  static async getOrderShipments(customerId: string, orderId: string) {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId, customerId }
+    });
+    if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+    
+    return prisma.shipment.findMany({
+      where: { orderId },
+      include: {
+        courier: true,
+        trackingEvents: { orderBy: { timestamp: 'desc' } },
+        items: { include: { orderItem: { include: { product: true } } } }
+      }
+    });
+  }
 }

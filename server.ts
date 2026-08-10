@@ -11,6 +11,7 @@ import { swaggerSpec } from "./src/backend/config/swagger";
 
 // Import routers here once created
 import authRouter from "./src/backend/routes/auth.routes";
+import notificationRouter from "./src/backend/routes/notification.routes";
 import analyticsRouter from "./src/backend/routes/analytics.routes";
 import productRouter from "./src/backend/routes/product.routes";
 import categoryRouter from "./src/backend/routes/category.routes";
@@ -24,6 +25,9 @@ import roleRouter from "./src/backend/routes/role.routes";
 import permissionRouter from "./src/backend/routes/permission.routes";
 import auditRouter from "./src/backend/routes/audit.routes";
 import sessionRouter from "./src/backend/routes/session.routes";
+import shipmentRouter from "./src/backend/routes/shipment.routes";
+import returnRouter from "./src/backend/routes/return.routes";
+import refundRouter from "./src/backend/routes/refund.routes";
 import orderRouter from "./src/backend/routes/order.routes";
 import customerRouter from "./src/backend/routes/customer.routes";
 import couponRouter from "./src/backend/routes/coupon.routes";
@@ -48,11 +52,17 @@ import storefrontPageRouter from "./src/backend/routes/storefront/page.routes";
 import storefrontBlogRouter from "./src/backend/routes/storefront/blog.routes";
 import storefrontFaqRouter from "./src/backend/routes/storefront/faq.routes";
 import storefrontLandingPageRouter from "./src/backend/routes/storefront/landing-page.routes";
+import storefrontActivityRouter from "./src/backend/routes/storefront/activity.routes";
+import storefrontNotificationRouter from "./src/backend/routes/storefront/notification.routes";
 import storefrontAuthRouter from "./src/backend/routes/storefront/auth.routes";
 import storefrontAccountRouter from "./src/backend/routes/storefront/account.routes";
 import storefrontWishlistRouter from "./src/backend/routes/storefront/wishlist.routes";
 import storefrontOrderRouter from "./src/backend/routes/storefront/order.routes";
 import storefrontCartRouter from "./src/backend/routes/storefront/cart.routes";
+import storefrontCheckoutRouter from "./src/backend/routes/storefront/checkout.routes";
+import storefrontReturnRouter from "./src/backend/routes/storefront/return.routes";
+import storefrontRefundRouter from "./src/backend/routes/storefront/refund.routes";
+import storefrontPaymentRouter from "./src/backend/routes/storefront/payment.routes";
 import { storefrontRequestLogger } from "./src/backend/middlewares/storefront/logging.middleware";
 import { globalLimiter } from "./src/backend/middlewares/rateLimiter";
 import { sanitizeMiddleware } from "./src/backend/middlewares/validation";
@@ -144,6 +154,7 @@ async function startServer() {
   // Mount routes
   apiRouter.use("/auth", authRouter);
   apiRouter.use("/analytics", analyticsRouter);
+  apiRouter.use("/notifications", notificationRouter);
   apiRouter.use("/products", productRouter);
   apiRouter.use("/categories", categoryRouter);
   apiRouter.use("/brands", brandRouter);
@@ -157,6 +168,9 @@ async function startServer() {
   apiRouter.use("/audit-logs", auditRouter);
   apiRouter.use("/sessions", sessionRouter);
   apiRouter.use("/orders", orderRouter);
+  apiRouter.use("/shipments", shipmentRouter);
+  apiRouter.use("/returns", returnRouter);
+  apiRouter.use("/refunds", refundRouter);
   apiRouter.use("/customers", customerRouter);
   apiRouter.use("/coupons", couponRouter);
   apiRouter.use("/promotions", promotionRouter);
@@ -186,10 +200,16 @@ async function startServer() {
   storefrontRouter.use("/faqs", storefrontFaqRouter);
   storefrontRouter.use("/landing-pages", storefrontLandingPageRouter);
   storefrontRouter.use("/auth", storefrontAuthRouter);
+  storefrontRouter.use("/activity", storefrontActivityRouter);
+  storefrontRouter.use("/notifications", storefrontNotificationRouter);
   storefrontRouter.use("/account", storefrontAccountRouter);
   storefrontRouter.use("/wishlist", storefrontWishlistRouter);
   storefrontRouter.use("/orders", storefrontOrderRouter);
   storefrontRouter.use("/cart", storefrontCartRouter);
+  storefrontRouter.use("/checkout", storefrontCheckoutRouter);
+  storefrontRouter.use("/payment", storefrontPaymentRouter);
+  storefrontRouter.use("/refund", storefrontRefundRouter);
+  storefrontRouter.use("/returns", storefrontReturnRouter);
   
   app.use("/api/storefront/v1", storefrontRouter);
 
