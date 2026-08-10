@@ -19,6 +19,9 @@ export function PaymentsList() {
     queryFn: () => getPayments({ page, limit: 10, search, status }),
   });
 
+  const payments = data?.data?.payments || (Array.isArray(data?.data) ? data.data : []);
+  const pagination = data?.data?.pagination || data?.pagination || { totalPages: 1 };
+
   if (isLoading) return <LoadingSpinner />;
 
   return (
@@ -68,14 +71,14 @@ export function PaymentsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.data?.length === 0 && (
+              {payments.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No payments found.
                   </TableCell>
                 </TableRow>
               )}
-              {data?.data?.map((payment: any) => (
+              {payments.map((payment: any) => (
                 <TableRow key={payment.id}>
                   <TableCell className="font-medium">{payment.id.split("-")[0]}</TableCell>
                   <TableCell>{payment.orderId?.split("-")[0]}</TableCell>
@@ -103,7 +106,7 @@ export function PaymentsList() {
 
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {data?.pagination?.totalPages || 1}
+            Page {page} of {pagination.totalPages || 1}
           </p>
           <div className="flex gap-2">
             <Button
@@ -117,7 +120,7 @@ export function PaymentsList() {
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= (data?.pagination?.totalPages || 1)}
+              disabled={page >= (pagination.totalPages || 1)}
               onClick={() => setPage(page + 1)}
             >
               Next <ChevronRight className="w-4 h-4" />

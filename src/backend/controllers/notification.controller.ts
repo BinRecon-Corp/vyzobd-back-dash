@@ -23,3 +23,22 @@ export const sendNotification = async (req: any, res: Response, next: NextFuncti
     next(error);
   }
 };
+
+export const markAsRead = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    await AdminNotificationService.markAsRead(id);
+    res.status(200).json({ status: "success", message: "Notification marked as read" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markAllAsRead = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    await AdminNotificationService.markAllAsRead();
+    res.status(200).json({ status: "success", message: "All notifications marked as read" });
+  } catch (error) {
+    next(error);
+  }
+};

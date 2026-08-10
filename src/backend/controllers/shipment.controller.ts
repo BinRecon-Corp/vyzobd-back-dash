@@ -13,8 +13,14 @@ export const createShipment = async (req: any, res: Response, next: NextFunction
 
 export const getShipments = async (req: any, res: Response, next: NextFunction) => {
   try {
-    const shipments = await AdminShipmentService.getShipments();
-    res.status(200).json({ status: "success", data: { shipments } });
+    const { page, limit, search, status } = req.query;
+    const result = await AdminShipmentService.getShipments({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      search: search as string,
+      status: status as string
+    });
+    res.status(200).json({ status: "success", data: result });
   } catch (error) {
     next(error);
   }
@@ -33,8 +39,16 @@ export const getShipmentById = async (req: any, res: Response, next: NextFunctio
 export const updateShipmentStatus = async (req: any, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { status, location, description } = req.body;
-    const shipment = await AdminShipmentService.updateShipmentStatus(id, status, location, description);
+    const { status, location, description, trackingNumber, courier, courierId } = req.body;
+    const shipment = await AdminShipmentService.updateShipmentStatus(
+      id,
+      status,
+      location,
+      description,
+      trackingNumber,
+      courier,
+      courierId
+    );
     res.status(200).json({ status: "success", data: { shipment } });
   } catch (error) {
     next(error);

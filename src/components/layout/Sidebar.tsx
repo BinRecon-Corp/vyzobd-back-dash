@@ -112,11 +112,8 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
   const toggleGroup = (groupId: string) => {
     const isCurrentOpen = !!expandedGroups[groupId];
-    // Accordion requirement: Single open group preference or toggle
-    const updated = {
-      ...expandedGroups,
-      [groupId]: !isCurrentOpen
-    };
+    // Accordion requirement: Single open group expanded at a time
+    const updated = isCurrentOpen ? {} : { [groupId]: true };
     saveExpandedGroups(updated);
   };
 
@@ -153,8 +150,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         icon: Users,
         items: [
           { label: 'Customers', href: '/customers', module: 'Customers', icon: Users },
-          { label: 'Customer Activity', href: '/admin/sessions', module: 'Sessions', icon: Activity },
-          { label: 'Notifications', href: '/admin/notifications', module: 'Notifications', icon: Bell }
+          { label: 'Customer Activity', href: '/admin/sessions', module: 'Sessions', icon: Activity }
         ]
       }
     },
@@ -177,26 +173,14 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       type: 'group',
       data: {
         id: 'sales-mgmt',
-        title: 'Sales Management',
+        title: 'Sales & Fulfillment',
         icon: ShoppingCart,
         items: [
           { label: 'Orders', href: '/orders', module: 'Orders', icon: ShoppingCart },
           { label: 'Payments', href: '/admin/payments', module: 'Payments', icon: CreditCard },
           { label: 'Refunds', href: '/admin/refunds', module: 'Refunds', icon: RotateCcw },
-          { label: 'Returns', href: '/admin/returns', module: 'Returns', icon: Undo2 }
-        ]
-      }
-    },
-    {
-      type: 'group',
-      data: {
-        id: 'fulfillment-mgmt',
-        title: 'Fulfillment (OMS)',
-        icon: Truck,
-        items: [
-          { label: 'Shipments', href: '/admin/shipments', module: 'Shipments', icon: Truck },
-          { label: 'Couriers', href: '/admin/shipments', module: 'Shipments', icon: MapPin },
-          { label: 'Tracking', href: '/admin/shipments', module: 'Shipments', icon: Navigation }
+          { label: 'Returns', href: '/admin/returns', module: 'Returns', icon: Undo2 },
+          { label: 'Shipments', href: '/admin/shipments', module: 'Shipments', icon: Truck }
         ]
       }
     },
@@ -238,7 +222,6 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         icon: BarChart3,
         items: [
           { label: 'Analytics', href: '/analytics', module: 'Analytics', icon: BarChart3 },
-          { label: 'Reports', href: '/analytics', module: 'Analytics', icon: PieChart },
           { label: 'Audit Logs', href: '/admin/audit-logs', module: 'AuditLogs', icon: ShieldCheck }
         ]
       }
@@ -250,10 +233,10 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         title: 'System',
         icon: Settings,
         items: [
+          { label: 'Notifications', href: '/admin/notifications', module: 'Notifications', icon: Bell },
           { label: 'Settings', href: '/settings', module: 'Settings', icon: Settings },
           { label: 'SEO Settings', href: '/admin/seo', module: 'SEO', icon: Search },
-          { label: 'Security & Auth', href: '/settings', module: 'Settings', icon: Shield },
-          { label: 'SMTP Mailer', href: '/settings', module: 'Settings', icon: Mail }
+          { label: 'Security & Auth', href: '/settings', module: 'Settings', icon: Shield }
         ]
       }
     }

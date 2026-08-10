@@ -28,6 +28,7 @@ import sessionRouter from "./src/backend/routes/session.routes";
 import shipmentRouter from "./src/backend/routes/shipment.routes";
 import returnRouter from "./src/backend/routes/return.routes";
 import refundRouter from "./src/backend/routes/refund.routes";
+import paymentRouter from "./src/backend/routes/payment.routes";
 import orderRouter from "./src/backend/routes/order.routes";
 import customerRouter from "./src/backend/routes/customer.routes";
 import couponRouter from "./src/backend/routes/coupon.routes";
@@ -173,6 +174,7 @@ async function startServer() {
   apiRouter.use("/shipments", shipmentRouter);
   apiRouter.use("/returns", returnRouter);
   apiRouter.use("/refunds", refundRouter);
+  apiRouter.use("/payments", paymentRouter);
   apiRouter.use("/customers", customerRouter);
   apiRouter.use("/coupons", couponRouter);
   apiRouter.use("/promotions", promotionRouter);

@@ -1,7 +1,7 @@
 import express from "express";
-import { getNotifications, sendNotification } from "../controllers/notification.controller";
+import { getNotifications, sendNotification, markAsRead, markAllAsRead } from "../controllers/notification.controller";
 import { requireAuth, requirePermission } from "../middlewares/auth";
-import { validateBody } from "../middlewares/validation";
+import { validateBody, validateParamsUUID } from "../middlewares/validation";
 import { sendNotificationSchema } from "../validators/notification.validator";
 
 const router = express.Router();
@@ -9,5 +9,7 @@ const router = express.Router();
 router.use(requireAuth);
 router.get("/", requirePermission("Customers", "read"), getNotifications);
 router.post("/send", requirePermission("Customers", "write"), validateBody(sendNotificationSchema), sendNotification);
+router.post("/read-all", requirePermission("Customers", "write"), markAllAsRead);
+router.post("/:id/read", requirePermission("Customers", "write"), validateParamsUUID(["id"]), markAsRead);
 
 export default router;

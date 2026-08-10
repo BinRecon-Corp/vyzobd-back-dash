@@ -1,6 +1,6 @@
 import { prisma } from "../config/db";
 import { AppError } from "../utils/AppError";
-import { ShipmentStatus, TrackingStatus } from "@prisma/client";
+import { ShipmentStatus, TrackingStatus, NotificationType, NotificationChannel } from "@prisma/client";
 
 export class AdminShipmentService {
   static async createShipment(orderId: string, courierId: string | undefined, trackingNumber: string | undefined, items: { orderItemId: string, quantity: number }[]) {
@@ -13,7 +13,6 @@ export class AdminShipmentService {
       throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
     }
 
-    // A real system might check if order is paid, but let's just check if it's not cancelled
     if (order.status === "Cancelled") {
       throw new AppError("Cannot create shipment for cancelled order", 400, "ORDER_CANCELLED");
     }
@@ -65,7 +64,6 @@ export class AdminShipmentService {
         }
       });
 
-      // Update Order Status to PROCESSING if not already
       if (order.status === "Pending") {
         await tx.order.update({
           where: { id: orderId },
@@ -85,17 +83,61 @@ export class AdminShipmentService {
     });
   }
 
-  static async getShipments() {
-    return prisma.shipment.findMany({
-      include: { order: true, courier: true },
-      orderBy: { createdAt: 'desc' }
-    });
+  static async getShipments(options: { page?: number; limit?: number; search?: string; status?: string } = {}) {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(50, Math.max(1, options.limit || 10));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (options.status) {
+      where.status = options.status as ShipmentStatus;
+    }
+
+    if (options.search) {
+      where.OR = [
+        { trackingNumber: { contains: options.search } },
+        { orderId: { contains: options.search } },
+        { courier: { name: { contains: options.search } } }
+      ];
+    }
+
+    const [shipments, total] = await Promise.all([
+      prisma.shipment.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          order: { include: { customer: true } },
+          courier: true,
+          items: { include: { orderItem: { include: { product: true } } } },
+          trackingEvents: { orderBy: { timestamp: 'desc' } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.shipment.count({ where })
+    ]);
+
+    return {
+      shipments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   static async getShipmentById(id: string) {
     const shipment = await prisma.shipment.findUnique({
       where: { id },
-      include: { items: { include: { orderItem: { include: { product: true } } } }, trackingEvents: { orderBy: { timestamp: 'desc' } }, courier: true }
+      include: {
+        order: { include: { customer: true } },
+        courier: true,
+        items: { include: { orderItem: { include: { product: true } } } },
+        trackingEvents: { orderBy: { timestamp: 'desc' } }
+      }
     });
 
     if (!shipment) {
@@ -105,10 +147,18 @@ export class AdminShipmentService {
     return shipment;
   }
 
-  static async updateShipmentStatus(id: string, status: ShipmentStatus, location?: string, description?: string) {
+  static async updateShipmentStatus(
+    id: string,
+    status: ShipmentStatus,
+    location?: string,
+    description?: string,
+    trackingNumber?: string,
+    courierName?: string,
+    courierId?: string
+  ) {
     const shipment = await prisma.shipment.findUnique({
       where: { id },
-      include: { order: { include: { shipments: { include: { items: true } }, items: true } } }
+      include: { order: { include: { customer: true } }, courier: true }
     });
 
     if (!shipment) {
@@ -116,13 +166,30 @@ export class AdminShipmentService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      let resolvedCourierId = courierId || shipment.courierId;
+
+      if (!resolvedCourierId && courierName) {
+        let courierRecord = await tx.courier.findFirst({
+          where: { name: { equals: courierName } }
+        });
+        if (!courierRecord) {
+          courierRecord = await tx.courier.create({
+            data: { name: courierName }
+          });
+        }
+        resolvedCourierId = courierRecord.id;
+      }
+
       const updatedShipment = await tx.shipment.update({
         where: { id },
         data: {
           status,
+          trackingNumber: trackingNumber || shipment.trackingNumber,
+          courierId: resolvedCourierId,
           shippedAt: status === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
           deliveredAt: status === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined
-        }
+        },
+        include: { courier: true, order: true }
       });
 
       let trackingStatus: TrackingStatus = TrackingStatus.INFO_RECEIVED;
@@ -140,12 +207,6 @@ export class AdminShipmentService {
         }
       });
 
-      // Update Order Status based on shipments
-      let allDelivered = false;
-      let anyShipped = false;
-
-      // In a real system, you'd check if all ordered items are in delivered shipments.
-      // For simplicity, we just check if this shipment changes order status.
       if (status === "DELIVERED") {
         await tx.order.update({
           where: { id: shipment.orderId },
@@ -154,6 +215,20 @@ export class AdminShipmentService {
         await tx.orderTimeline.create({
           data: { orderId: shipment.orderId, status: "Delivered", action: "Order DELIVERED" }
         });
+
+        if (shipment.order?.customerId) {
+          await tx.notification.create({
+            data: {
+              customerId: shipment.order.customerId,
+              orderId: shipment.orderId,
+              type: NotificationType.ORDER_DELIVERED,
+              channel: NotificationChannel.IN_APP,
+              title: "Order Delivered",
+              message: `Your order #${shipment.orderId.split("-")[0]} has been delivered.`,
+              status: "PENDING"
+            }
+          });
+        }
       } else if (status === "SHIPPED") {
         await tx.order.update({
           where: { id: shipment.orderId },
@@ -162,6 +237,20 @@ export class AdminShipmentService {
         await tx.orderTimeline.create({
           data: { orderId: shipment.orderId, status: "Shipped", action: "Order SHIPPED" }
         });
+
+        if (shipment.order?.customerId) {
+          await tx.notification.create({
+            data: {
+              customerId: shipment.order.customerId,
+              orderId: shipment.orderId,
+              type: NotificationType.ORDER_SHIPPED,
+              channel: NotificationChannel.IN_APP,
+              title: "Order Shipped",
+              message: `Your order #${shipment.orderId.split("-")[0]} has been shipped with ${updatedShipment.courier?.name || 'carrier'}. Tracking: ${updatedShipment.trackingNumber || 'N/A'}`,
+              status: "PENDING"
+            }
+          });
+        }
       }
 
       return updatedShipment;

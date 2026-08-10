@@ -21,6 +21,9 @@ export function ShipmentsList() {
 
   if (isLoading) return <LoadingSpinner />;
 
+  const shipmentsList = data?.shipments || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1 };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -44,11 +47,14 @@ export function ShipmentsList() {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3"
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">All Statuses</option>
             <option value="PENDING">Pending</option>
+            <option value="PROCESSING">Processing</option>
+            <option value="PACKED">Packed</option>
             <option value="SHIPPED">Shipped</option>
+            <option value="IN_TRANSIT">In Transit</option>
             <option value="DELIVERED">Delivered</option>
           </select>
         </div>
@@ -66,40 +72,41 @@ export function ShipmentsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.data?.length === 0 && (
+              {shipmentsList.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No shipments found.
                   </TableCell>
                 </TableRow>
+              ) : (
+                shipmentsList.map((shipment: any) => (
+                  <TableRow key={shipment.id}>
+                    <TableCell className="font-medium font-mono">{shipment.trackingNumber || 'N/A'}</TableCell>
+                    <TableCell>{shipment.courier?.name || 'N/A'}</TableCell>
+                    <TableCell>#{shipment.orderId?.split("-")[0]}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                        {shipment.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>{new Date(shipment.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link to={`/admin/shipments/${shipment.id}`}>
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
-              {data?.data?.map((shipment: any) => (
-                <TableRow key={shipment.id}>
-                  <TableCell className="font-medium">{shipment.trackingNumber || 'N/A'}</TableCell>
-                  <TableCell>{shipment.courier || 'N/A'}</TableCell>
-                  <TableCell>{shipment.orderId?.split("-")[0]}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
-                      {shipment.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{new Date(shipment.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/admin/shipments/${shipment.id}`}>
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
             </TableBody>
           </Table>
         </div>
 
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {data?.pagination?.totalPages || 1}
+            Page {page} of {pagination.totalPages || 1}
           </p>
           <div className="flex gap-2">
             <Button
@@ -113,7 +120,7 @@ export function ShipmentsList() {
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= (data?.pagination?.totalPages || 1)}
+              disabled={page >= (pagination.totalPages || 1)}
               onClick={() => setPage(page + 1)}
             >
               Next <ChevronRight className="w-4 h-4" />

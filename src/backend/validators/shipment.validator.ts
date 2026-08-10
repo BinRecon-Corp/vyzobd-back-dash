@@ -13,5 +13,8 @@ export const createShipmentSchema = z.object({
 export const updateShipmentStatusSchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "PACKED", "SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED_DELIVERY", "RETURNED"]),
   location: z.string().optional(),
-  description: z.string().optional()
+  description: z.string().optional(),
+  trackingNumber: z.string().optional(),
+  courier: z.string().optional(),
+  courierId: z.string().optional()
 });

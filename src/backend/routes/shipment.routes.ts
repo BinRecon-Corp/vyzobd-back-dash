@@ -11,6 +11,7 @@ router.use(requireAuth);
 router.post("/", requirePermission("Orders", "write"), validateBody(createShipmentSchema), createShipment);
 router.get("/", requirePermission("Orders", "read"), getShipments);
 router.get("/:id", requirePermission("Orders", "read"), validateParamsUUID(["id"]), getShipmentById);
+router.put("/:id", requirePermission("Orders", "write"), validateParamsUUID(["id"]), validateBody(updateShipmentStatusSchema), updateShipmentStatus);
 router.put("/:id/status", requirePermission("Orders", "write"), validateParamsUUID(["id"]), validateBody(updateShipmentStatusSchema), updateShipmentStatus);
 
 export default router;

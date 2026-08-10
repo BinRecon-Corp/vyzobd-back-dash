@@ -21,6 +21,9 @@ export function ReturnsList() {
 
   if (isLoading) return <LoadingSpinner />;
 
+  const returnsList = data?.returns || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1 };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -44,7 +47,7 @@ export function ReturnsList() {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3"
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">All Statuses</option>
             <option value="REQUESTED">Requested</option>
@@ -68,41 +71,42 @@ export function ReturnsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.data?.length === 0 && (
+              {returnsList.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No return requests found.
                   </TableCell>
                 </TableRow>
+              ) : (
+                returnsList.map((rma: any) => (
+                  <TableRow key={rma.id}>
+                    <TableCell className="font-medium">{rma.id.split("-")[0]}</TableCell>
+                    <TableCell>{rma.orderId?.split("-")[0]}</TableCell>
+                    <TableCell>{rma.customer?.email || 'Guest'}</TableCell>
+                    <TableCell>{rma.items?.length || 0} items</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                        {rma.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>{new Date(rma.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link to={`/admin/returns/${rma.id}`}>
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
-              {data?.data?.map((rma: any) => (
-                <TableRow key={rma.id}>
-                  <TableCell className="font-medium">{rma.id.split("-")[0]}</TableCell>
-                  <TableCell>{rma.orderId?.split("-")[0]}</TableCell>
-                  <TableCell>{rma.customer?.email || 'Guest'}</TableCell>
-                  <TableCell>{rma.items?.length || 0} items</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
-                      {rma.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{new Date(rma.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/admin/returns/${rma.id}`}>
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
             </TableBody>
           </Table>
         </div>
 
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-muted-foreground">
-            Page {page} of {data?.pagination?.totalPages || 1}
+            Page {page} of {pagination.totalPages || 1}
           </p>
           <div className="flex gap-2">
             <Button
@@ -116,7 +120,7 @@ export function ReturnsList() {
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= (data?.pagination?.totalPages || 1)}
+              disabled={page >= (pagination.totalPages || 1)}
               onClick={() => setPage(page + 1)}
             >
               Next <ChevronRight className="w-4 h-4" />
