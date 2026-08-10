@@ -5,7 +5,7 @@ import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
-import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette } from "lucide-react";
+import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette, RefreshCw } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useBranding } from "../../../context/BrandingContext";
 
@@ -495,7 +495,7 @@ export function Settings() {
                   <Button type="submit" disabled={mutation.isPending}>
                     {mutation.isPending ? (
                       <>
-                        <LoadingSpinner className="mr-2 h-4 w-4" /> Saving Changes...
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Saving Changes...
                       </>
                     ) : (
                       <>

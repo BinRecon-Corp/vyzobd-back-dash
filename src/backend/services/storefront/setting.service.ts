@@ -17,8 +17,8 @@ export class StorefrontSettingService {
         faviconUrl: branding.faviconUrl,
         adminPanelName: branding.adminPanelName,
         adminPanelLogo: branding.adminPanelLogo,
-        primaryColor: branding.primaryColor,
-        footerText: branding.footerText,
+        primaryColor: (branding as any).primaryColor,
+        footerText: (branding as any).footerText,
         defaultLanguage: branding.defaultLanguage,
         defaultCurrency: branding.defaultCurrency,
         defaultTimezone: branding.defaultTimezone
