@@ -15,6 +15,10 @@ export class StorefrontSettingService {
         siteTagline: branding.siteTagline,
         logoUrl: branding.logoUrl,
         faviconUrl: branding.faviconUrl,
+        adminPanelName: branding.adminPanelName,
+        adminPanelLogo: branding.adminPanelLogo,
+        primaryColor: branding.primaryColor,
+        footerText: branding.footerText,
         defaultLanguage: branding.defaultLanguage,
         defaultCurrency: branding.defaultCurrency,
         defaultTimezone: branding.defaultTimezone

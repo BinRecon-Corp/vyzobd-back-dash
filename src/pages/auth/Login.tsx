@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useBranding } from "../../context/BrandingContext";
 import { api } from "../../lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
@@ -11,11 +12,20 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   
   const { login } = useAuth();
+  const { branding, setPageTitle } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
+
+  useEffect(() => {
+    setPageTitle("Login");
+  }, [setPageTitle]);
+
+  const logoSource = branding.logoUrl || branding.adminPanelLogo;
+  const portalName = branding.adminPanelName || branding.siteName || "Admin Portal";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +46,25 @@ export function Login() {
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-muted/40">
       <Card className="w-full max-w-md shadow-lg border-muted">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-center">Login to Admin</CardTitle>
+        <CardHeader className="space-y-3 text-center">
+          {logoSource && !logoError ? (
+            <div className="flex justify-center pb-2">
+              <img
+                src={logoSource}
+                alt={portalName}
+                onError={() => setLogoError(true)}
+                className="h-12 max-w-[200px] object-contain"
+              />
+            </div>
+          ) : (
+            <div className="mx-auto h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xl font-bold">
+              {portalName.charAt(0)}
+            </div>
+          )}
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Sign in to {portalName}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">{branding.siteTagline}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

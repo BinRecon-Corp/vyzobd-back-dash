@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface HeaderProps {
@@ -28,7 +29,12 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
   }, []);
   
   const { user, logout } = useAuth();
+  const { branding } = useBranding();
   const navigate = useNavigate();
+  const [logoError, setLogoError] = React.useState(false);
+
+  const logoSource = branding.logoUrl || branding.adminPanelLogo;
+  const siteTitle = branding.adminPanelName || branding.siteName || "Admin Portal";
 
   const toggleTheme = () => {
     const html = document.documentElement;
@@ -54,6 +60,19 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle menu</span>
       </Button>
+
+      <div className="flex md:hidden items-center gap-2">
+        {logoSource && !logoError ? (
+          <img
+            src={logoSource}
+            alt={siteTitle}
+            onError={() => setLogoError(true)}
+            className="h-7 w-auto object-contain"
+          />
+        ) : (
+          <span className="font-bold text-sm text-foreground truncate">{siteTitle}</span>
+        )}
+      </div>
 
       <div className="w-full flex-1">
         <form className="hidden sm:block">

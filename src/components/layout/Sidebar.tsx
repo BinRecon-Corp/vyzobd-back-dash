@@ -29,6 +29,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { Button } from '../ui/button';
 import { useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -37,6 +38,11 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const { hasPermission } = useAuth();
+  const { branding } = useBranding();
+  const [logoError, setLogoError] = React.useState(false);
+
+  const logoSource = branding.adminPanelLogo || branding.logoUrl;
+  const portalName = branding.adminPanelName || branding.siteName || "Admin Portal";
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/', module: 'Dashboard' },
@@ -96,10 +102,39 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         )}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          {isOpen && (
-            <span className="font-bold text-lg text-slate-900 dark:text-slate-100 truncate">
-              Admin Portal
-            </span>
+          {isOpen ? (
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              {logoSource && !logoError ? (
+                <img
+                  src={logoSource}
+                  alt={portalName}
+                  onError={() => setLogoError(true)}
+                  className="h-8 max-w-[140px] object-contain shrink-0"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                  {portalName.charAt(0)}
+                </div>
+              )}
+              <span className="font-bold text-base text-slate-900 dark:text-slate-100 truncate">
+                {portalName}
+              </span>
+            </div>
+          ) : (
+            <div className="mx-auto">
+              {logoSource && !logoError ? (
+                <img
+                  src={logoSource}
+                  alt={portalName}
+                  onError={() => setLogoError(true)}
+                  className="h-7 w-7 object-contain"
+                />
+              ) : (
+                <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                  {portalName.charAt(0)}
+                </div>
+              )}
+            </div>
           )}
           <Button
             variant="ghost"

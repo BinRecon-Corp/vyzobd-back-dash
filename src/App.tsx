@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
+import { BrandingProvider } from './context/BrandingContext';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { RoutePermissionGuard } from './components/layout/PermissionGuard';
 import { AdminLayout } from './components/layout/AdminLayout';
@@ -74,7 +75,8 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
+        <BrandingProvider>
+          <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -156,7 +158,8 @@ export default function App() {
             </Route>
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
+      </BrandingProvider>
+    </AuthProvider>
     </QueryClientProvider>
   );
 }

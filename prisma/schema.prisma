@@ -1230,6 +1230,8 @@ model BrandingSetting {
   adminPanelName  String?
   adminPanelLogo  String?
   invoiceLogo     String?
+  primaryColor    String?
+  footerText      String?
   defaultLanguage String   @default("en")
   defaultCurrency String   @default("USD")
   defaultTimezone String   @default("UTC")

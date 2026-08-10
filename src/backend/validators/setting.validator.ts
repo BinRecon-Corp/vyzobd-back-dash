@@ -15,6 +15,8 @@ export const updateBrandingSettingsSchema = z.object({
   adminPanelName: z.string().optional(),
   adminPanelLogo: z.string().optional(),
   invoiceLogo: z.string().optional(),
+  primaryColor: z.string().optional(),
+  footerText: z.string().optional(),
   defaultLanguage: z.string().optional(),
   defaultCurrency: z.string().optional(),
   defaultTimezone: z.string().optional(),
