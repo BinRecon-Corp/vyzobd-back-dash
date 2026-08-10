@@ -81,20 +81,23 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         <div 
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onToggle}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:static inset-y-0 left-0 z-50",
-          "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
-          isOpen ? "w-64" : "w-16 -translate-x-full md:translate-x-0"
+          "fixed inset-y-0 left-0 z-50 flex flex-col",
+          "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100",
+          "border-r border-slate-200 dark:border-slate-800 shadow-xl",
+          "transition-all duration-300 ease-in-out",
+          isOpen ? "w-64 translate-x-0" : "w-16 -translate-x-full md:translate-x-0"
         )}
       >
-        <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border/50 shrink-0">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           {isOpen && (
-            <span className="font-bold text-lg text-sidebar-foreground truncate">
+            <span className="font-bold text-lg text-slate-900 dark:text-slate-100 truncate">
               Admin Portal
             </span>
           )}
@@ -102,7 +105,8 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto md:flex hidden"
+            className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 ml-auto md:flex hidden"
+            aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
@@ -111,22 +115,23 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto md:hidden"
+            className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 ml-auto md:hidden"
+            aria-label="Close sidebar"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
+        <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
           <ul className="space-y-1 px-2">
             {visibleNavItems.map((item) => (
               <li key={item.label}>
                 <NavLink
                   to={item.href}
                   className={({ isActive }) => cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                    "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                    isActive && "bg-sidebar-accent text-sidebar-foreground font-medium",
+                    "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm",
+                    "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800",
+                    isActive && "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold",
                     !isOpen && "justify-center px-0"
                   )}
                   title={!isOpen ? item.label : undefined}

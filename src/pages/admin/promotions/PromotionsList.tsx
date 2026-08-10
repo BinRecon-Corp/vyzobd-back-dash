@@ -296,7 +296,7 @@ export function PromotionsList() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium mb-1">Discount Type</label>
                   <select
@@ -322,7 +322,7 @@ export function PromotionsList() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium mb-1">Priority (Higher = Evaluated First)</label>
                   <input
@@ -346,7 +346,7 @@ export function PromotionsList() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium mb-1">Start Date</label>
                   <input
