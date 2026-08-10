@@ -36,9 +36,9 @@ api.interceptors.response.use(
         }
       } catch (err) {
         // Refresh failed, logout
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
+        localStorage.clear();
         window.location.href = "/login";
+        return Promise.reject(err);
       }
     }
     return Promise.reject(error);

@@ -40,21 +40,40 @@ export function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setSelectedUsers([]);
+    },
+    onError: (error: any) => {
+      alert(error?.response?.data?.message || error?.message || "Error updating user status");
+      console.error("Update status failed", error);
     }
   });
 
   const resetPasswordMutation = useMutation({
     mutationFn: ({ id, newPassword }: { id: string, newPassword: string }) => adminResetPassword(id, newPassword),
-    onSuccess: () => alert("Password reset successful")
+    onSuccess: () => {
+      alert("Password reset successful");
+      console.log("Password reset successful");
+    },
+    onError: (error: any) => {
+      alert(error?.response?.data?.message || error?.message || "Error resetting password");
+      console.error("Reset password failed", error);
+    }
   });
   
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      console.log("User deleted");
+    },
+    onError: (error: any) => {
+      alert(error?.response?.data?.message || error?.message || "Error deleting user");
+      console.error("Delete user failed", error);
+    }
   });
   
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("Submitting user", data);
       if (editingUser) {
         await updateUser(editingUser.id, { firstName: data.firstName, lastName: data.lastName, email: data.email });
         if (data.roleId && data.roleId !== editingUser.roleId) {
@@ -67,6 +86,14 @@ export function Users() {
     onSuccess: () => {
       setIsModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      console.log(editingUser ? "User updated" : "User created");
+    },
+    onError: (error: any) => {
+      alert(error?.response?.data?.message || error?.message || (editingUser ? "Error updating user" : "Error creating user"));
+      console.error("Create/update user failed", error);
+    },
+    onSettled: () => {
+      // Runs on both success and error
     }
   });
 
@@ -101,16 +128,24 @@ export function Users() {
 
   const handleBulkActivate = async () => {
     if (confirm(`Are you sure you want to activate ${selectedUsers.length} users?`)) {
-      for (const id of selectedUsers) {
-        await toggleStatusMutation.mutateAsync({ id, isActive: true });
+      try {
+        for (const id of selectedUsers) {
+          await toggleStatusMutation.mutateAsync({ id, isActive: true });
+        }
+      } catch (e) {
+        console.error("Bulk activate stopped due to error:", e);
       }
     }
   };
 
   const handleBulkDeactivate = async () => {
     if (confirm(`Are you sure you want to deactivate ${selectedUsers.length} users?`)) {
-      for (const id of selectedUsers) {
-        await toggleStatusMutation.mutateAsync({ id, isActive: false });
+      try {
+        for (const id of selectedUsers) {
+          await toggleStatusMutation.mutateAsync({ id, isActive: false });
+        }
+      } catch (e) {
+        console.error("Bulk deactivate stopped due to error:", e);
       }
     }
   };
@@ -212,8 +247,13 @@ export function Users() {
                           {hasPermission("Users", "write") && (
                             <DropdownMenuItem onClick={async () => {
                               if (confirm(`Force logout all sessions for ${user.email}?`)) {
-                                await forceLogoutUser(user.id);
-                                alert("User has been forced to logout.");
+                                try {
+                                  await forceLogoutUser(user.id);
+                                  alert("User has been forced to logout.");
+                                } catch (error: any) {
+                                  alert(error?.response?.data?.message || error?.message || "Error forcing logout");
+                                  console.error("Force logout failed", error);
+                                }
                               }
                             }}>
                               <Power className="mr-2 h-4 w-4" /> Force Logout
