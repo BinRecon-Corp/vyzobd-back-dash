@@ -15,6 +15,17 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
   const [isDark, setIsDark] = React.useState(
     document.documentElement.classList.contains('dark')
   );
+
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      setIsDark(true);
+    } else if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+      setIsDark(false);
+    }
+  }, []);
   
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -24,9 +35,11 @@ export function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
     if (html.classList.contains('dark')) {
       html.classList.remove('dark');
       setIsDark(false);
+      localStorage.setItem('theme', 'light');
     } else {
       html.classList.add('dark');
       setIsDark(true);
+      localStorage.setItem('theme', 'dark');
     }
   };
 

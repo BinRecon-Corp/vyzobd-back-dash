@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSessions, revokeSession } from "../../services/session.service";
 import { Card, CardContent } from "../../components/ui/card";
@@ -23,7 +24,7 @@ export function Sessions() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] })
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">

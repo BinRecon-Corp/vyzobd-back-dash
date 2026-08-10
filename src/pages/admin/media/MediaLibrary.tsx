@@ -389,9 +389,9 @@ export function MediaLibrary() {
           <div className="flex-1">
             <span className="font-semibold">Upload Failed:</span> {uploadError}
           </div>
-          <button onClick={() => setUploadError(null)} className="hover:opacity-80">
+          <Button onClick={() => setUploadError(null)} className="hover:opacity-80">
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -399,9 +399,9 @@ export function MediaLibrary() {
         <div className="flex items-start gap-2.5 p-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
           <Check className="h-4 w-4 mt-0.5 shrink-0" />
           <div className="flex-1 font-medium">{uploadSuccess}</div>
-          <button onClick={() => setUploadSuccess(null)} className="hover:opacity-80">
+          <Button onClick={() => setUploadSuccess(null)} className="hover:opacity-80">
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -426,12 +426,12 @@ export function MediaLibrary() {
               className="pl-9 w-full"
             />
             {searchQuery && (
-              <button
+              <Button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
 
@@ -544,7 +544,7 @@ export function MediaLibrary() {
                     <Eye className="h-4 w-4" />
                   </div>
                   {canDelete && (
-                    <button
+                    <Button
                       id={`delete-btn-${asset.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -554,7 +554,7 @@ export function MediaLibrary() {
                       className="p-2 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition shadow"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -583,13 +583,13 @@ export function MediaLibrary() {
             
             {/* Left Hand: Main Visual Reader */}
             <div className="flex-1 bg-zinc-950 flex items-center justify-center min-h-[300px] max-h-[50vh] md:max-h-[90vh] relative p-2 border-b md:border-b-0 md:border-r">
-              <button
+              <Button
                 id="close-modal-top"
                 onClick={() => setSelectedAsset(null)}
                 className="absolute top-4 left-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
 
               {selectedAsset.mimeType.startsWith('image/') ? (
                 <img
@@ -644,13 +644,13 @@ export function MediaLibrary() {
                       Uploaded on {new Date(selectedAsset.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <button
+                  <Button
                     id="close-modal-right"
                     onClick={() => setSelectedAsset(null)}
                     className="md:block hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition"
                   >
                     <X className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Properties pane */}

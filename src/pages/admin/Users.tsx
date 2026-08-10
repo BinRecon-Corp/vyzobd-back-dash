@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUsers, createUser, updateUser, deleteUser, updateUserStatus, adminResetPassword, updateUserRole, forceLogoutUser } from "../../services/user.service";
 import { getRoles } from "../../services/role.service";
@@ -150,7 +151,7 @@ export function Users() {
     }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">

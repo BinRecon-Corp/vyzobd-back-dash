@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRoles, createRole, updateRole, deleteRole } from "../../services/role.service";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/card";
@@ -61,7 +62,7 @@ export function Roles() {
     setIsModalOpen(true);
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">

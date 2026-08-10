@@ -50,6 +50,16 @@ import { SeoManagement } from './pages/admin/seo/SeoManagement';
 import { LandingPagesList } from './pages/admin/landing-pages/LandingPagesList';
 import { MediaLibrary } from './pages/admin/media/MediaLibrary';
 import { FaqManagement } from './pages/admin/faqs/FaqManagement';
+import { PaymentsList } from './pages/admin/payments/PaymentsList';
+import { PaymentDetails } from './pages/admin/payments/PaymentDetails';
+import { RefundsList } from './pages/admin/refunds/RefundsList';
+import { RefundDetails } from './pages/admin/refunds/RefundDetails';
+import { ReturnsList } from './pages/admin/returns/ReturnsList';
+import { ReturnDetails } from './pages/admin/returns/ReturnDetails';
+import { ShipmentsList } from './pages/admin/shipments/ShipmentsList';
+import { ShipmentDetails } from './pages/admin/shipments/ShipmentDetails';
+import { Settings } from './pages/admin/settings/Settings';
+import { NotificationsList } from './pages/admin/notifications/NotificationsList';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,7 +134,22 @@ export default function App() {
               <Route path="admin/sessions" element={<RoutePermissionGuard module="Sessions" action="read"><Sessions /></RoutePermissionGuard>} />
               <Route path="profile" element={<Profile />} />
               
-              <Route path="settings" element={<PlaceholderPage title="Settings" />} />
+              <Route path="admin/payments" element={<RoutePermissionGuard module="Payments" action="read"><PaymentsList /></RoutePermissionGuard>} />
+              <Route path="admin/payments/:id" element={<RoutePermissionGuard module="Payments" action="read"><PaymentDetails /></RoutePermissionGuard>} />
+              
+              <Route path="admin/refunds" element={<RoutePermissionGuard module="Refunds" action="read"><RefundsList /></RoutePermissionGuard>} />
+              <Route path="admin/refunds/:id" element={<RoutePermissionGuard module="Refunds" action="read"><RefundDetails /></RoutePermissionGuard>} />
+              
+              <Route path="admin/returns" element={<RoutePermissionGuard module="Returns" action="read"><ReturnsList /></RoutePermissionGuard>} />
+              <Route path="admin/returns/:id" element={<RoutePermissionGuard module="Returns" action="read"><ReturnDetails /></RoutePermissionGuard>} />
+              
+              <Route path="admin/shipments" element={<RoutePermissionGuard module="Shipments" action="read"><ShipmentsList /></RoutePermissionGuard>} />
+              <Route path="admin/shipments/:id" element={<RoutePermissionGuard module="Shipments" action="read"><ShipmentDetails /></RoutePermissionGuard>} />
+              
+              <Route path="admin/notifications" element={<RoutePermissionGuard module="Notifications" action="read"><NotificationsList /></RoutePermissionGuard>} />
+              
+              <Route path="settings" element={<RoutePermissionGuard module="Settings" action="read"><Settings /></RoutePermissionGuard>} />
+              <Route path="admin/settings" element={<RoutePermissionGuard module="Settings" action="read"><Settings /></RoutePermissionGuard>} />
               <Route path="admin/audit-logs" element={<RoutePermissionGuard module="AuditLogs" action="read"><AuditLogs /></RoutePermissionGuard>} />
               
               <Route path="*" element={<Navigate to="/" replace />} />

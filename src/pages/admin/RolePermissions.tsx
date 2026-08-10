@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRoleById, updateRolePermissions } from "../../services/role.service";
 import { api } from "../../lib/api";
@@ -54,7 +54,7 @@ export function RolePermissions() {
     }
   });
 
-  if (isLoadingRole || isLoadingPerms) return <div>Loading...</div>;
+  if (isLoadingRole || isLoadingPerms) return <LoadingSpinner />;
 
   const role = roleData?.role;
   const allPermissions = allPermissionsData?.permissions || [];

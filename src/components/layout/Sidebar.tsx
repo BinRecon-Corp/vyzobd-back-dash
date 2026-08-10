@@ -58,7 +58,12 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { icon: Image, label: 'Media Library', href: '/admin/media', module: 'Media' },
     { icon: HelpCircle, label: 'FAQs', href: '/admin/faqs', module: 'FAQ' },
     { icon: BarChart3, label: 'Analytics', href: '/analytics', module: 'Analytics' },
+    { icon: ShoppingCart, label: 'Payments', href: '/admin/payments', module: 'Payments' },
+    { icon: ShoppingCart, label: 'Refunds', href: '/admin/refunds', module: 'Refunds' },
+    { icon: ShoppingCart, label: 'Returns', href: '/admin/returns', module: 'Returns' },
+    { icon: Package, label: 'Shipments', href: '/admin/shipments', module: 'Shipments' },
     { icon: ShieldCheck, label: 'Audit Logs', href: '/admin/audit-logs', module: 'AuditLogs' },
+    { icon: Megaphone, label: 'Notifications', href: '/admin/notifications', module: 'Notifications' },
     { icon: UserCog, label: 'Users', href: '/admin/users', module: 'Users' },
     { icon: Key, label: 'Roles', href: '/admin/roles', module: 'Roles' },
     { icon: ShieldCheck, label: 'Sessions', href: '/admin/sessions', module: 'Sessions' },
@@ -74,7 +79,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onToggle}
         />
       )}
@@ -82,9 +87,9 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50",
+          "fixed md:static inset-y-0 left-0 z-50",
           "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
-          isOpen ? "w-64" : "w-16 -translate-x-full lg:translate-x-0"
+          isOpen ? "w-64" : "w-16 -translate-x-full md:translate-x-0"
         )}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border/50 shrink-0">
@@ -97,7 +102,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto lg:flex hidden"
+            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto md:flex hidden"
           >
             {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
@@ -106,7 +111,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto lg:hidden"
+            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0 ml-auto md:hidden"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
