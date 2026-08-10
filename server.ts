@@ -40,6 +40,7 @@ import landingPageRouter from "./src/backend/routes/landing-page.routes";
 import blogRouter from "./src/backend/routes/blog.routes";
 import mediaRouter from "./src/backend/routes/media.routes";
 import faqRouter from "./src/backend/routes/faq.routes";
+import settingRouter from "./src/backend/routes/setting.routes";
 import seoRouter from "./src/backend/routes/seo.routes";
 
 import storefrontProductRouter from "./src/backend/routes/storefront/product.routes";
@@ -47,6 +48,7 @@ import storefrontCategoryRouter from "./src/backend/routes/storefront/category.r
 import storefrontBrandRouter from "./src/backend/routes/storefront/brand.routes";
 import storefrontSearchRouter from "./src/backend/routes/storefront/search.routes";
 import storefrontMerchantRouter from "./src/backend/routes/storefront/merchant.routes";
+import storefrontSettingRouter from "./src/backend/routes/storefront/setting.routes";
 import storefrontSeoRouter from "./src/backend/routes/storefront/seo.routes";
 import storefrontPageRouter from "./src/backend/routes/storefront/page.routes";
 import storefrontBlogRouter from "./src/backend/routes/storefront/blog.routes";
@@ -183,6 +185,7 @@ async function startServer() {
   apiRouter.use("/media", mediaRouter);
   apiRouter.use("/faqs", faqRouter);
   apiRouter.use("/seo", seoRouter);
+  apiRouter.use("/settings", settingRouter);
   
   app.use("/api/v1", apiRouter);
 
@@ -195,6 +198,7 @@ async function startServer() {
   storefrontRouter.use("/search", storefrontSearchRouter);
   storefrontRouter.use("/merchant", storefrontMerchantRouter);
   storefrontRouter.use("/seo", storefrontSeoRouter);
+  storefrontRouter.use("/settings", storefrontSettingRouter);
   storefrontRouter.use("/pages", storefrontPageRouter);
   storefrontRouter.use("/blog", storefrontBlogRouter);
   storefrontRouter.use("/faqs", storefrontFaqRouter);
