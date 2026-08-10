@@ -48,6 +48,11 @@ import storefrontPageRouter from "./src/backend/routes/storefront/page.routes";
 import storefrontBlogRouter from "./src/backend/routes/storefront/blog.routes";
 import storefrontFaqRouter from "./src/backend/routes/storefront/faq.routes";
 import storefrontLandingPageRouter from "./src/backend/routes/storefront/landing-page.routes";
+import storefrontAuthRouter from "./src/backend/routes/storefront/auth.routes";
+import storefrontAccountRouter from "./src/backend/routes/storefront/account.routes";
+import storefrontWishlistRouter from "./src/backend/routes/storefront/wishlist.routes";
+import storefrontOrderRouter from "./src/backend/routes/storefront/order.routes";
+import storefrontCartRouter from "./src/backend/routes/storefront/cart.routes";
 import { storefrontRequestLogger } from "./src/backend/middlewares/storefront/logging.middleware";
 import { globalLimiter } from "./src/backend/middlewares/rateLimiter";
 import { sanitizeMiddleware } from "./src/backend/middlewares/validation";
@@ -180,6 +185,11 @@ async function startServer() {
   storefrontRouter.use("/blog", storefrontBlogRouter);
   storefrontRouter.use("/faqs", storefrontFaqRouter);
   storefrontRouter.use("/landing-pages", storefrontLandingPageRouter);
+  storefrontRouter.use("/auth", storefrontAuthRouter);
+  storefrontRouter.use("/account", storefrontAccountRouter);
+  storefrontRouter.use("/wishlist", storefrontWishlistRouter);
+  storefrontRouter.use("/orders", storefrontOrderRouter);
+  storefrontRouter.use("/cart", storefrontCartRouter);
   
   app.use("/api/storefront/v1", storefrontRouter);
 
