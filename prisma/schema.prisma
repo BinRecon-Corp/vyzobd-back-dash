@@ -251,6 +251,7 @@ model ProductTag {
   tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([productId, tagId])
+  @@index([tagId])
 }
 
 model Attribute {
@@ -269,6 +270,8 @@ model AttributeValue {
   variants    VariantAttributeValue[]
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
+
+  @@index([attributeId])
 }
 
 model Product {
@@ -318,6 +321,9 @@ model Product {
   @@index([brandId])
   @@index([vendorId])
   @@index([status])
+  @@index([isActive, deletedAt, categoryId])
+  @@index([isActive, deletedAt, brandId])
+  @@index([status, deletedAt])
 }
 
 model ProductVariant {
@@ -350,6 +356,7 @@ model VariantAttributeValue {
   attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Cascade)
 
   @@id([variantId, attributeValueId])
+  @@index([attributeValueId])
 }
 
 model ProductImage {
@@ -380,6 +387,7 @@ model ProductImage {
 
   @@index([productId])
   @@index([isPrimary])
+  @@index([productVariantId])
 }
 
 model Inventory {
@@ -453,6 +461,8 @@ model Order {
   @@index([createdAt])
   @@index([assignedStaffId])
   @@index([couponId])
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -484,6 +494,7 @@ model OrderTimeline {
   userId    String?
   userName  String?
   createdAt DateTime @default(now())
+
   @@index([orderId])
 }
 
@@ -494,6 +505,8 @@ model OrderNote {
   note      String
   author    String?
   createdAt DateTime @default(now())
+
+  @@index([orderId])
 }
 
 model Coupon {
@@ -601,6 +614,7 @@ model Review {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
+
   @@index([productId])
   @@index([customerId])
 }
@@ -653,6 +667,8 @@ model PageVersion {
   content     String
   versionNote String?
   createdAt   DateTime @default(now())
+
+  @@index([pageId])
 }
 
 model LandingPage {
@@ -938,6 +954,7 @@ model Payment {
 
   @@index([orderId])
   @@index([customerId])
+  @@index([status, createdAt])
 }
 
 model PaymentTransaction {
@@ -1074,6 +1091,7 @@ model Shipment {
 
   @@index([orderId])
   @@index([courierId])
+  @@index([status, createdAt])
 }
 
 model ShipmentItem {
@@ -1089,6 +1107,7 @@ model ShipmentItem {
 
   @@index([shipmentId])
   @@index([orderItemId])
+  @@index([productImageId])
 }
 
 model TrackingEvent {
@@ -1142,6 +1161,7 @@ model ReturnItem {
 
   @@index([returnRequestId])
   @@index([orderItemId])
+  @@index([productImageId])
 }
 
 // ------------------------------------------------------
@@ -1214,6 +1234,8 @@ model Notification {
   orderId  String?
 
   @@index([customerId])
+  @@index([orderId])
+  @@index([customerId, status])
 }
 
 model NotificationPreference {
@@ -1244,6 +1266,7 @@ model CustomerActivity {
   orderId  String?
 
   @@index([customerId])
+  @@index([orderId])
 }
 
 model AnalyticsEvent {
@@ -1263,6 +1286,7 @@ model AnalyticsEvent {
   @@index([eventName])
   @@index([customerId])
   @@index([sessionId])
+  @@index([orderId])
 }
 
 model AbandonedCart {

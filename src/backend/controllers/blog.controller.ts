@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../utils/AppError';
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/db";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {

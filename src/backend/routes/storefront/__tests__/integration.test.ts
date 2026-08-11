@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert";
 import request from "supertest";
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+
 import storefrontProductRouter from "../product.routes";
 import storefrontCategoryRouter from "../category.routes";
 import storefrontBrandRouter from "../brand.routes";
 import { errorHandler } from "../../../middlewares/errorHandler";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../../config/db";
 const app = express();
 app.use(express.json());
 

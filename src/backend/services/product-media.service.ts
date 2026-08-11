@@ -41,39 +41,47 @@ export class ProductMediaService {
   static async migrateExistingProductMedia() {
     try {
       const productsWithoutImages = await prisma.product.findMany({
-        where: {
-          deletedAt: null,
-        },
-        include: {
-          images: true,
-        },
+        where: { deletedAt: null },
+        include: { images: true },
       });
 
+      const toCreate = [];
+      const toUpdate = [];
+
       for (const product of productsWithoutImages) {
-        // If product has no images at all, but has ogImage or other fields
         if (product.images.length === 0 && product.ogImage) {
-          await prisma.productImage.create({
-            data: {
-              productId: product.id,
-              imageUrl: product.ogImage,
-              url: product.ogImage,
-              isPrimary: true,
-              sortOrder: 0,
-            },
+          toCreate.push({
+            productId: product.id,
+            imageUrl: product.ogImage,
+            url: product.ogImage,
+            isPrimary: true,
+            sortOrder: 0,
           });
         } else {
-          // Sync imageUrl and url for existing records if missing
           for (const img of product.images) {
             if (!img.imageUrl || img.imageUrl === "") {
-              await prisma.productImage.update({
-                where: { id: img.id },
-                data: {
-                  imageUrl: img.url || "",
-                },
+              toUpdate.push({
+                id: img.id,
+                imageUrl: img.url || "",
               });
             }
           }
         }
+      }
+
+      if (toCreate.length > 0) {
+        await prisma.productImage.createMany({ data: toCreate });
+      }
+
+      if (toUpdate.length > 0) {
+        await Promise.all(
+          toUpdate.map(update => 
+            prisma.productImage.update({
+              where: { id: update.id },
+              data: { imageUrl: update.imageUrl },
+            })
+          )
+        );
       }
     } catch (err) {
       console.error("Migration of existing product media encountered error:", err);

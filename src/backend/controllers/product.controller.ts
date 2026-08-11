@@ -19,18 +19,40 @@ const getDefaultCategory = async () => {
 };
 
 export const getAllProducts = asyncHandler(async (req: Request, res: Response) => {
-  const products = await prisma.product.findMany({
-    where: { deletedAt: null },
-    include: {
-      category: { include: { parent: true } },
-      brand: true,
-      inventory: true,
-      images: { orderBy: { sortOrder: 'asc' } },
-      tags: true,
-      variants: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const { page = 1, limit = 50, search = "", categoryId = "", brandId = "", status = "" } = req.query;
+
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const limitNum = Math.max(1, Math.min(100, parseInt(limit as string, 10) || 50));
+  const skip = (pageNum - 1) * limitNum;
+
+  const where: any = { deletedAt: null };
+  if (search) {
+    where.OR = [
+      { name: { contains: search as string, mode: "insensitive" } },
+      { sku: { contains: search as string, mode: "insensitive" } }
+    ];
+  }
+  if (categoryId) where.categoryId = categoryId as string;
+  if (brandId) where.brandId = brandId as string;
+  if (status) where.status = status as string;
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      skip,
+      take: limitNum,
+      include: {
+        category: { include: { parent: true } },
+        brand: true,
+        inventory: true,
+        images: { orderBy: { sortOrder: 'asc' } },
+        tags: true,
+        variants: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.product.count({ where })
+  ]);
 
   const formattedProducts = products.map(p => {
     const formatted = ProductMediaService.formatProductMedia(p);
@@ -41,7 +63,16 @@ export const getAllProducts = asyncHandler(async (req: Request, res: Response) =
     };
   });
 
-  res.status(200).json({ success: true, data: formattedProducts });
+  res.status(200).json({
+    success: true,
+    data: formattedProducts,
+    meta: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum)
+    }
+  });
 });
 
 export const getProductById = asyncHandler(async (req: Request, res: Response) => {
@@ -163,27 +194,12 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
 
   // Handle gallery images
   if (galleryImages && Array.isArray(galleryImages)) {
-    for (const url of galleryImages) {
-      await prisma.productImage.create({
-        data: {
-          url,
-          productId: product.id,
-          isPrimary: false
-        }
-      });
-    }
+    await prisma.productImage.createMany({ data: galleryImages.map(url => ({ url, imageUrl: url, productId: product.id, isPrimary: false })) });
   }
 
   // Handle tags
   if (tags && Array.isArray(tags)) {
-    for (const tagId of tags) {
-      await prisma.productTag.create({
-        data: {
-          productId: product.id,
-          tagId
-        }
-      });
-    }
+    await prisma.productTag.createMany({ data: tags.map(tagId => ({ productId: product.id, tagId })) });
   }
 
   res.status(201).json({ success: true, data: product });
@@ -276,11 +292,7 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
   // Update tags (simplified: delete all and recreate)
   if (tags && Array.isArray(tags)) {
     await prisma.productTag.deleteMany({ where: { productId: id } });
-    for (const tagId of tags) {
-      await prisma.productTag.create({
-        data: { productId: id, tagId }
-      });
-    }
+    await prisma.productTag.createMany({ data: tags.map(tagId => ({ productId: id, tagId })) });
   }
 
   const defaultVariant = existingProduct.variants?.[0];

@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+
 import { mapBrandToStorefrontDTO } from "../../dtos/storefront/mappers";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 interface GetBrandsOptions {
   page?: number;

@@ -10,6 +10,8 @@ import { cn } from "../../../lib/utils";
 import { useBranding } from "../../../context/BrandingContext";
 import { MediaUploaderInput } from "../../../components/admin/MediaUploaderInput";
 
+import { PermissionGuard } from "../../../components/layout/PermissionGuard";
+
 const TABS = [
   { id: "Branding", label: "Branding", icon: Palette },
   { id: "SEO", label: "SEO & Meta", icon: Globe },
@@ -523,19 +525,21 @@ export function Settings() {
                 )}
 
                 {/* Form Action Button */}
-                <div className="pt-4 border-t flex justify-end">
-                  <Button type="submit" disabled={mutation.isPending}>
-                    {mutation.isPending ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Saving Changes...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" /> Save {activeTab} Settings
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <PermissionGuard module="Settings" action="write">
+                  <div className="pt-4 border-t flex justify-end">
+                    <Button type="submit" disabled={mutation.isPending}>
+                      {mutation.isPending ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Saving Changes...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" /> Save {activeTab} Settings
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </PermissionGuard>
               </form>
             )}
           </Card>

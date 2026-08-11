@@ -8,11 +8,14 @@ import { Badge } from '@/src/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/src/components/ui/dropdown-menu';
 import { Plus, MoreHorizontal, Edit, Trash2, FolderTree, Folder } from 'lucide-react';
 import { getCategories, deleteCategory } from '../../services/category.service';
+import { PermissionGuard } from '../../components/layout/PermissionGuard';
+import { useAuth } from '../../context/AuthContext';
 
 export function CategoryList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
+  const { hasPermission } = useAuth();
+  
   // Fetch as tree for hierarchical display
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['categories', 'tree'],
@@ -34,6 +37,10 @@ export function CategoryList() {
       deleteMutation.mutate(id);
     }
   };
+
+  const hasWrite = hasPermission('Categories', 'write');
+  const hasDelete = hasPermission('Categories', 'delete');
+  const showActions = hasWrite || hasDelete;
 
   const renderCategoryRows = (cats: any[], level = 0) => {
     return cats.map((category) => (
@@ -57,26 +64,32 @@ export function CategoryList() {
             </Badge>
           </TableCell>
           <TableCell>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate(`/categories/${category.id}/edit`)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => handleDelete(category.id)}
-                  className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {showActions && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {hasWrite && (
+                    <DropdownMenuItem onClick={() => navigate(`/categories/${category.id}/edit`)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {hasDelete && (
+                    <DropdownMenuItem 
+                      onClick={() => handleDelete(category.id)}
+                      className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </TableCell>
         </TableRow>
         {category.children && category.children.length > 0 && renderCategoryRows(category.children, level + 1)}
@@ -92,9 +105,11 @@ export function CategoryList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
-        <Button onClick={() => navigate('/categories/new')}>
-          <Plus className="mr-2 h-4 w-4" /> Add Category
-        </Button>
+        <PermissionGuard module="Categories" action="write">
+          <Button onClick={() => navigate('/categories/new')}>
+            <Plus className="mr-2 h-4 w-4" /> Add Category
+          </Button>
+        </PermissionGuard>
       </div>
 
       <Card>
@@ -109,13 +124,15 @@ export function CategoryList() {
                 <TableHead>Slug</TableHead>
                 <TableHead>Sort Order</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
+                {showActions && (
+                  <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={showActions ? 5 : 4} className="text-center py-8 text-muted-foreground">
                     No categories found. Create one to get started.
                   </TableCell>
                 </TableRow>

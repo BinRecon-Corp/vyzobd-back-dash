@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+
 import { SeoResponse } from "../../dtos/storefront/seo.dto";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 function getBaseUrl(host: string): string {
   const envUrl = process.env.STOREFRONT_BASE_URL;

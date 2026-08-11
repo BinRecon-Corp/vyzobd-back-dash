@@ -13,13 +13,13 @@ export class AbandonedCartService {
       include: { customer: true }
     });
 
-    for (const cart of abandonedCarts) {
-      await prisma.abandonedCart.create({
-        data: {
+    if (abandonedCarts.length > 0) {
+      await prisma.abandonedCart.createMany({
+        data: abandonedCarts.map(cart => ({
           cartId: cart.id,
           customerId: cart.customerId,
           lastActivityAt: cart.updatedAt
-        }
+        }))
       });
       // Here you would trigger an email or notification
     }

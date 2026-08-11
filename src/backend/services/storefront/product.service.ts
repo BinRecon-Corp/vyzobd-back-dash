@@ -1,8 +1,8 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { StorefrontProduct, PaginatedResponse } from "../../dtos/storefront/types";
 import { mapProductToStorefrontDTO } from "../../dtos/storefront/mappers";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 interface GetProductsOptions {
   page?: number;

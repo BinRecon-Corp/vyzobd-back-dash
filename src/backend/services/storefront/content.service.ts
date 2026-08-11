@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+
+import { prisma } from "../../config/db";
 
 export class StorefrontContentService {
   async getPages() {

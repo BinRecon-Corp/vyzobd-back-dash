@@ -10,6 +10,7 @@ export interface AuthRequest extends Request {
     email: string;
     roleId: string;
     roleName: string;
+    permissions: Array<{ module: string, action: string }>;
   };
 }
 
@@ -41,7 +42,7 @@ export const requireAuth = async (
 
     const currentUser = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: { role: true },
+      include: { role: { include: { permissions: true } } },
     });
 
     if (!currentUser || !currentUser.isActive) {
@@ -55,7 +56,9 @@ export const requireAuth = async (
       email: currentUser.email,
       roleId: currentUser.roleId,
       roleName: currentUser.role.name,
+      permissions: currentUser.role.permissions.map(p => ({ module: p.module, action: p.action })),
     };
+
     next();
   } catch (error: any) {
     // Part 8 & Part 13 - Invalid JWT security logging
@@ -97,16 +100,7 @@ export const requirePermission = (module: string, action: string) => {
         return next();
       }
 
-      const role = await prisma.role.findUnique({
-        where: { id: req.user.roleId },
-        include: { permissions: true },
-      });
-
-      if (!role) {
-        return next(new AppError("Role not found", 403, "FORBIDDEN"));
-      }
-
-      const hasPermission = role.permissions.some(
+      const hasPermission = req.user.permissions.some(
         (p) =>
           p.module.toLowerCase() === module.toLowerCase() &&
           (p.action.toLowerCase() === action.toLowerCase() || p.action === "all")
