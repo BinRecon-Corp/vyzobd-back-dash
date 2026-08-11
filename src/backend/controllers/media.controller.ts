@@ -1,57 +1,161 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { MediaService } from '../services/media.service';
+import { ProductMediaService } from '../services/product-media.service';
 import { AppError } from '../utils/AppError';
 
-const prisma = new PrismaClient();
+export class MediaController {
+  /**
+   * Upload single image
+   */
+  static async uploadSingle(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        throw new AppError('No file provided in request', 400, 'BAD_REQUEST');
+      }
 
-export const getAll = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const data = await prisma.mediaAsset.findMany({ where: { deletedAt: null } });
-    res.json(data);
-  } catch (error) {
-    next(error);
-  }
-};
+      const folder = (req.body.folder as string) || 'media';
+      const altText = (req.body.altText as string) || req.file.originalname;
+      const isPrimary = req.body.isPrimary === 'true' || req.body.isPrimary === true;
 
-export const getById = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const item = await prisma.mediaAsset.findFirst({ where: { id, deletedAt: null } });
-    if (!item) throw new AppError('mediaAsset not found', 404, "NOT_FOUND");
-    res.json(item);
-  } catch (error) {
-    next(error);
-  }
-};
+      const result = await MediaService.uploadSingle(req.file, {
+        folder,
+        altText,
+        isPrimary,
+      });
 
-export const create = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const newItem = await prisma.mediaAsset.create({ data: req.body });
-    res.status(201).json(newItem);
-  } catch (error) {
-    next(error);
+      res.status(201).json({
+        status: 'success',
+        message: 'File uploaded successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-};
 
-export const update = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const updated = await prisma.mediaAsset.update({ where: { id }, data: req.body });
-    res.json(updated);
-  } catch (error) {
-    next(error);
-  }
-};
+  /**
+   * Upload multiple images
+   */
+  static async uploadMultiple(req: Request, res: Response, next: NextFunction) {
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        throw new AppError('No files provided in request', 400, 'BAD_REQUEST');
+      }
 
-export const remove = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    await prisma.mediaAsset.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
-    res.status(204).send();
-  } catch (error) {
-    next(error);
+      const folder = (req.body.folder as string) || 'media';
+
+      const results = await MediaService.uploadMultiple(files, { folder });
+
+      res.status(201).json({
+        status: 'success',
+        message: `${results.length} files uploaded successfully`,
+        data: results,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-};
+
+  /**
+   * Delete asset
+   */
+  static async deleteAsset(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      await MediaService.deleteAsset(id);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Media asset deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Replace asset
+   */
+  static async replaceAsset(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      if (!req.file) {
+        throw new AppError('Replacement file is required', 400, 'BAD_REQUEST');
+      }
+
+      const result = await MediaService.replaceAsset(id, req.file, {
+        folder: req.body.folder || 'media',
+      });
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Asset replaced successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * List media library assets
+   */
+  static async listAssets(req: Request, res: Response, next: NextFunction) {
+    try {
+      const folder = req.query.folder as string;
+      const search = req.query.search as string;
+
+      const assets = await MediaService.listAssets(folder, search);
+
+      res.status(200).json({
+        status: 'success',
+        data: assets,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Product media: Set Primary Image
+   */
+  static async setPrimaryProductImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { productId, imageId } = req.params;
+      const primaryImage = await ProductMediaService.setPrimaryImage(productId, imageId);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Primary image updated',
+        data: primaryImage,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Product media: Reorder Gallery Images
+   */
+  static async reorderGalleryImages(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { productId } = req.params;
+      const { imageIds } = req.body;
+
+      if (!Array.isArray(imageIds)) {
+        throw new AppError('imageIds must be an array of image IDs', 400, 'BAD_REQUEST');
+      }
+
+      const reordered = await ProductMediaService.reorderImages(productId, imageIds);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Gallery reordered successfully',
+        data: reordered,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}

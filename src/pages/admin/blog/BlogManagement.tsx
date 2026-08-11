@@ -61,7 +61,7 @@ export function BlogManagement() {
   // Fetch media library assets to resolve post image previews
   const { data: mediaAssets = [] } = useQuery({
     queryKey: ['media-assets'],
-    queryFn: mediaService.getAssets,
+    queryFn: () => mediaService.getAssets(),
   });
 
   const deleteMutation = useMutation({

@@ -8,6 +8,7 @@ import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
 import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette, RefreshCw } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useBranding } from "../../../context/BrandingContext";
+import { MediaUploaderInput } from "../../../components/admin/MediaUploaderInput";
 
 const TABS = [
   { id: "Branding", label: "Branding", icon: Palette },
@@ -203,22 +204,41 @@ export function Settings() {
                         <label className="text-sm font-medium mb-1 block">Site Tagline</label>
                         <Input name="siteTagline" value={formData.siteTagline || ""} onChange={handleChange} placeholder="Enterprise Management Suite" />
                       </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Logo URL (Main)</label>
-                        <Input name="logoUrl" value={formData.logoUrl || ""} onChange={handleChange} placeholder="https://example.com/logo.png" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Favicon URL</label>
-                        <Input name="faviconUrl" value={formData.faviconUrl || ""} onChange={handleChange} placeholder="https://example.com/favicon.ico" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Admin Panel Logo URL</label>
-                        <Input name="adminPanelLogo" value={formData.adminPanelLogo || ""} onChange={handleChange} placeholder="https://example.com/admin-logo.png" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Invoice Logo URL</label>
-                        <Input name="invoiceLogo" value={formData.invoiceLogo || ""} onChange={handleChange} placeholder="https://example.com/invoice-logo.png" />
-                      </div>
+                      <MediaUploaderInput
+                        label="Company Logo (Light Theme)"
+                        value={formData.logoUrl || ""}
+                        onChange={(url) => setFormData((prev: any) => ({ ...prev, logoUrl: url }))}
+                        folder="settings/branding"
+                        placeholder="Upload or enter Company Logo URL"
+                      />
+                      <MediaUploaderInput
+                        label="Dark Theme Logo"
+                        value={formData.darkLogoUrl || ""}
+                        onChange={(url) => setFormData((prev: any) => ({ ...prev, darkLogoUrl: url }))}
+                        folder="settings/branding"
+                        placeholder="Upload or enter Dark Logo URL"
+                      />
+                      <MediaUploaderInput
+                        label="Favicon (Browser Icon)"
+                        value={formData.faviconUrl || ""}
+                        onChange={(url) => setFormData((prev: any) => ({ ...prev, faviconUrl: url }))}
+                        folder="settings/branding"
+                        placeholder="Upload or enter Favicon ICO/PNG URL"
+                      />
+                      <MediaUploaderInput
+                        label="Admin Panel Logo"
+                        value={formData.adminPanelLogo || ""}
+                        onChange={(url) => setFormData((prev: any) => ({ ...prev, adminPanelLogo: url }))}
+                        folder="settings/branding"
+                        placeholder="Upload or enter Admin Panel Logo URL"
+                      />
+                      <MediaUploaderInput
+                        label="Invoice Header Logo"
+                        value={formData.invoiceLogo || ""}
+                        onChange={(url) => setFormData((prev: any) => ({ ...prev, invoiceLogo: url }))}
+                        folder="settings/branding"
+                        placeholder="Upload or enter Invoice Logo URL"
+                      />
                       <div>
                         <label className="text-sm font-medium mb-1 block">Primary Brand Color</label>
                         <div className="flex gap-2 items-center">
@@ -266,10 +286,13 @@ export function Settings() {
                         <label className="text-sm font-medium mb-1 block">OpenGraph Title</label>
                         <Input name="ogTitle" value={formData.ogTitle || ""} onChange={handleChange} />
                       </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">OpenGraph Image URL</label>
-                        <Input name="ogImage" value={formData.ogImage || ""} onChange={handleChange} />
-                      </div>
+                      <MediaUploaderInput
+                        label="OpenGraph Social Sharing Image"
+                        value={formData.ogImage || ""}
+                        onChange={(url) => setFormData((prev: any) => ({ ...prev, ogImage: url }))}
+                        folder="settings/seo"
+                        placeholder="Upload or enter OpenGraph Image URL"
+                      />
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-1 block">Robots.txt Content</label>
@@ -312,6 +335,15 @@ export function Settings() {
                       <div>
                         <label className="text-sm font-medium mb-1 block">From Name</label>
                         <Input name="fromName" value={formData.fromName || ""} onChange={handleChange} placeholder="Store Notifications" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <MediaUploaderInput
+                          label="Transactional Email Header Logo"
+                          value={formData.emailHeaderLogo || ""}
+                          onChange={(url) => setFormData((prev: any) => ({ ...prev, emailHeaderLogo: url }))}
+                          folder="settings/email"
+                          placeholder="Upload or enter Email Header Logo URL"
+                        />
                       </div>
                     </div>
 

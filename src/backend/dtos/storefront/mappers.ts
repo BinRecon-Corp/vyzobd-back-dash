@@ -99,3 +99,94 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     primaryImage: primaryImageObj || primaryImageUrl,
   };
 }
+
+export function mapOrderToStorefrontDTO(order: any) {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    totalAmount: order.totalAmount ? Number(order.totalAmount) : null,
+    shippingAddress: order.shippingAddress,
+    billingAddress: order.billingAddress,
+    paymentMethod: order.paymentMethod,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+    coupon: order.coupon ? {
+      code: order.coupon.code,
+      discountType: order.coupon.discountType,
+      discountValue: order.coupon.discountValue ? Number(order.coupon.discountValue) : null,
+    } : null,
+    items: order.items?.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      price: item.price ? Number(item.price) : null,
+      productName: item.product?.name,
+      productSlug: item.product?.slug,
+      productImage: item.product?.images?.[0]?.url || null,
+      variantSku: item.productVariant?.sku || null,
+    })) || [],
+    timeline: order.timeline?.map((event: any) => ({
+      id: event.id,
+      status: event.status,
+      action: event.action,
+      createdAt: event.createdAt,
+    })) || [],
+  };
+}
+
+export function mapShipmentToStorefrontDTO(shipment: any) {
+  return {
+    id: shipment.id,
+    trackingNumber: shipment.trackingNumber,
+    status: shipment.status,
+    shippedAt: shipment.shippedAt,
+    estimatedDelivery: shipment.estimatedDelivery,
+    courierName: shipment.courier?.name,
+    trackingUrl: shipment.courier?.trackingUrlPrefix ? `${shipment.courier.trackingUrlPrefix}${shipment.trackingNumber}` : null,
+    createdAt: shipment.createdAt,
+    items: shipment.items?.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      productName: item.orderItem?.product?.name,
+    })) || [],
+    trackingEvents: shipment.trackingEvents?.map((event: any) => ({
+      id: event.id,
+      status: event.status,
+      location: event.location,
+      description: event.description,
+      timestamp: event.timestamp,
+    })) || []
+  };
+}
+
+export function mapReturnRequestToStorefrontDTO(returnReq: any) {
+  return {
+    id: returnReq.id,
+    orderId: returnReq.orderId,
+    reason: returnReq.reason,
+    status: returnReq.status,
+    createdAt: returnReq.createdAt,
+    items: returnReq.items?.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      reason: item.reason,
+      condition: item.condition,
+      productName: item.orderItem?.product?.name,
+      productImage: item.orderItem?.product?.images?.[0]?.url || null,
+    })) || []
+  };
+}
+
+export function mapRefundToStorefrontDTO(refund: any) {
+  return {
+    id: refund.id,
+    orderId: refund.orderId,
+    amount: refund.amount ? Number(refund.amount) : null,
+    currency: refund.currency,
+    status: refund.status,
+    reason: refund.reason,
+    createdAt: refund.createdAt,
+    provider: refund.payment?.provider,
+  };
+}

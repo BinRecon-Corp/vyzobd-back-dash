@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
+import { mapOrderToStorefrontDTO, mapShipmentToStorefrontDTO } from "../../dtos/storefront/mappers";
 
 export class StorefrontOrderService {
   static async getCustomerOrders(
@@ -58,7 +59,7 @@ export class StorefrontOrderService {
     ]);
 
     return {
-      orders,
+      orders: orders.map(mapOrderToStorefrontDTO),
       pagination: {
         page,
         limit,
@@ -112,7 +113,7 @@ export class StorefrontOrderService {
       throw new AppError("Order not found", 404, "NOT_FOUND");
     }
 
-    return order;
+    return mapOrderToStorefrontDTO(order);
   }
 
   static async getCustomerOrderTimeline(customerId: string, orderId: string) {
@@ -154,7 +155,7 @@ export class StorefrontOrderService {
     });
     if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
     
-    return prisma.shipment.findMany({
+    const shipments = await prisma.shipment.findMany({
       where: { orderId },
       include: {
         courier: true,
@@ -162,5 +163,7 @@ export class StorefrontOrderService {
         items: { include: { orderItem: { include: { product: true } } } }
       }
     });
+
+    return shipments.map(mapShipmentToStorefrontDTO);
   }
 }

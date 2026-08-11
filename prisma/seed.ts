@@ -13,7 +13,7 @@ async function main() {
     throw new Error('ADMIN_PASSWORD environment variable is required to seed the admin user.');
   }
 
-  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Permissions', 'Settings', 'Security', 'Orders', 'Customers', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups', 'Sessions', 'AuditLogs'];
+  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Permissions', 'Settings', 'Security', 'Orders', 'Customers', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups', 'Sessions', 'AuditLogs', 'Media', 'Blog', 'CMS'];
   const actions = ['read', 'write', 'delete'];
 
   console.log('Seeding Permissions...');
@@ -58,7 +58,7 @@ async function main() {
       name: 'InventoryManager',
       description: 'Manages products, variants, categories, brands, and warehouse stock',
       permissions: getPermissionsByFilter((p) =>
-        ['Products', 'Categories', 'Brands', 'Inventory'].includes(p.module)
+        ['Products', 'Categories', 'Brands', 'Inventory', 'Media'].includes(p.module)
       ),
     },
     {
@@ -66,7 +66,7 @@ async function main() {
       description: 'Manages promotional campaigns, coupons, marketing, banners, and analytics',
       permissions: getPermissionsByFilter(
         (p) =>
-          ['Analytics', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups'].includes(p.module) ||
+          ['Analytics', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups', 'Media', 'Blog', 'CMS'].includes(p.module) ||
           (['Products', 'Categories', 'Brands'].includes(p.module) && p.action === 'read')
       ),
     },

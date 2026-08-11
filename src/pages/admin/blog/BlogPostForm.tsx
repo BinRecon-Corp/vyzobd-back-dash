@@ -35,7 +35,7 @@ export function BlogPostForm({ initialData, onSubmit, isLoading }: BlogPostFormP
   // Fetch available media assets for the Featured Image selector
   const { data: mediaAssets = [], isLoading: isLoadingMedia } = useQuery({
     queryKey: ['media-assets'],
-    queryFn: mediaService.getAssets,
+    queryFn: () => mediaService.getAssets(),
   });
 
   // Auto-generate slug from title (only when creating, not editing)

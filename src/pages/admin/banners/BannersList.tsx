@@ -4,6 +4,7 @@ import { bannerService, Banner } from '../../../services/banner.service';
 import { Image, Plus, Trash2, Edit3, Power, CheckCircle2, XCircle, Link, Calendar } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
+import { MediaUploaderInput } from '../../../components/admin/MediaUploaderInput';
 
 export function BannersList() {
   const queryClient = useQueryClient();
@@ -201,28 +202,21 @@ export function BannersList() {
                 />
               </div>
 
-              <div>
-                <label className="block font-medium mb-1">Desktop Image URL</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://..."
-                  value={formData.desktopImage}
-                  onChange={(e) => setFormData({ ...formData, desktopImage: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none"
-                />
-              </div>
+              <MediaUploaderInput
+                label="Desktop Banner Image"
+                value={formData.desktopImage}
+                onChange={(url) => setFormData({ ...formData, desktopImage: url })}
+                folder="cms/banners"
+                placeholder="Upload or enter Desktop Banner Image URL"
+              />
 
-              <div>
-                <label className="block font-medium mb-1">Mobile Image URL (Optional)</label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={formData.mobileImage}
-                  onChange={(e) => setFormData({ ...formData, mobileImage: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none"
-                />
-              </div>
+              <MediaUploaderInput
+                label="Mobile Banner Image (Optional)"
+                value={formData.mobileImage}
+                onChange={(url) => setFormData({ ...formData, mobileImage: url })}
+                folder="cms/banners"
+                placeholder="Upload or enter Mobile Banner Image URL"
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

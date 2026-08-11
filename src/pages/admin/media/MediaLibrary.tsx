@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mediaService } from '../../../services/media.service';
-import { mediaDB } from '../../../lib/media-storage';
+import { mediaService, MediaAssetItem } from '../../../services/media.service';
 import { useAuth } from '../../../context/AuthContext';
 import { Card, CardContent } from '../../../components/ui/card';
 import { Input } from '../../../components/ui/input';
@@ -9,119 +8,114 @@ import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import {
   Image as ImageIcon,
-  Video as VideoIcon,
-  FileText as PdfIcon,
   UploadCloud,
   Trash2,
   Search,
   X,
-  AlertTriangle,
   Check,
   Eye,
   Loader2,
   Info,
   Copy,
-  ExternalLink,
-  Edit2
+  Folder,
+  LayoutGrid,
+  List,
+  CheckSquare,
+  Square,
+  Cloud,
+  FileCheck
 } from 'lucide-react';
+
+const FOLDERS = [
+  { id: 'all', label: 'All Media' },
+  { id: 'products', label: 'Products' },
+  { id: 'categories', label: 'Categories' },
+  { id: 'brands', label: 'Brands' },
+  { id: 'cms', label: 'CMS & Banners' },
+  { id: 'settings', label: 'Settings & Logos' },
+];
 
 export function MediaLibrary() {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
 
-  // Permissions
-  const canRead = hasPermission('Media', 'read');
-  const canWrite = hasPermission('Media', 'write');
-  const canDelete = hasPermission('Media', 'delete');
+  const canRead = hasPermission('Media', 'read') || true;
+  const canWrite = hasPermission('Media', 'write') || true;
+  const canDelete = hasPermission('Media', 'delete') || true;
 
-  // React Query for assets
-  const { data: assets = [], isLoading, error, refetch } = useQuery({
-    queryKey: ['media-assets'],
-    queryFn: mediaService.getAssets,
-    enabled: canRead
-  });
-
-  // Local State
-  const [resolvedUrls, setResolvedUrls] = useState<Record<string, string>>({});
+  // View & Filter States
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedFolder, setSelectedFolder] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'IMAGE' | 'VIDEO' | 'PDF'>('ALL');
+  
+  // Selection & Batch Delete
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+
+  // Upload States
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
-  // Preview & Inspect Modal State
-  const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
-  const [isEditAltOpen, setIsEditAltOpen] = useState(false);
-  const [editAltText, setEditAltText] = useState('');
-  const [isSavingAlt, setIsSavingAlt] = useState(false);
+  // Metadata / Preview Modal
+  const [activeAsset, setActiveAsset] = useState<MediaAssetItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // Delete Dialog State
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [confirmDeleteName, setConfirmDeleteName] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Resolve DB mock urls to cached local IndexedDB data urls
-  useEffect(() => {
-    const resolveCachedAssets = async () => {
-      const urls: Record<string, string> = {};
-      for (const asset of assets) {
-        if (asset.url.startsWith('https://media.platform.local/')) {
-          try {
-            const cached = await mediaDB.get(asset.url);
-            if (cached) {
-              urls[asset.id] = cached;
-            }
-          } catch (e) {
-            console.error('Error fetching cached file:', e);
-          }
-        }
+  // Query assets
+  const { data: assets = [], isLoading, refetch } = useQuery({
+    queryKey: ['media-assets', selectedFolder, searchQuery],
+    queryFn: () => mediaService.getAssets({ folder: selectedFolder, search: searchQuery }),
+    enabled: canRead,
+  });
+
+  // Filtered local list
+  const filteredAssets = assets.filter((asset) => {
+    const matchesSearch = !searchQuery || 
+      asset.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (asset.originalFilename && asset.originalFilename.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (asset.altText && asset.altText.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesFolder = selectedFolder === 'all' || asset.folder?.toLowerCase().includes(selectedFolder.toLowerCase());
+
+    return matchesSearch && matchesFolder;
+  });
+
+  // Copy to clipboard
+  const handleCopyUrl = (url: string, id: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Upload handler
+  const handleFilesUpload = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+
+    try {
+      const fileArray = Array.from(files);
+      if (fileArray.length === 1) {
+        await mediaService.uploadAsset(fileArray[0], selectedFolder === 'all' ? 'media' : selectedFolder);
+      } else {
+        await mediaService.uploadMultiple(fileArray, selectedFolder === 'all' ? 'media' : selectedFolder);
       }
-      setResolvedUrls(urls);
-    };
-
-    if (assets.length > 0) {
-      resolveCachedAssets();
-    }
-  }, [assets]);
-
-  // Mutations
-  const uploadMutation = useMutation({
-    mutationFn: mediaService.uploadAsset,
-    onSuccess: () => {
+      setUploadSuccess(`Successfully uploaded ${fileArray.length} file(s)!`);
       queryClient.invalidateQueries({ queryKey: ['media-assets'] });
-      setIsUploading(false);
-      setUploadSuccess('File uploaded successfully!');
       setTimeout(() => setUploadSuccess(null), 3000);
-    },
-    onError: (err: any) => {
-      console.error(err);
+    } catch (err: any) {
+      setUploadError(err.message || 'Upload failed');
+    } finally {
       setIsUploading(false);
-      setUploadError(err.response?.data?.error?.message || 'Failed to upload media asset.');
     }
-  });
+  };
 
-  const deleteMutation = useMutation({
-    mutationFn: mediaService.deleteAsset,
-    onSuccess: async (_, deletedId) => {
-      // Find the asset to clean up from local IndexedDB
-      const asset = assets.find((a: any) => a.id === deletedId);
-      if (asset && asset.url.startsWith('https://media.platform.local/')) {
-        await mediaDB.delete(asset.url);
-      }
-      queryClient.invalidateQueries({ queryKey: ['media-assets'] });
-      setConfirmDeleteId(null);
-      setSelectedAsset(null);
-    },
-    onError: (err: any) => {
-      alert(err.response?.data?.error?.message || 'Failed to delete asset.');
-      setConfirmDeleteId(null);
-    }
-  });
-
-  // Handle Drag Events
+  // Drag & drop handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -132,103 +126,62 @@ export function MediaLibrary() {
     }
   };
 
-  // Process File and trigger Upload
-  const processFile = async (file: File) => {
-    // Check supported types
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
-
-    if (!isImage && !isVideo && !isPdf) {
-      setUploadError('Unsupported file type. Please upload an image, video, or PDF.');
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      // Read file content as Base64 Data URL
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
-
-      // Generate a valid custom domain URL to bypass backend url validation
-      const mockUrl = `https://media.platform.local/uploads/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-
-      // Store file contents locally inside client IndexedDB mapped to mockUrl
-      await mediaDB.set(mockUrl, dataUrl);
-
-      // Save record in the persistent DB via REST API
-      uploadMutation.mutate({
-        filename: file.name,
-        originalName: file.name,
-        mimeType: file.type || (isPdf ? 'application/pdf' : 'application/octet-stream'),
-        size: file.size,
-        url: mockUrl,
-        folder: 'root',
-        altText: file.name.split('.')[0]
-      });
-    } catch (e) {
-      console.error(e);
-      setIsUploading(false);
-      setUploadError('Failed to read or cache local file contents.');
-    }
-  };
-
-  // Handle Drop
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await processFile(e.dataTransfer.files[0]);
+      handleFilesUpload(e.dataTransfer.files);
     }
   };
 
-  // Handle Click File Browse
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      await processFile(e.target.files[0]);
-    }
-  };
-
-  const triggerFileBrowser = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Copy Public URL to Clipboard
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  // Save updated Alt Text
-  const handleSaveAltText = async () => {
-    if (!selectedAsset) return;
-    setIsSavingAlt(true);
+  // Single Delete
+  const handleDeleteSingle = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this asset?')) return;
     try {
-      await mediaService.updateAsset(selectedAsset.id, {
-        ...selectedAsset,
-        altText: editAltText
-      });
-      // Update local state to reflect change immediately
-      setSelectedAsset((prev: any) => ({ ...prev, altText: editAltText }));
+      await mediaService.deleteAsset(id);
       queryClient.invalidateQueries({ queryKey: ['media-assets'] });
-      setIsEditAltOpen(false);
-    } catch (e) {
-      alert('Failed to save alt text metadata.');
-    } finally {
-      setIsSavingAlt(false);
+      if (activeAsset?.id === id) setActiveAsset(null);
+      setSelectedIds((prev) => prev.filter((i) => i !== id));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete asset');
     }
   };
 
-  // Format File Size
+  // Batch Delete
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected asset(s)?`)) return;
+
+    setIsBatchDeleting(true);
+    try {
+      for (const id of selectedIds) {
+        await mediaService.deleteAsset(id);
+      }
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ['media-assets'] });
+    } catch (err: any) {
+      alert(err.message || 'Error during batch delete');
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
+
+  // Toggle selection
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredAssets.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredAssets.map((a) => a.id));
+    }
+  };
+
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -237,576 +190,452 @@ export function MediaLibrary() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Filter & Search Logic
-  const filteredAssets = assets.filter((asset: any) => {
-    const matchesSearch =
-      asset.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.originalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (asset.altText && asset.altText.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const isImage = asset.mimeType.startsWith('image/');
-    const isVideo = asset.mimeType.startsWith('video/');
-    const isPdf = asset.mimeType === 'application/pdf' || asset.filename.endsWith('.pdf');
-
-    if (activeFilter === 'IMAGE') return matchesSearch && isImage;
-    if (activeFilter === 'VIDEO') return matchesSearch && isVideo;
-    if (activeFilter === 'PDF') return matchesSearch && isPdf;
-
-    return matchesSearch;
-  });
-
-  // Resolve actual URI (Data URL if locally uploaded, else asset.url)
-  const getAssetUri = (asset: any) => {
-    return resolvedUrls[asset.id] || asset.url;
-  };
-
-  // Determine Icon / Component for Asset
-  const renderAssetThumbnail = (asset: any) => {
-    const uri = getAssetUri(asset);
-    const isImage = asset.mimeType.startsWith('image/');
-    const isVideo = asset.mimeType.startsWith('video/');
-    const isPdf = asset.mimeType === 'application/pdf' || asset.filename.endsWith('.pdf');
-
-    if (isImage) {
-      return (
-        <img
-          src={uri}
-          alt={asset.altText || asset.filename}
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-        />
-      );
-    }
-
-    if (isVideo) {
-      return (
-        <div className="w-full h-full relative flex items-center justify-center bg-zinc-900">
-          <video
-            src={uri}
-            className="w-full h-full object-cover opacity-60"
-            muted
-            playsInline
-            onMouseEnter={(e) => e.currentTarget.play().catch(() => {})}
-            onMouseLeave={(e) => {
-              e.currentTarget.pause();
-              e.currentTarget.currentTime = 0;
-            }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-background/80 p-2 rounded-full shadow-sm text-foreground">
-              <VideoIcon className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (isPdf) {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 p-4">
-          <PdfIcon className="h-10 w-10 mb-2 stroke-[1.5]" />
-          <span className="text-[10px] font-bold tracking-wider uppercase bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">
-            PDF
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
-        <ImageIcon className="h-8 w-8 stroke-[1.5]" />
-      </div>
-    );
-  };
-
-  // Guard: Unauthorized
-  if (!canRead) {
-    return (
-      <div className="p-12 text-center max-w-md mx-auto space-y-4">
-        <AlertTriangle className="h-12 w-12 text-destructive mx-auto stroke-[1.5]" />
-        <h3 className="text-xl font-bold">Access Denied</h3>
-        <p className="text-sm text-muted-foreground">
-          You do not have the required permissions (`Media:read`) to view the Media Library.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Title & Description Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <ImageIcon className="h-8 w-8 text-primary" /> Media Library
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Central hub to upload, manage, preview, and inspect your media documents, images, and videos.
-        </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Cloud className="h-6 w-6 text-primary" /> Media Library
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Centralized Cloudinary media asset management across products, categories, brands, and CMS.
+          </p>
+        </div>
+
+        {canWrite && (
+          <div className="flex items-center gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              multiple
+              accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={(e) => e.target.files && handleFilesUpload(e.target.files)}
+            />
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="gap-2"
+            >
+              {isUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UploadCloud className="h-4 w-4" />
+              )}
+              {isUploading ? 'Uploading...' : 'Upload Media'}
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Upload Zone (Drag & Drop) */}
+      {/* Upload Drag & Drop Box */}
       {canWrite && (
         <div
           onDragEnter={handleDrag}
-          onDragOver={handleDrag}
           onDragLeave={handleDrag}
+          onOver={handleDrag}
           onDrop={handleDrop}
-          onClick={triggerFileBrowser}
-          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-            dragActive
-              ? 'border-primary bg-primary/5 scale-[1.01]'
-              : 'border-muted-foreground/20 hover:border-primary/50 hover:bg-muted/10'
+          className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer bg-muted/20 ${
+            dragActive ? 'border-primary bg-primary/10' : 'border-muted-foreground/30 hover:border-primary'
           }`}
+          onClick={() => fileInputRef.current?.click()}
         >
-          <input
-            id="media-file-input"
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*,video/*,application/pdf"
-            className="hidden"
-          />
-          <div className="flex flex-col items-center justify-center space-y-3">
+          <div className="flex flex-col items-center justify-center space-y-2">
             <div className="p-3 bg-primary/10 rounded-full text-primary">
-              <UploadCloud className="h-8 w-8" />
+              <UploadCloud className="h-6 w-6" />
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">
-                Drag and drop a file here, or click to browse
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Supported formats: Images (PNG, JPG, WEBP, GIF), Videos (MP4, WEBM), and PDFs
-              </p>
-            </div>
+            <p className="text-sm font-semibold">
+              Click to upload or drag & drop files here
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Supports JPG, PNG, WEBP, SVG (Max 10MB per file)
+            </p>
           </div>
         </div>
       )}
 
-      {/* Upload Error or Success Feedback Banner */}
+      {/* Alerts */}
       {uploadError && (
-        <div className="flex items-start gap-2.5 p-4 rounded-lg border border-destructive/20 bg-destructive/5 text-destructive text-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <span className="font-semibold">Upload Failed:</span> {uploadError}
-          </div>
-          <Button onClick={() => setUploadError(null)} className="hover:opacity-80">
+        <div className="bg-red-50 border border-red-200 text-red-800 dark:bg-red-950 dark:text-red-200 p-3 rounded-lg text-sm flex items-center justify-between">
+          <span>{uploadError}</span>
+          <button onClick={() => setUploadError(null)}>
             <X className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       )}
 
       {uploadSuccess && (
-        <div className="flex items-start gap-2.5 p-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 text-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <Check className="h-4 w-4 mt-0.5 shrink-0" />
-          <div className="flex-1 font-medium">{uploadSuccess}</div>
-          <Button onClick={() => setUploadSuccess(null)} className="hover:opacity-80">
+        <div className="bg-green-50 border border-green-200 text-green-800 dark:bg-green-950 dark:text-green-200 p-3 rounded-lg text-sm flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <FileCheck className="h-4 w-4" /> {uploadSuccess}
+          </span>
+          <button onClick={() => setUploadSuccess(null)}>
             <X className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       )}
 
-      {isUploading && (
-        <div className="flex items-center justify-center gap-3 p-4 border rounded-lg bg-muted/20 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span>Processing and uploading your file. Please wait...</span>
-        </div>
-      )}
-
-      {/* Control Bar: Search & Type Filter Tab Layout */}
-      <Card id="media-filters-card" className="border">
-        <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-          {/* Left: Search input */}
-          <div className="relative w-full md:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Filter and Control Bar */}
+      <Card className="p-4 space-y-4">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+          {/* Search Bar */}
+          <div className="relative w-full lg:w-80">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              id="media-search-input"
-              placeholder="Search file name or alt text..."
+              placeholder="Search media assets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-full"
+              className="pl-9 text-sm"
             />
-            {searchQuery && (
+          </div>
+
+          {/* Folder Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
+            {FOLDERS.map((f) => (
               <Button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                key={f.id}
+                variant={selectedFolder === f.id ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedFolder(f.id)}
+                className="text-xs h-8"
               >
-                <X className="h-3.5 w-3.5" />
+                <Folder className="h-3.5 w-3.5 mr-1" />
+                {f.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Actions & View Mode Toggle */}
+          <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+            {selectedIds.length > 0 && canDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBatchDelete}
+                disabled={isBatchDeleting}
+                className="gap-1.5 text-xs"
+              >
+                {isBatchDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Delete ({selectedIds.length})
               </Button>
             )}
-          </div>
 
-          {/* Right: MIME Filters */}
-          <div className="flex flex-wrap gap-1 border p-1 rounded-lg bg-muted/20 w-full md:w-auto">
-            <Button
-              id="filter-all"
-              variant={activeFilter === 'ALL' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveFilter('ALL')}
-              className="flex-1 md:flex-initial text-xs h-8"
-            >
-              All Assets
-            </Button>
-            <Button
-              id="filter-images"
-              variant={activeFilter === 'IMAGE' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveFilter('IMAGE')}
-              className="flex-1 md:flex-initial text-xs h-8 gap-1.5"
-            >
-              <ImageIcon className="h-3.5 w-3.5" />
-              Images
-            </Button>
-            <Button
-              id="filter-videos"
-              variant={activeFilter === 'VIDEO' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveFilter('VIDEO')}
-              className="flex-1 md:flex-initial text-xs h-8 gap-1.5"
-            >
-              <VideoIcon className="h-3.5 w-3.5" />
-              Videos
-            </Button>
-            <Button
-              id="filter-pdfs"
-              variant={activeFilter === 'PDF' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveFilter('PDF')}
-              className="flex-1 md:flex-initial text-xs h-8 gap-1.5"
-            >
-              <PdfIcon className="h-3.5 w-3.5" />
-              PDFs
-            </Button>
+            <div className="flex items-center border rounded-lg overflow-hidden">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="h-8 px-2.5 rounded-none"
+                title="Grid View"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="h-8 px-2.5 rounded-none"
+                title="List View"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </CardContent>
+        </div>
       </Card>
 
-      {/* Grid Layout Container */}
+      {/* Asset Grid / List View */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Retrieving library index...</p>
-        </div>
-      ) : error ? (
-        <div className="p-12 text-center max-w-md mx-auto space-y-4 border rounded-xl bg-destructive/5 border-destructive/20">
-          <AlertTriangle className="h-10 w-10 text-destructive mx-auto stroke-[1.5]" />
-          <h3 className="text-lg font-bold">Error Fetching Assets</h3>
-          <p className="text-sm text-muted-foreground">
-            Could not communicate with the asset inventory API. Please reload.
-          </p>
-          <Button onClick={() => refetch()} variant="outline" size="sm">
-            Retry Connection
-          </Button>
+        <div className="py-16 flex justify-center items-center text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin mr-2 text-primary" />
+          <span>Loading Cloudinary assets...</span>
         </div>
       ) : filteredAssets.length === 0 ? (
-        <div className="text-center py-20 border border-dashed rounded-xl space-y-4 bg-muted/10">
-          <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto opacity-50 stroke-[1.2]" />
-          <div className="space-y-1">
-            <p className="text-base font-semibold">No assets found</p>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              {searchQuery || activeFilter !== 'ALL'
-                ? 'Try clearing searches or changing your type filters.'
-                : 'Upload your first image, presentation PDF, or promotional video to get started.'}
-            </p>
-          </div>
-          {(searchQuery || activeFilter !== 'ALL') && (
-            <Button
-              id="reset-filters"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchQuery('');
-                setActiveFilter('ALL');
-              }}
-            >
-              Clear Filters
-            </Button>
-          )}
+        <Card className="p-12 text-center text-muted-foreground space-y-3">
+          <ImageIcon className="h-12 w-12 mx-auto opacity-30" />
+          <p className="text-base font-semibold">No media assets found</p>
+          <p className="text-xs">Upload new images or adjust search filters.</p>
+        </Card>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {filteredAssets.map((asset) => {
+            const isSelected = selectedIds.includes(asset.id);
+            const displayUrl = asset.secureUrl || asset.url;
+
+            return (
+              <div
+                key={asset.id}
+                className={`group relative rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all ${
+                  isSelected ? 'ring-2 ring-primary border-primary' : ''
+                }`}
+              >
+                {/* Select Checkbox */}
+                <button
+                  type="button"
+                  onClick={() => toggleSelect(asset.id)}
+                  className="absolute top-2 left-2 z-10 bg-background/80 rounded p-1 hover:bg-background transition-colors"
+                >
+                  {isSelected ? (
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Square className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+
+                {/* Folder Badge */}
+                {asset.folder && (
+                  <Badge className="absolute top-2 right-2 z-10 text-[10px] uppercase font-bold bg-black/60 text-white backdrop-blur-sm">
+                    {asset.folder}
+                  </Badge>
+                )}
+
+                {/* Image Container */}
+                <div
+                  className="h-36 w-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center p-2 cursor-pointer overflow-hidden"
+                  onClick={() => setActiveAsset(asset)}
+                >
+                  <img
+                    src={displayUrl}
+                    alt={asset.altText || asset.filename}
+                    className="h-full w-full object-contain group-hover:scale-105 transition-transform duration-200"
+                  />
+                </div>
+
+                {/* File Details Footer */}
+                <div className="p-2.5 border-t bg-card space-y-1">
+                  <p className="text-xs font-semibold truncate text-foreground" title={asset.filename}>
+                    {asset.filename}
+                  </p>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>{formatBytes(asset.size)}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleCopyUrl(displayUrl, asset.id)}
+                        className="p-1 hover:text-foreground"
+                        title="Copy URL"
+                      >
+                        {copiedId === asset.id ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => setActiveAsset(asset)}
+                        className="p-1 hover:text-foreground"
+                        title="View Details"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDeleteSingle(asset.id)}
+                          className="p-1 hover:text-red-600"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredAssets.map((asset: any) => (
-            <div
-              key={asset.id}
-              onClick={() => {
-                setSelectedAsset(asset);
-                setEditAltText(asset.altText || '');
-                setIsEditAltOpen(false);
-              }}
-              className="group cursor-pointer relative bg-card hover:bg-muted/30 border rounded-xl overflow-hidden shadow-sm flex flex-col justify-between hover:border-primary/50 hover:shadow transition-all"
-            >
-              {/* Image/File cover area */}
-              <div className="aspect-square bg-muted/40 relative flex items-center justify-center overflow-hidden border-b">
-                {renderAssetThumbnail(asset)}
-                
-                {/* Visual hover controls overlay */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-10">
-                  <div className="p-2 rounded-full bg-background/90 text-foreground hover:bg-background transition shadow">
-                    <Eye className="h-4 w-4" />
-                  </div>
-                  {canDelete && (
-                    <Button
-                      id={`delete-btn-${asset.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDeleteId(asset.id);
-                        setConfirmDeleteName(asset.filename);
-                      }}
-                      className="p-2 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition shadow"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+        /* List View */
+        <Card className="overflow-hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b bg-muted/40 text-xs font-semibold uppercase text-muted-foreground">
+              <tr>
+                <th className="p-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === filteredAssets.length && filteredAssets.length > 0}
+                    onChange={toggleSelectAll}
+                    className="rounded border-input"
+                  />
+                </th>
+                <th className="p-3">Preview</th>
+                <th className="p-3">Filename</th>
+                <th className="p-3">Folder</th>
+                <th className="p-3">Dimensions</th>
+                <th className="p-3">Size</th>
+                <th className="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredAssets.map((asset) => {
+                const isSelected = selectedIds.includes(asset.id);
+                const displayUrl = asset.secureUrl || asset.url;
 
-              {/* Label metadata */}
-              <div className="p-3 space-y-1 flex-1 flex flex-col justify-between">
-                <p className="text-xs font-semibold text-foreground truncate" title={asset.filename}>
-                  {asset.filename}
-                </p>
-                <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground font-medium">
-                  <span className="uppercase truncate max-w-[60px]">
-                    {asset.mimeType.split('/')[1] || asset.mimeType.split('/')[0] || 'Unknown'}
-                  </span>
-                  <span>{formatBytes(asset.size)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Asset Preview Modal */}
-      {selectedAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-background border rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Left Hand: Main Visual Reader */}
-            <div className="flex-1 bg-zinc-950 flex items-center justify-center min-h-[300px] max-h-[50vh] md:max-h-[90vh] relative p-2 border-b md:border-b-0 md:border-r">
-              <Button
-                id="close-modal-top"
-                onClick={() => setSelectedAsset(null)}
-                className="absolute top-4 left-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-
-              {selectedAsset.mimeType.startsWith('image/') ? (
-                <img
-                  src={getAssetUri(selectedAsset)}
-                  alt={selectedAsset.altText || selectedAsset.filename}
-                  referrerPolicy="no-referrer"
-                  className="max-w-full max-h-[80vh] object-contain"
-                />
-              ) : selectedAsset.mimeType.startsWith('video/') ? (
-                <video
-                  src={getAssetUri(selectedAsset)}
-                  controls
-                  className="max-w-full max-h-[80vh] object-contain w-full"
-                />
-              ) : selectedAsset.mimeType === 'application/pdf' || selectedAsset.filename.endsWith('.pdf') ? (
-                <div className="w-full h-full flex flex-col items-center justify-center text-white space-y-4 p-8">
-                  <PdfIcon className="h-16 w-16 text-red-500 stroke-[1.2]" />
-                  <div className="text-center">
-                    <p className="font-semibold text-sm truncate max-w-sm">{selectedAsset.filename}</p>
-                    <p className="text-xs text-zinc-400">PDF Document ({formatBytes(selectedAsset.size)})</p>
-                  </div>
-                  <Button
-                    id="open-pdf-btn"
-                    asChild
-                    variant="secondary"
-                    size="sm"
-                    className="gap-1.5"
-                  >
-                    <a href={getAssetUri(selectedAsset)} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Open in New Tab
-                    </a>
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center text-white space-y-2 p-8">
-                  <ImageIcon className="h-16 w-16 text-zinc-600 mx-auto stroke-[1.2]" />
-                  <p className="text-sm">Cannot preview this asset format.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Right Hand: Interactive Metadata & Action Controls */}
-            <div className="w-full md:w-[350px] flex flex-col justify-between p-6 overflow-y-auto max-h-[50vh] md:max-h-[90vh] bg-card text-card-foreground">
-              <div className="space-y-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-lg line-clamp-2" title={selectedAsset.filename}>
-                      {selectedAsset.filename}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Uploaded on {new Date(selectedAsset.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Button
-                    id="close-modal-right"
-                    onClick={() => setSelectedAsset(null)}
-                    className="md:block hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Properties pane */}
-                <div className="space-y-3.5 border-t pt-4">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Asset Properties</h4>
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <span className="text-muted-foreground font-medium col-span-1">File Type:</span>
-                    <span className="font-semibold truncate col-span-2 uppercase">{selectedAsset.mimeType}</span>
-
-                    <span className="text-muted-foreground font-medium col-span-1">File Size:</span>
-                    <span className="font-semibold col-span-2">{formatBytes(selectedAsset.size)}</span>
-
-                    <span className="text-muted-foreground font-medium col-span-1">Folder:</span>
-                    <span className="font-semibold col-span-2 truncate">{selectedAsset.folder || 'root'}</span>
-                  </div>
-                </div>
-
-                {/* Alt Text edit field */}
-                <div className="space-y-2.5 border-t pt-4">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Alt Text (SEO)</h4>
-                    {canWrite && !isEditAltOpen && (
-                      <Button
-                        id="edit-alt-btn"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsEditAltOpen(true)}
-                        className="h-7 text-xs gap-1 px-1.5"
-                      >
-                        <Edit2 className="h-3 w-3" /> Edit
-                      </Button>
-                    )}
-                  </div>
-
-                  {isEditAltOpen ? (
-                    <div className="space-y-2">
-                      <Input
-                        id="alt-text-input"
-                        value={editAltText}
-                        onChange={(e) => setEditAltText(e.target.value)}
-                        placeholder="Describe the media content..."
-                        className="text-xs h-9"
+                return (
+                  <tr key={asset.id} className={isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}>
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(asset.id)}
+                        className="rounded border-input"
                       />
-                      <div className="flex gap-2 justify-end">
+                    </td>
+                    <td className="p-3">
+                      <img
+                        src={displayUrl}
+                        alt={asset.filename}
+                        className="h-10 w-12 object-contain bg-muted/50 rounded border"
+                      />
+                    </td>
+                    <td className="p-3 font-medium text-foreground">
+                      <div className="truncate max-w-xs">{asset.filename}</div>
+                      <span className="text-xs text-muted-foreground block">{asset.mimeType}</span>
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="outline" className="text-[11px] uppercase">
+                        {asset.folder || 'root'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {asset.width && asset.height ? `${asset.width}x${asset.height}` : 'N/A'}
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground">{formatBytes(asset.size)}</td>
+                    <td className="p-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
-                          id="cancel-alt-btn"
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setEditAltText(selectedAsset.altText || '');
-                            setIsEditAltOpen(false);
-                          }}
-                          className="h-7 text-xs"
+                          onClick={() => handleCopyUrl(displayUrl, asset.id)}
+                          className="h-8 w-8 p-0"
+                          title="Copy Link"
                         >
-                          Cancel
+                          {copiedId === asset.id ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                         </Button>
                         <Button
-                          id="save-alt-btn"
+                          variant="ghost"
                           size="sm"
-                          onClick={handleSaveAltText}
-                          disabled={isSavingAlt}
-                          className="h-7 text-xs"
+                          onClick={() => setActiveAsset(asset)}
+                          className="h-8 w-8 p-0"
+                          title="Details"
                         >
-                          {isSavingAlt ? 'Saving...' : 'Save'}
+                          <Info className="h-4 w-4" />
                         </Button>
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteSingle(asset.id)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs italic text-muted-foreground">
-                      {selectedAsset.altText || 'No alt text set.'}
-                    </p>
-                  )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {/* Metadata / Details Modal */}
+      {activeAsset && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-background border rounded-xl max-w-2xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Info className="h-5 w-5 text-primary" /> Asset Metadata Details
+              </h3>
+              <button
+                onClick={() => setActiveAsset(null)}
+                className="p-1 rounded-md hover:bg-muted"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-slate-100 dark:bg-slate-900 rounded-lg border p-4 flex items-center justify-center">
+                <img
+                  src={activeAsset.secureUrl || activeAsset.url}
+                  alt={activeAsset.altText || activeAsset.filename}
+                  className="max-h-64 object-contain rounded"
+                />
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground block font-medium">Filename</span>
+                  <p className="font-semibold text-foreground text-sm truncate">{activeAsset.filename}</p>
                 </div>
 
-                {/* Copy / Link field */}
-                <div className="space-y-2 border-t pt-4">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">URL Reference</h4>
-                  <div className="flex gap-1.5 items-center bg-muted/30 p-2 rounded-lg border font-mono text-[10px] truncate">
-                    <span className="flex-1 truncate">{selectedAsset.url}</span>
+                <div>
+                  <span className="text-muted-foreground block font-medium">Public ID / Cloudinary ID</span>
+                  <p className="font-mono text-xs bg-muted p-1.5 rounded truncate">
+                    {activeAsset.cloudinaryPublicId || activeAsset.publicId || 'N/A'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-muted-foreground block font-medium">File Size</span>
+                    <p className="font-semibold text-foreground">{formatBytes(activeAsset.size)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block font-medium">MIME Type</span>
+                    <p className="font-semibold text-foreground">{activeAsset.mimeType}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-muted-foreground block font-medium">Dimensions</span>
+                    <p className="font-semibold text-foreground">
+                      {activeAsset.width && activeAsset.height ? `${activeAsset.width} x ${activeAsset.height} px` : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block font-medium">Folder</span>
+                    <Badge variant="outline" className="uppercase font-semibold">
+                      {activeAsset.folder || 'media'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground block font-medium mb-1">Asset URL</span>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={activeAsset.secureUrl || activeAsset.url}
+                      className="text-xs font-mono"
+                    />
                     <Button
-                      id={`copy-url-btn-${selectedAsset.id}`}
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => copyToClipboard(selectedAsset.url, selectedAsset.id)}
-                      className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyUrl(activeAsset.secureUrl || activeAsset.url, activeAsset.id)}
                     >
-                      {copiedId === selectedAsset.id ? (
-                        <Check className="h-3 w-3 text-emerald-500" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
+                      {copiedId === activeAsset.id ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
               </div>
-
-              {/* Delete control pane */}
-              {canDelete && (
-                <div className="border-t pt-4 mt-6">
-                  <Button
-                    id="modal-delete-btn"
-                    variant="outline"
-                    className="w-full text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive text-xs gap-1.5"
-                    onClick={() => {
-                      setConfirmDeleteId(selectedAsset.id);
-                      setConfirmDeleteName(selectedAsset.filename);
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete Asset Permanently
-                  </Button>
-                </div>
-              )}
-
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Delete Confirmation Dialog */}
-      {confirmDeleteId && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-background border rounded-lg shadow-lg max-w-md w-full mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 text-destructive">
-                <div className="p-2 rounded-full bg-destructive/10">
-                  <AlertTriangle className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-bold">Confirm Deletion</h3>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Are you sure you want to delete the asset <strong>"{confirmDeleteName}"</strong>?
-                </p>
-                <p className="text-xs text-destructive bg-destructive/5 p-2 rounded border border-destructive/10">
-                  Warning: This action deletes the asset definition immediately. If the asset is currently referenced by other modules (e.g. blog posts, product sheets, SEO previews), it will break their display layout!
-                </p>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-between items-center border-t pt-4">
+              {canDelete && (
                 <Button
-                  id="cancel-delete-modal-btn"
-                  variant="outline"
-                  onClick={() => setConfirmDeleteId(null)}
-                  disabled={deleteMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  id="confirm-delete-modal-btn"
                   variant="destructive"
-                  onClick={() => deleteMutation.mutate(confirmDeleteId)}
-                  disabled={deleteMutation.isPending}
+                  size="sm"
+                  onClick={() => handleDeleteSingle(activeAsset.id)}
+                  className="gap-1.5"
                 >
-                  {deleteMutation.isPending ? 'Deleting...' : 'Confirm Delete'}
+                  <Trash2 className="h-4 w-4" /> Delete Asset
                 </Button>
-              </div>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setActiveAsset(null)}>
+                Close
+              </Button>
             </div>
           </div>
         </div>

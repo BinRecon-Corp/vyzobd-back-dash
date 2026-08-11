@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 
+import { mapOrderToStorefrontDTO } from "../../dtos/storefront/mappers";
+
 export class StorefrontCheckoutService {
   /**
    * Helper to format CustomerAddress model into a readable text block
@@ -394,14 +396,18 @@ export class StorefrontCheckoutService {
             ) || variant.inventories[0];
 
             if (targetInventory) {
-              await tx.inventory.update({
-                where: { id: targetInventory.id },
+              const updated = await tx.inventory.updateMany({
+                where: { 
+                  id: targetInventory.id,
+                  quantityAvailable: { gte: item.quantity + targetInventory.quantityReserved }
+                },
                 data: {
-                  quantityAvailable: {
-                    decrement: item.quantity,
-                  },
+                  quantityAvailable: { decrement: item.quantity },
                 },
               });
+              if (updated.count === 0) {
+                throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 400, "INSUFFICIENT_STOCK");
+              }
             }
           } else {
             // Check direct product inventory
@@ -415,14 +421,18 @@ export class StorefrontCheckoutService {
               throw new AppError(`Stock for "${product.name}" changed. Available: ${availableStock}, Requested: ${item.quantity}`, 400, "INSUFFICIENT_STOCK");
             }
 
-            await tx.inventory.update({
-              where: { id: product.inventory.id },
+            const updated = await tx.inventory.updateMany({
+              where: { 
+                id: product.inventory.id,
+                quantityAvailable: { gte: item.quantity + product.inventory.quantityReserved }
+              },
               data: {
-                quantityAvailable: {
-                  decrement: item.quantity,
-                },
+                quantityAvailable: { decrement: item.quantity },
               },
             });
+            if (updated.count === 0) {
+              throw new AppError(`Insufficient stock for "${product.name}" during checkout. Please try again.`, 400, "INSUFFICIENT_STOCK");
+            }
           }
         }
       }
@@ -441,14 +451,20 @@ export class StorefrontCheckoutService {
           throw new AppError("Coupon usage limit exceeded", 400, "COUPON_LIMIT_REACHED");
         }
 
-        await tx.coupon.update({
-          where: { id: coupon.id },
-          data: {
-            usedCount: {
-              increment: 1,
-            },
-          },
-        });
+        if (coupon.usageLimit !== null) {
+          const updated = await tx.coupon.updateMany({
+            where: { id: coupon.id, usedCount: { lt: coupon.usageLimit } },
+            data: { usedCount: { increment: 1 } },
+          });
+          if (updated.count === 0) {
+            throw new AppError("Coupon usage limit exceeded during checkout", 400, "COUPON_LIMIT_REACHED");
+          }
+        } else {
+          await tx.coupon.update({
+            where: { id: coupon.id },
+            data: { usedCount: { increment: 1 } },
+          });
+        }
       }
 
       // Generate secure unique Order Number
@@ -510,6 +526,6 @@ export class StorefrontCheckoutService {
       return newOrder;
     });
 
-    return order;
+    return mapOrderToStorefrontDTO(order);
   }
 }

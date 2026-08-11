@@ -1,6 +1,6 @@
 import { prisma } from "../config/db";
 import { AppError } from "../utils/AppError";
-import { CloudinaryService, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./cloudinary.service";
+import { MediaService } from "./media.service";
 
 export class ProductMediaService {
   /**
@@ -23,6 +23,7 @@ export class ProductMediaService {
     const primaryImageObj = images.find((i: any) => i.isPrimary) || images[0] || null;
     const primaryImageUrl = primaryImageObj?.imageUrl || primaryImageObj?.url || product.ogImage || null;
     const gallery = images.filter((i: any) => !i.isPrimary);
+    const galleryImages = gallery.map((i: any) => i.imageUrl || i.url);
 
     return {
       ...product,
@@ -30,6 +31,7 @@ export class ProductMediaService {
       primaryImage: primaryImageObj || primaryImageUrl,
       thumbnail: primaryImageUrl,
       gallery,
+      galleryImages,
     };
   }
 
@@ -95,55 +97,54 @@ export class ProductMediaService {
       throw new AppError("Product not found", 404, "PRODUCT_NOT_FOUND");
     }
 
-    let imageUrl = "";
-    let publicId: string | null = null;
+    const isFirstImage = product.images.length === 0;
+    const isPrimary = isFirstImage || String(body?.isPrimary) === "true";
+    const nextSortOrder = product.images.length;
 
     if (file) {
-      if (!ALLOWED_MIME_TYPES.includes(file.mimetype.toLowerCase())) {
-        throw new AppError(
-          "Invalid file format. Only JPG, JPEG, PNG, and WEBP are allowed.",
-          400,
-          "INVALID_FILE_TYPE"
-        );
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        throw new AppError("File size exceeds 5MB limit.", 400, "FILE_TOO_LARGE");
+      // Unify upload with MediaService
+      const uploadResult = await MediaService.uploadSingle(file, {
+        folder: `products/${productId}`,
+        entityType: 'product',
+        entityId: productId,
+        isPrimary,
+        sortOrder: nextSortOrder,
+        altText: body?.altText,
+      });
+      
+      if (isPrimary) {
+        await prisma.productImage.updateMany({
+          where: { productId, id: { not: uploadResult.id } },
+          data: { isPrimary: false },
+        });
       }
 
-      const uploadResult = await CloudinaryService.uploadImage(file.buffer, file.mimetype, `products/${productId}`);
-      imageUrl = uploadResult.imageUrl;
-      publicId = uploadResult.publicId;
+      const newImage = await prisma.productImage.findFirst({
+        where: { publicId: uploadResult.publicId }
+      });
+      return newImage;
     } else if (body?.imageUrl) {
-      imageUrl = body.imageUrl;
+      if (isPrimary) {
+        await prisma.productImage.updateMany({
+          where: { productId },
+          data: { isPrimary: false },
+        });
+      }
+
+      const newImage = await prisma.productImage.create({
+        data: {
+          productId,
+          imageUrl: body.imageUrl,
+          url: body.imageUrl,
+          altText: body?.altText || null,
+          sortOrder: nextSortOrder,
+          isPrimary,
+        },
+      });
+      return newImage;
     } else {
       throw new AppError("No image file or imageUrl provided.", 400, "MISSING_IMAGE");
     }
-
-    const isFirstImage = product.images.length === 0;
-    const isPrimary = isFirstImage || String(body?.isPrimary) === "true";
-
-    if (isPrimary) {
-      await prisma.productImage.updateMany({
-        where: { productId },
-        data: { isPrimary: false },
-      });
-    }
-
-    const nextSortOrder = product.images.length;
-
-    const newImage = await prisma.productImage.create({
-      data: {
-        productId,
-        imageUrl,
-        url: imageUrl,
-        publicId,
-        altText: body?.altText || null,
-        sortOrder: nextSortOrder,
-        isPrimary,
-      },
-    });
-
-    return newImage;
   }
 
   /**
@@ -159,12 +160,13 @@ export class ProductMediaService {
     }
 
     if (image.publicId) {
-      await CloudinaryService.deleteImage(image.publicId);
+      await MediaService.deleteAsset(image.publicId);
+    } else {
+      // If it doesn't have a publicId, delete just the ProductImage
+      await prisma.productImage.delete({
+        where: { id: imageId },
+      });
     }
-
-    await prisma.productImage.delete({
-      where: { id: imageId },
-    });
 
     // If deleted image was primary, set the first remaining image as primary
     if (image.isPrimary) {

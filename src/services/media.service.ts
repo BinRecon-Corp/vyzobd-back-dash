@@ -1,9 +1,74 @@
 import { api } from "../lib/api";
 
+export interface MediaAssetItem {
+  id: string;
+  filename: string;
+  originalName?: string;
+  originalFilename?: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  secureUrl?: string;
+  publicId?: string;
+  cloudinaryPublicId?: string;
+  width?: number;
+  height?: number;
+  folder?: string;
+  altText?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const mediaService = {
-  getAssets: () => api.get('/media').then(res => res.data),
-  getAssetById: (id: string) => api.get(`/media/${id}`).then(res => res.data),
-  uploadAsset: (data: any) => api.post('/media', data).then(res => res.data),
-  updateAsset: (id: string, data: any) => api.put(`/media/${id}`, data).then(res => res.data),
-  deleteAsset: (id: string) => api.delete(`/media/${id}`).then(res => res.data),
+  getAssets: async (params?: { folder?: string; search?: string }): Promise<MediaAssetItem[]> => {
+    const res = await api.get('/media', { params });
+    return res.data?.data || res.data || [];
+  },
+
+  getAssetById: async (id: string): Promise<MediaAssetItem> => {
+    const res = await api.get(`/media/${id}`);
+    return res.data?.data || res.data;
+  },
+
+  uploadAsset: async (file: File | FormData, folder: string = 'media'): Promise<MediaAssetItem> => {
+    let formData: FormData;
+    if (file instanceof FormData) {
+      formData = file;
+    } else {
+      formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+    }
+    const res = await api.post('/media/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data?.data || res.data;
+  },
+
+  uploadMultiple: async (files: File[], folder: string = 'media'): Promise<MediaAssetItem[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    formData.append('folder', folder);
+
+    const res = await api.post('/media/upload-multiple', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data?.data || res.data;
+  },
+
+  updateAsset: async (id: string, data: Partial<MediaAssetItem>): Promise<MediaAssetItem> => {
+    const res = await api.put(`/media/${id}`, data);
+    return res.data?.data || res.data;
+  },
+
+  deleteAsset: async (id: string): Promise<any> => {
+    const res = await api.delete(`/media/${id}`);
+    return res.data;
+  },
 };

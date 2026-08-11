@@ -1,6 +1,7 @@
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 import { ReturnStatus } from "@prisma/client";
+import { mapReturnRequestToStorefrontDTO } from "../../dtos/storefront/mappers";
 
 export class StorefrontReturnService {
   static async requestReturn(customerId: string, orderId: string, reason: string, items: { orderItemId: string, quantity: number, reason?: string, condition?: string }[]) {
@@ -60,16 +61,17 @@ export class StorefrontReturnService {
         data: { orderId, status: order.status, action: "RETURN_REQUESTED" }
       });
 
-      return returnRequest;
+      return mapReturnRequestToStorefrontDTO(returnRequest);
     });
   }
 
   static async getReturns(customerId: string) {
-    return prisma.returnRequest.findMany({
+    const returns = await prisma.returnRequest.findMany({
       where: { customerId },
       include: { items: { include: { orderItem: { include: { product: true } } } } },
       orderBy: { createdAt: 'desc' }
     });
+    return returns.map(mapReturnRequestToStorefrontDTO);
   }
 
   static async getReturnById(customerId: string, id: string) {
@@ -78,6 +80,6 @@ export class StorefrontReturnService {
       include: { items: { include: { orderItem: { include: { product: true } } } } }
     });
     if (!returnReq) throw new AppError("Return request not found", 404, "RETURN_NOT_FOUND");
-    return returnReq;
+    return mapReturnRequestToStorefrontDTO(returnReq);
   }
 }

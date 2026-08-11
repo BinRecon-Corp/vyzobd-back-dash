@@ -4,6 +4,7 @@ import { popupService, Popup } from '../../../services/popup.service';
 import { Layers, Plus, Trash2, Edit3, Power, CheckCircle2, XCircle, Clock, Tag } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
+import { MediaUploaderInput } from '../../../components/admin/MediaUploaderInput';
 
 export function PopupsList() {
   const queryClient = useQueryClient();
@@ -253,16 +254,13 @@ export function PopupsList() {
                   />
                 </div>
 
-                <div>
-                  <label className="block font-medium mb-1">Image URL (Optional)</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md bg-background focus:outline-none"
-                  />
-                </div>
+              <MediaUploaderInput
+                label="Popup Image (Optional)"
+                value={formData.imageUrl}
+                onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                folder="cms/popups"
+                placeholder="Upload or enter Popup Image URL"
+              />
               </div>
 
               <div className="flex items-center gap-2 pt-2">

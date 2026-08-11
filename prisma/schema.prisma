@@ -158,37 +158,81 @@ model Warehouse {
 }
 
 model Category {
-  id             String     @id @default(uuid())
+  id             String          @id @default(uuid())
   name           String
-  slug           String     @unique
+  slug           String          @unique
   description    String?
   image          String?
   icon           String?
+  images         CategoryImage[]
   seoTitle       String?
   seoDescription String?
-  sortOrder      Int        @default(0)
+  sortOrder      Int             @default(0)
   parentId       String?
-  parent         Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children       Category[] @relation("CategoryHierarchy")
+  parent         Category?       @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children       Category[]      @relation("CategoryHierarchy")
   products       Product[]
-  isActive       Boolean    @default(true)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   deletedAt      DateTime?
 }
 
+model CategoryImage {
+  id                 String   @id @default(uuid())
+  categoryId         String
+  category           Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  secureUrl          String
+  cloudinaryPublicId String?
+  originalFilename   String?
+  mimeType           String?
+  size               Int?
+  width              Int?
+  height             Int?
+  folder             String?  @default("categories")
+  altText            String?
+  isPrimary          Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
 model Brand {
-  id          String    @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
-  slug        String    @unique
+  slug        String       @unique
   logoUrl     String?
   website     String?
   description String?
+  images      BrandImage[]
   products    Product[]
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   deletedAt   DateTime?
+}
+
+model BrandImage {
+  id                 String   @id @default(uuid())
+  brandId            String
+  brand              Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  secureUrl          String
+  cloudinaryPublicId String?
+  originalFilename   String?
+  mimeType           String?
+  size               Int?
+  width              Int?
+  height             Int?
+  folder             String?  @default("brands")
+  altText            String?
+  isPrimary          Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([brandId])
 }
 
 model Tag {
@@ -309,22 +353,30 @@ model VariantAttributeValue {
 }
 
 model ProductImage {
-  id               String          @id @default(uuid())
-  productId        String
-  product          Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  imageUrl         String          @default("")
-  url              String          @default("")
-  publicId         String?
-  altText          String?
-  sortOrder        Int             @default(0)
-  isPrimary        Boolean         @default(false)
-  productVariantId String?
-  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
-  shipmentItems    ShipmentItem[]
-  returnItems      ReturnItem[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  deletedAt        DateTime?
+  id                 String          @id @default(uuid())
+  productId          String
+  product            Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  imageUrl           String          @default("")
+  url                String          @default("")
+  secureUrl          String?
+  cloudinaryPublicId String?
+  publicId           String?
+  originalFilename   String?
+  mimeType           String?
+  size               Int?
+  width              Int?
+  height             Int?
+  folder             String?         @default("products")
+  altText            String?
+  sortOrder          Int             @default(0)
+  isPrimary          Boolean         @default(false)
+  productVariantId   String?
+  productVariant     ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  shipmentItems      ShipmentItem[]
+  returnItems        ReturnItem[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  deletedAt          DateTime?
 
   @@index([productId])
   @@index([isPrimary])
@@ -354,6 +406,9 @@ model Inventory {
   deletedAt DateTime?
 
   @@unique([warehouseId, variantId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([warehouseId])
 }
 
 // ------------------------------------------------------
@@ -429,6 +484,7 @@ model OrderTimeline {
   userId    String?
   userName  String?
   createdAt DateTime @default(now())
+  @@index([orderId])
 }
 
 model OrderNote {
@@ -545,6 +601,8 @@ model Review {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
+  @@index([productId])
+  @@index([customerId])
 }
 
 model ActivityLog {
@@ -695,18 +753,26 @@ model GlobalSeoSettings {
 // ------------------------------------------------------
 
 model MediaAsset {
-  id           String     @id @default(uuid())
-  filename     String
-  originalName String
-  mimeType     String
-  size         Int
-  url          String
-  folder       String?    @default("root")
-  altText      String?
-  blogPosts    BlogPost[] @relation("FeaturedImage")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime?
+  id                 String     @id @default(uuid())
+  filename           String
+  originalName       String?
+  originalFilename   String?
+  mimeType           String
+  size               Int
+  url                String
+  secureUrl          String?
+  publicId           String?
+  cloudinaryPublicId String?
+  width              Int?
+  height             Int?
+  folder             String?    @default("root")
+  altText            String?
+  isPrimary          Boolean    @default(false)
+  sortOrder          Int        @default(0)
+  blogPosts          BlogPost[] @relation("FeaturedImage")
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
 }
 
 // ------------------------------------------------------
@@ -811,6 +877,7 @@ model Cart {
   AbandonedCart     AbandonedCart?
 
   @@index([customerId])
+  @@index([couponId])
 }
 
 model CartItem {
@@ -1231,10 +1298,12 @@ model BrandingSetting {
   siteTitle       String?
   siteTagline     String?
   logoUrl         String?
+  darkLogoUrl     String?
   faviconUrl      String?
   adminPanelName  String?
   adminPanelLogo  String?
   invoiceLogo     String?
+  emailHeaderLogo String?
   primaryColor    String?
   footerText      String?
   defaultLanguage String   @default("en")

@@ -1,6 +1,7 @@
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 import { Prisma, RefundStatus } from "@prisma/client";
+import { mapRefundToStorefrontDTO } from "../../dtos/storefront/mappers";
 
 export class StorefrontRefundService {
   /**
@@ -79,15 +80,16 @@ export class StorefrontRefundService {
         },
       });
 
-      return refund;
+      return mapRefundToStorefrontDTO(refund);
     });
   }
 
   static async getCustomerRefunds(customerId: string) {
-    return prisma.refund.findMany({
+    const refunds = await prisma.refund.findMany({
       where: { customerId },
       include: { payment: true },
       orderBy: { createdAt: "desc" },
     });
+    return refunds.map(mapRefundToStorefrontDTO);
   }
 }
