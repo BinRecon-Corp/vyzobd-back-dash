@@ -42,7 +42,7 @@ export const MediaUploaderInput: React.FC<MediaUploaderInputProps> = ({
     setIsUploading(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('accessToken');
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
