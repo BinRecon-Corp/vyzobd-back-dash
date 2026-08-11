@@ -1,4 +1,6 @@
-import { prisma } from "../config/db";
+const fs = require('fs');
+
+let refundSvc = `import { prisma } from "../config/db";
 import { AppError } from "../utils/AppError";
 import { Prisma, RefundStatus } from "@prisma/client";
 
@@ -14,7 +16,7 @@ export class AdminRefundService {
     }
 
     if (refund.status !== RefundStatus.PENDING) {
-      throw new AppError(`Refund cannot be processed from status ${refund.status}`, 400, "INVALID_STATUS");
+      throw new AppError(\`Refund cannot be processed from status \${refund.status}\`, 400, "INVALID_STATUS");
     }
 
     if (!approve) {
@@ -145,3 +147,6 @@ export class AdminRefundService {
     return await this.processRefund(refund.id, true, "admin-auto");
   }
 }
+`;
+
+fs.writeFileSync('src/backend/services/refund.service.ts', refundSvc, 'utf8');

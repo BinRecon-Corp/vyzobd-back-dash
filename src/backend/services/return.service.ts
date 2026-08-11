@@ -166,12 +166,12 @@ export class AdminReturnService {
         if (item.orderItem.productVariantId) {
           await tx.inventory.updateMany({
             where: { variantId: item.orderItem.productVariantId },
-            data: { quantity: { increment: item.quantity } }
+            data: { quantityAvailable: { increment: item.quantity } }
           });
         } else {
           await tx.inventory.updateMany({
             where: { productId: item.orderItem.productId },
-            data: { quantity: { increment: item.quantity } }
+            data: { quantityAvailable: { increment: item.quantity } }
           });
         }
       }
