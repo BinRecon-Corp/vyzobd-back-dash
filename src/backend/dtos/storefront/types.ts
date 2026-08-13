@@ -80,6 +80,10 @@ export interface StorefrontProduct {
   thumbnail?: string | null;
   gallery?: StorefrontProductImage[];
   primaryImage?: StorefrontProductImage | string | null;
+  
+  // Stock & Inventory
+  stock?: number;
+  inStock?: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -92,4 +96,61 @@ export interface PaginatedResponse<T> {
     hasNextPage: boolean;
     hasPreviousPage: boolean;
   };
+}
+
+// --- Home Content DTOs ---
+
+export interface StorefrontBanner {
+  id: string;
+  title: string;
+  desktopImage: string;
+  mobileImage: string | null;
+  linkUrl: string | null;
+  ctaText: string | null;
+  priority: number;
+}
+
+export interface StorefrontPopup {
+  id: string;
+  title: string;
+  type: string;
+  headline: string | null;
+  body: string | null;
+  couponCode: string | null;
+  imageUrl: string | null;
+  delaySeconds: number;
+}
+
+export interface StorefrontPromotion {
+  id: string;
+  name: string;
+  type: string;
+  discountType: string | null;
+  discountValue: number | null;
+  priority: number;
+  isStackable: boolean;
+}
+
+export interface StorefrontCoupon {
+  id: string;
+  code: string;
+  discountType: string;
+  discountValue: number;
+  validUntil: Date;
+  minOrderAmount: number | null;
+}
+
+export interface StorefrontCampaign {
+  id: string;
+  name: string;
+  type: string;
+  subject: string | null;
+  content: string;
+}
+
+export interface StorefrontAnnouncement {
+  id: string;
+  key: string;
+  value: string;
+  type: string;
 }

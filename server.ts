@@ -68,7 +68,15 @@ import storefrontCheckoutRouter from "./src/backend/routes/storefront/checkout.r
 import storefrontReturnRouter from "./src/backend/routes/storefront/return.routes";
 import storefrontRefundRouter from "./src/backend/routes/storefront/refund.routes";
 import storefrontPaymentRouter from "./src/backend/routes/storefront/payment.routes";
+import storefrontBannerRouter from "./src/backend/routes/storefront/banner.routes";
+import storefrontPopupRouter from "./src/backend/routes/storefront/popup.routes";
+import storefrontPromotionRouter from "./src/backend/routes/storefront/promotion.routes";
+import storefrontCouponRouter from "./src/backend/routes/storefront/coupon.routes";
+import storefrontCampaignRouter from "./src/backend/routes/storefront/campaign.routes";
+import storefrontAnnouncementRouter from "./src/backend/routes/storefront/announcement.routes";
+import storefrontHomeRouter from "./src/backend/routes/storefront/home.routes";
 import { storefrontRequestLogger } from "./src/backend/middlewares/storefront/logging.middleware";
+import { responseFormatter } from "./src/backend/middlewares/storefront/responseFormatter";
 import { globalLimiter } from "./src/backend/middlewares/rateLimiter";
 import { sanitizeMiddleware } from "./src/backend/middlewares/validation";
 import { startRefreshTokenCleanupJob } from "./src/backend/controllers/auth.controller";
@@ -200,6 +208,14 @@ async function startServer() {
   // Storefront API Routes
   const storefrontRouter = express.Router();
   storefrontRouter.use(storefrontRequestLogger);
+  storefrontRouter.use(responseFormatter);
+storefrontRouter.use("/banners", storefrontBannerRouter);
+  storefrontRouter.use("/popups", storefrontPopupRouter);
+  storefrontRouter.use("/promotions", storefrontPromotionRouter);
+  storefrontRouter.use("/coupons", storefrontCouponRouter);
+  storefrontRouter.use("/campaigns", storefrontCampaignRouter);
+  storefrontRouter.use("/announcements", storefrontAnnouncementRouter);
+  storefrontRouter.use("/home", storefrontHomeRouter);
   storefrontRouter.use("/products", storefrontProductRouter);
   storefrontRouter.use("/categories", storefrontCategoryRouter);
   storefrontRouter.use("/brands", storefrontBrandRouter);

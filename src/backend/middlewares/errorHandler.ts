@@ -21,9 +21,9 @@ export const errorHandler = (
   if (isStorefront) {
     if (err instanceof ZodError) {
       return res.status(400).json({
-        success: false,
+        status: "error",
         message: "Validation Error",
-        details: ((err as any).errors || (err as any).issues || []).map((e: any) => ({
+        errors: ((err as any).errors || (err as any).issues || []).map((e: any) => ({
           field: e.path.join("."),
           message: e.message,
         }))
@@ -32,8 +32,9 @@ export const errorHandler = (
 
     // Never expose internal errors for storefront
     return res.status(500).json({
-      success: false,
-      message: "Internal Server Error"
+      status: "error",
+      message: err.message || "Internal Server Error",
+      errors: []
     });
   }
 

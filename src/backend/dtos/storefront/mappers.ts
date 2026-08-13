@@ -59,14 +59,18 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
       image = v.images[0].imageUrl || v.images[0].url;
     }
 
+    const calculatedStock = v.inventories && v.inventories.length > 0
+      ? v.inventories.reduce((sum: number, inv: any) => sum + Math.max(0, (inv.quantityAvailable ?? inv.quantity ?? 0) - (inv.quantityReserved ?? 0)), 0)
+      : (v.stock ?? 0);
+
     return {
       id: v.id,
       sku: v.sku,
       barcode: v.barcode,
       price: v.price ? Number(v.price) : null,
       compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
-      stock: v.stock || 0,
-      inStock: v.stock > 0 || v.inventories?.some((i: any) => i.quantity > 0) || false,
+      stock: calculatedStock,
+      inStock: calculatedStock > 0,
       options,
       image,
     };
@@ -75,6 +79,13 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
   const primaryImageObj = images.find((i: any) => i.isPrimary) || images[0] || null;
   const primaryImageUrl = primaryImageObj?.imageUrl || primaryImageObj?.url || product.ogImage || null;
   const gallery = images.filter((i: any) => !i.isPrimary);
+
+  const rootStock = product.inventory
+    ? Math.max(0, (product.inventory.quantityAvailable ?? product.inventory.quantity ?? 0) - (product.inventory.quantityReserved ?? 0))
+    : (variants.length > 0 ? variants.reduce((sum, v) => sum + v.stock, 0) : 0);
+  const rootInStock = product.inventory
+    ? rootStock > 0
+    : (variants.length > 0 ? variants.some(v => v.inStock) : false);
 
   return {
     id: product.id,
@@ -97,6 +108,8 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     thumbnail: primaryImageUrl,
     gallery,
     primaryImage: primaryImageObj || primaryImageUrl,
+    stock: rootStock,
+    inStock: rootInStock,
   };
 }
 
@@ -188,5 +201,83 @@ export function mapRefundToStorefrontDTO(refund: any) {
     reason: refund.reason,
     createdAt: refund.createdAt,
     provider: refund.payment?.provider,
+  };
+}
+
+// --- Home Content Mappers ---
+
+import {
+  StorefrontBanner,
+  StorefrontPopup,
+  StorefrontPromotion,
+  StorefrontCoupon,
+  StorefrontCampaign,
+  StorefrontAnnouncement
+} from "./types";
+
+export function mapBannerToStorefrontDTO(banner: any): StorefrontBanner {
+  return {
+    id: banner.id,
+    title: banner.title,
+    desktopImage: banner.desktopImage,
+    mobileImage: banner.mobileImage,
+    linkUrl: banner.linkUrl,
+    ctaText: banner.ctaText,
+    priority: banner.priority
+  };
+}
+
+export function mapPopupToStorefrontDTO(popup: any): StorefrontPopup {
+  return {
+    id: popup.id,
+    title: popup.title,
+    type: popup.type,
+    headline: popup.headline,
+    body: popup.body,
+    couponCode: popup.couponCode,
+    imageUrl: popup.imageUrl,
+    delaySeconds: popup.delaySeconds
+  };
+}
+
+export function mapPromotionToStorefrontDTO(promotion: any): StorefrontPromotion {
+  return {
+    id: promotion.id,
+    name: promotion.name,
+    type: promotion.type,
+    discountType: promotion.discountType,
+    discountValue: promotion.discountValue ? Number(promotion.discountValue) : null,
+    priority: promotion.priority,
+    isStackable: promotion.isStackable
+  };
+}
+
+export function mapCouponToStorefrontDTO(coupon: any): StorefrontCoupon {
+  return {
+    id: coupon.id,
+    code: coupon.code,
+    discountType: coupon.discountType,
+    discountValue: Number(coupon.discountValue),
+    validUntil: coupon.validUntil,
+    minOrderAmount: coupon.minOrderAmount ? Number(coupon.minOrderAmount) : null
+  };
+}
+
+export function mapCampaignToStorefrontDTO(campaign: any): StorefrontCampaign {
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    type: campaign.type,
+    subject: campaign.subject,
+    content: campaign.content
+  };
+}
+
+export function mapAnnouncementToStorefrontDTO(setting: any): StorefrontAnnouncement {
+  return {
+    id: setting.id,
+    key: setting.key,
+    value: setting.value,
+    type: setting.type
   };
 }

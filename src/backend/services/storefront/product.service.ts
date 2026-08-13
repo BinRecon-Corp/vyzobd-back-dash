@@ -110,10 +110,12 @@ export class StorefrontProductService {
           tags: {
             include: { tag: true }
           },
+          inventory: true,
           variants: {
             where: { deletedAt: null, isActive: true },
             include: {
               images: true,
+              inventories: true,
               attributes: {
                 include: {
                   attributeValue: {
@@ -161,10 +163,12 @@ export class StorefrontProductService {
         tags: {
           include: { tag: true }
         },
+        inventory: true,
         variants: {
           where: { deletedAt: null, isActive: true },
           include: {
             images: true,
+            inventories: true,
             attributes: {
               include: {
                 attributeValue: {
