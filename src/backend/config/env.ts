@@ -16,6 +16,7 @@ const envSchema = z.object({
   GA_API_SECRET: z.string().optional(),
   GA_PROPERTY_ID: z.string().optional(),
   GOOGLE_CREDENTIALS_JSON: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
 });
 
 // Part 9 - Environment Security Startup validation

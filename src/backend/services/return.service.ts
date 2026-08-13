@@ -164,15 +164,25 @@ export class AdminReturnService {
       // RESTOCK INVENTORY
       for (const item of returnReq.items) {
         if (item.orderItem.productVariantId) {
-          await tx.inventory.updateMany({
-            where: { variantId: item.orderItem.productVariantId },
-            data: { quantityAvailable: { increment: item.quantity } }
+          const firstInventory = await tx.inventory.findFirst({
+            where: { variantId: item.orderItem.productVariantId }
           });
+          if (firstInventory) {
+            await tx.inventory.update({
+              where: { id: firstInventory.id },
+              data: { quantityAvailable: { increment: item.quantity } }
+            });
+          }
         } else {
-          await tx.inventory.updateMany({
-            where: { productId: item.orderItem.productId },
-            data: { quantityAvailable: { increment: item.quantity } }
+          const firstInventory = await tx.inventory.findFirst({
+            where: { productId: item.orderItem.productId }
           });
+          if (firstInventory) {
+            await tx.inventory.update({
+              where: { id: firstInventory.id },
+              data: { quantityAvailable: { increment: item.quantity } }
+            });
+          }
         }
       }
 

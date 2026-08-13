@@ -177,6 +177,20 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       updateData.internalNotes = internalNotes;
     }
 
+    if (status === "Cancelled" && existingOrder.status !== "Cancelled") {
+      // Restore inventory
+      const orderItems = await prisma.orderItem.findMany({ where: { orderId: id } });
+      for (const item of orderItems) {
+        if (item.productVariantId) {
+          const inv = await prisma.inventory.findFirst({ where: { variantId: item.productVariantId } });
+          if (inv) await prisma.inventory.update({ where: { id: inv.id }, data: { quantityAvailable: { increment: item.quantity } } });
+        } else {
+          const inv = await prisma.inventory.findFirst({ where: { productId: item.productId } });
+          if (inv) await prisma.inventory.update({ where: { id: inv.id }, data: { quantityAvailable: { increment: item.quantity } } });
+        }
+      }
+    }
+
     const updatedOrder = await prisma.order.update({
       where: { id },
       data: {

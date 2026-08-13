@@ -43,7 +43,7 @@ export class StorefrontAccountService {
         lastName: customer?.lastName,
         email: customer?.email,
         phone: customer?.phone,
-        isVerified: customer?.isVerified,
+        emailVerified: customer?.emailVerified,
         lastLoginAt: customer?.lastLoginAt,
         createdAt: customer?.createdAt,
       },

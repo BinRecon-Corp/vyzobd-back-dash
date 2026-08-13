@@ -32,7 +32,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         lastName,
         email,
         passwordHash,
-        isVerified: false,
+        emailVerified: false,
         verificationToken,
         verificationExpires,
       },
@@ -100,7 +100,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           email: customer.email,
           firstName: customer.firstName,
           lastName: customer.lastName,
-          isVerified: customer.isVerified,
+          emailVerified: customer.emailVerified,
         },
         accessToken,
         refreshToken,
@@ -305,7 +305,7 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     await prisma.customer.update({
       where: { id: customer.id },
       data: {
-        isVerified: true,
+        emailVerified: true,
         verificationToken: null,
         verificationExpires: null,
       },
