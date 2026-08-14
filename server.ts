@@ -209,6 +209,7 @@ async function startServer() {
   apiRouter.use("/faqs", faqRouter);
   apiRouter.use("/seo", seoRouter);
   apiRouter.use("/settings", settingRouter);
+  apiRouter.use("/storefront/v1/settings", storefrontSettingRouter);
   
   app.use("/api/v1", apiRouter);
 
