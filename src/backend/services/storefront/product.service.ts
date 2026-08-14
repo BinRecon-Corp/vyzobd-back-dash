@@ -93,7 +93,6 @@ export class StorefrontProductService {
       case "name_desc":
         orderBy = { name: "desc" };
         break;
-      case "newest":
       default:
         orderBy = { createdAt: "desc" };
         break;
