@@ -8,6 +8,10 @@ const createLimiter = (max: number, minutes: number, actionName: string) => {
     max,
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    validate: {
+      xForwardedForHeader: false,
+      forwardedHeader: false,
+    },
     handler: async (req: Request, res: Response) => {
       const ip = (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || "Unknown";
       
