@@ -175,8 +175,15 @@ model Category {
   image          String?
   icon           String?
   images         CategoryImage[]
-  seoTitle       String?
-  seoDescription String?
+
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+  canonicalUrl    String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImage         String?
+  robots          String?
   sortOrder      Int             @default(0)
   parentId       String?
   parent         Category?       @relation("CategoryHierarchy", fields: [parentId], references: [id])
@@ -297,9 +304,15 @@ model Product {
   description      String?
   shortDescription String?
 
+
   metaTitle       String?
   metaDescription String?
+  metaKeywords    String?
+  canonicalUrl    String?
+  ogTitle         String?
+  ogDescription   String?
   ogImage         String?
+  robots          String?
 
   trackInventory Boolean @default(true)
   status         String  @default("Draft") // Draft, Active, Archived
@@ -464,6 +477,8 @@ model Order {
   createdAt                DateTime                @default(now())
   updatedAt                DateTime                @updatedAt
   deletedAt                DateTime?
+  purchaseTracked          Boolean                 @default(false)
+  purchaseTrackedAt        DateTime?
   notificationPreferenceId String?
 
   @@index([customerId])
@@ -1026,6 +1041,8 @@ model Refund {
   reason               String?
   transactionReference String?
   completedAt          DateTime?
+  refundTracked        Boolean      @default(false)
+  refundTrackedAt      DateTime?
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
@@ -1398,6 +1415,9 @@ model AnalyticsSetting {
   googleAnalyticsId  String?
   googleTagManagerId String?
   facebookPixelId    String?
+  tiktokPixelId      String?
+  googleAdsId        String?
+  ga4ApiSecret       String?
   hotjarId           String?
   enableAnalytics    Boolean  @default(false)
   createdAt          DateTime @default(now())

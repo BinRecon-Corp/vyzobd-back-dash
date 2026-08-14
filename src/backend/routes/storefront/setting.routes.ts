@@ -3,6 +3,7 @@ import { getPublicSettings } from "../../controllers/storefront/setting.controll
 
 const router = express.Router();
 
+router.get("/", getPublicSettings);
 router.get("/public", getPublicSettings);
 
 export default router;

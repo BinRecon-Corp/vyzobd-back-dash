@@ -380,7 +380,7 @@ export function Settings() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Google Analytics 4 ID</label>
+                        <label className="text-sm font-medium mb-1 block">Google Analytics 4 ID (Measurement ID)</label>
                         <Input name="googleAnalyticsId" value={formData.googleAnalyticsId || ""} onChange={handleChange} placeholder="G-XXXXXXXXXX" />
                       </div>
                       <div>
@@ -388,8 +388,20 @@ export function Settings() {
                         <Input name="googleTagManagerId" value={formData.googleTagManagerId || ""} onChange={handleChange} placeholder="GTM-XXXXXXX" />
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Facebook Pixel ID</label>
+                        <label className="text-sm font-medium mb-1 block">Meta / Facebook Pixel ID</label>
                         <Input name="facebookPixelId" value={formData.facebookPixelId || ""} onChange={handleChange} placeholder="1234567890" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">TikTok Pixel ID</label>
+                        <Input name="tiktokPixelId" value={formData.tiktokPixelId || ""} onChange={handleChange} placeholder="CXXXXXXXXXXXXXXXXX" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Google Ads Conversion ID</label>
+                        <Input name="googleAdsId" value={formData.googleAdsId || ""} onChange={handleChange} placeholder="AW-XXXXXXXXX" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">GA4 API Secret (Measurement Protocol)</label>
+                        <Input name="ga4ApiSecret" value={formData.ga4ApiSecret || ""} onChange={handleChange} placeholder="Secret key for server-side events" />
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-1 block">Hotjar Site ID</label>

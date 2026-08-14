@@ -1,6 +1,7 @@
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 import { PaymentProvider, PaymentStatus } from "@prisma/client";
+import { MeasurementProtocolService } from "../measurement-protocol.service";
 
 interface PaymentProviderInterface {
   initiatePayment(paymentId: string, amount: any, currency: string, orderId: string): Promise<any>;
@@ -168,7 +169,7 @@ export class StorefrontPaymentService {
     const providerAdapter = this.getProviderAdapter(payment.provider);
     const isSuccess = await providerAdapter.verifyPayment(providerTransactionId, payment.id);
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const newStatus = isSuccess ? PaymentStatus.PAID : PaymentStatus.FAILED;
 
       // 1. Update Payment
@@ -212,6 +213,14 @@ export class StorefrontPaymentService {
 
       return updatedPayment;
     });
+
+    if (isSuccess) {
+      MeasurementProtocolService.processOrderPaymentSuccess(payment.orderId).catch((err) => {
+        console.error("[Analytics] Error tracking purchase on verifyPayment:", err);
+      });
+    }
+
+    return result;
   }
 
   static async handleWebhook(provider: string, payload: any, signature: string | undefined) {
@@ -297,6 +306,13 @@ export class StorefrontPaymentService {
             });
           }
       });
+
+      if (isSuccess) {
+        MeasurementProtocolService.processOrderPaymentSuccess(payment.orderId).catch((err) => {
+          console.error("[Analytics] Error tracking purchase on handleWebhook:", err);
+        });
+      }
+
       
       await prisma.paymentWebhookLog.update({
           where: { id: log.id },

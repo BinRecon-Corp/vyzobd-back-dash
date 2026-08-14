@@ -2,11 +2,20 @@ import { prisma } from "../../config/db";
 
 export class StorefrontSettingService {
   static async getPublicSettings() {
-    const [branding, seo, analytics] = await Promise.all([
+    let [branding, seo, analytics] = await Promise.all([
       prisma.brandingSetting.findFirst(),
       prisma.sEOSetting.findFirst(),
       prisma.analyticsSetting.findFirst()
     ]);
+
+    if (!analytics) {
+      analytics = await prisma.analyticsSetting.create({
+        data: {
+          enableAnalytics: true,
+          googleAnalyticsId: process.env.GA_MEASUREMENT_ID || null,
+        }
+      });
+    }
 
     return {
       branding: branding ? {
@@ -37,8 +46,13 @@ export class StorefrontSettingService {
       } : null,
       analytics: analytics ? {
         googleAnalyticsId: analytics.googleAnalyticsId,
+        ga4MeasurementId: analytics.googleAnalyticsId,
         googleTagManagerId: analytics.googleTagManagerId,
+        gtmContainerId: analytics.googleTagManagerId,
         facebookPixelId: analytics.facebookPixelId,
+        metaPixelId: analytics.facebookPixelId,
+        tiktokPixelId: analytics.tiktokPixelId,
+        googleAdsId: analytics.googleAdsId,
         hotjarId: analytics.hotjarId,
         enableAnalytics: analytics.enableAnalytics
       } : null

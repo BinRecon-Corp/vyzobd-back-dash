@@ -1864,3 +1864,7 @@ ALTER TABLE "_PostTags" ADD CONSTRAINT "_PostTags_A_fkey" FOREIGN KEY ("A") REFE
 -- AddForeignKey
 ALTER TABLE "_PostTags" ADD CONSTRAINT "_PostTags_B_fkey" FOREIGN KEY ("B") REFERENCES "BlogTag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN "purchaseTracked" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "purchaseTrackedAt" TIMESTAMP(3);
+

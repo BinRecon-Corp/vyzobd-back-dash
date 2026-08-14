@@ -9,7 +9,7 @@ const productListQuerySchema = z.object({
   q: z.string().optional(),
   min_price: z.coerce.number().min(0).optional(),
   max_price: z.coerce.number().min(0).optional(),
-  sort: z.enum(["newest", "oldest", "price_asc", "price_desc", "name_asc", "name_desc"]).optional(),
+  sort: z.enum(["featured", "bestsellers", "newest", "oldest", "price_asc", "price_desc", "name_asc", "name_desc"]).optional(),
 }).refine(data => {
   if (data.min_price !== undefined && data.max_price !== undefined) {
     return data.min_price <= data.max_price;

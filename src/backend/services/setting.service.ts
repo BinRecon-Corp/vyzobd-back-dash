@@ -86,11 +86,40 @@ export class SettingService {
   }
 
   static async updateAnalytics(data: any, userId: string) {
+    const payload: any = { ...data };
+    if (payload.ga4MeasurementId) {
+      payload.googleAnalyticsId = payload.ga4MeasurementId;
+    }
+    if (payload.gtmContainerId) {
+      payload.googleTagManagerId = payload.gtmContainerId;
+    }
+    if (payload.metaPixelId) {
+      payload.facebookPixelId = payload.metaPixelId;
+    }
+
+    const sanitizedData: any = {};
+    const allowedKeys = [
+      "googleAnalyticsId",
+      "googleTagManagerId",
+      "facebookPixelId",
+      "tiktokPixelId",
+      "googleAdsId",
+      "ga4ApiSecret",
+      "hotjarId",
+      "enableAnalytics",
+    ];
+
+    allowedKeys.forEach((key) => {
+      if (typeof payload[key] !== "undefined") {
+        sanitizedData[key] = key === "enableAnalytics" ? Boolean(payload[key]) : payload[key];
+      }
+    });
+
     let setting = await prisma.analyticsSetting.findFirst();
     if (setting) {
-      setting = await prisma.analyticsSetting.update({ where: { id: setting.id }, data });
+      setting = await prisma.analyticsSetting.update({ where: { id: setting.id }, data: sanitizedData });
     } else {
-      setting = await prisma.analyticsSetting.create({ data });
+      setting = await prisma.analyticsSetting.create({ data: sanitizedData });
     }
     await prisma.activityLog.create({
       data: {

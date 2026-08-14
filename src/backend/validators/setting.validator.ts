@@ -49,8 +49,14 @@ export const updateSMTPSettingsSchema = z.object({
 
 export const updateAnalyticsSettingsSchema = z.object({
   googleAnalyticsId: z.string().optional(),
+  ga4MeasurementId: z.string().optional(),
   googleTagManagerId: z.string().optional(),
+  gtmContainerId: z.string().optional(),
   facebookPixelId: z.string().optional(),
+  metaPixelId: z.string().optional(),
+  tiktokPixelId: z.string().optional(),
+  googleAdsId: z.string().optional(),
+  ga4ApiSecret: z.string().optional(),
   hotjarId: z.string().optional(),
   enableAnalytics: z.boolean().optional(),
 });

@@ -42,4 +42,8 @@ if (!_env.success) {
   process.exit(1);
 }
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = _env.data.DATABASE_URL;
+}
+
 export const env = _env.data;

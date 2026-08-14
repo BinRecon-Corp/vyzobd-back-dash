@@ -3,6 +3,7 @@ import { prisma } from "../config/db";
 import { AuthRequest } from "../middlewares/auth";
 import { AppError } from "../utils/AppError";
 import { AuditService } from "../services/audit.service";
+import { MeasurementProtocolService } from "../services/measurement-protocol.service";
 
 // GET /api/v1/orders
 export const getOrders = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -216,6 +217,26 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       { oldStatus: existingOrder.status, newStatus: status, paymentStatus },
       req
     );
+
+    if (
+      existingOrder.paymentStatus?.toUpperCase() !== "PAID" &&
+      updatedOrder.paymentStatus?.toUpperCase() === "PAID"
+    ) {
+      MeasurementProtocolService.processOrderPaymentSuccess(id).catch((err) => {
+        console.error("[Analytics] Error tracking purchase on admin order update:", err);
+      });
+    }
+
+    const updatedStatusUpper = updatedOrder.status?.toUpperCase() || "";
+    const isConfirmedOrProcessing = updatedStatusUpper === "CONFIRMED" || updatedStatusUpper === "PROCESSING";
+    const methodUpper = (updatedOrder.paymentMethod || "").toUpperCase();
+    const isCod = methodUpper.includes("COD") || methodUpper.includes("CASH");
+
+    if (isCod && isConfirmedOrProcessing) {
+      MeasurementProtocolService.processCodOrderConfirmation(id).catch((err) => {
+        console.error("[Analytics] Error tracking COD purchase on admin order update:", err);
+      });
+    }
 
     res.status(200).json({
       status: "success",

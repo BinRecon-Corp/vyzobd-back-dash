@@ -348,7 +348,17 @@ export class StorefrontCheckoutService {
   /**
    * Places the order, updates inventories, clears the cart inside a Prisma transaction
    */
-  static async completeCheckout(customerId: string, paymentMethod: string) {
+  static async completeCheckout(
+    customerId: string,
+    paymentMethod: string,
+    clientId?: string,
+    sessionId?: string
+  ) {
+    // Capture clientId and sessionId from checkout payload for analytics scope
+    if (clientId || sessionId) {
+      console.log(`[Analytics] Checkout session captured for customer ${customerId}: clientId=${clientId}, sessionId=${sessionId}`);
+    }
+
     // 1. Load active checkout session (validates active products, variant statuses, and current stock)
     const session = await this.getCheckoutSession(customerId);
 

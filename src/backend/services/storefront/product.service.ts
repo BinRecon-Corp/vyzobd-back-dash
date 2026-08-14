@@ -73,6 +73,11 @@ export class StorefrontProductService {
     // Sorting
     let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
     switch (options.sort) {
+      case "featured":
+      case "bestsellers":
+      case "newest":
+        orderBy = { createdAt: "desc" };
+        break;
       case "oldest":
         orderBy = { createdAt: "asc" };
         break;

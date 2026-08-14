@@ -89,9 +89,9 @@ export const completeCheckout = async (
 ) => {
   try {
     const customerId = req.customer!.id;
-    const { paymentMethod } = req.body;
+    const { paymentMethod, clientId, sessionId } = req.body;
 
-    const order = await StorefrontCheckoutService.completeCheckout(customerId, paymentMethod);
+    const order = await StorefrontCheckoutService.completeCheckout(customerId, paymentMethod, clientId, sessionId);
 
     res.status(201).json({
       status: "success",

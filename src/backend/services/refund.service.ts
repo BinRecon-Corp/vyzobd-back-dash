@@ -1,12 +1,13 @@
 import { prisma } from "../config/db";
 import { AppError } from "../utils/AppError";
 import { Prisma, RefundStatus } from "@prisma/client";
+import { MeasurementProtocolService } from "./measurement-protocol.service";
 
 export class AdminRefundService {
   static async processRefund(refundId: string, approve: boolean, providerReference?: string) {
     const refund = await prisma.refund.findUnique({
       where: { id: refundId },
-      include: { payment: true },
+      include: { payment: true, order: true },
     });
 
     if (!refund) {
@@ -39,6 +40,9 @@ export class AdminRefundService {
     // Process approval
     return await prisma.$transaction(async (tx) => {
       const currentPayment = await tx.payment.findUnique({ where: { id: refund.paymentId } });
+      if (!currentPayment) {
+        throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
+      }
       const currentRefundable = currentPayment.amount.sub(currentPayment.refundedAmount);
       
       if (refund.amount.gt(currentRefundable)) {
@@ -52,6 +56,7 @@ export class AdminRefundService {
           transactionReference: providerReference,
           completedAt: new Date(),
         },
+        include: { order: true, payment: true },
       });
 
       const updatedPayment = await tx.payment.update({
@@ -80,6 +85,12 @@ export class AdminRefundService {
           action: actionText,
         },
       });
+
+      if (completedRefund.order && !completedRefund.refundTracked) {
+        MeasurementProtocolService.trackRefund(completedRefund, completedRefund.order).catch((err) => {
+          console.error("[Measurement Protocol] Refund tracking failed:", err);
+        });
+      }
 
       return completedRefund;
     });

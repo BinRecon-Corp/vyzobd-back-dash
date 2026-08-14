@@ -1,3 +1,5 @@
+import "dotenv/config";
+import "express-async-errors";
 import express from "express";
 import path from "path";
 import cors from "cors";
@@ -52,7 +54,9 @@ import storefrontBrandRouter from "./src/backend/routes/storefront/brand.routes"
 import storefrontSearchRouter from "./src/backend/routes/storefront/search.routes";
 import storefrontMerchantRouter from "./src/backend/routes/storefront/merchant.routes";
 import storefrontSettingRouter from "./src/backend/routes/storefront/setting.routes";
+import storefrontAnalyticsRouter from "./src/backend/routes/storefront/analytics.routes";
 import storefrontSeoRouter from "./src/backend/routes/storefront/seo.routes";
+import { getSitemap, getRobotsTxt } from "./src/backend/controllers/storefront/sitemap.controller";
 import storefrontPageRouter from "./src/backend/routes/storefront/page.routes";
 import storefrontBlogRouter from "./src/backend/routes/storefront/blog.routes";
 import storefrontFaqRouter from "./src/backend/routes/storefront/faq.routes";
@@ -209,6 +213,10 @@ async function startServer() {
   const storefrontRouter = express.Router();
   storefrontRouter.use(storefrontRequestLogger);
   storefrontRouter.use(responseFormatter);
+  storefrontRouter.get("/sitemap", getSitemap);
+  storefrontRouter.get("/robots.txt", getRobotsTxt);
+  console.log("Registered sitemap");
+
 storefrontRouter.use("/banners", storefrontBannerRouter);
   storefrontRouter.use("/popups", storefrontPopupRouter);
   storefrontRouter.use("/promotions", storefrontPromotionRouter);
@@ -223,6 +231,7 @@ storefrontRouter.use("/banners", storefrontBannerRouter);
   storefrontRouter.use("/merchant", storefrontMerchantRouter);
   storefrontRouter.use("/seo", storefrontSeoRouter);
   storefrontRouter.use("/settings", storefrontSettingRouter);
+  storefrontRouter.use("/analytics", storefrontAnalyticsRouter);
   storefrontRouter.use("/pages", storefrontPageRouter);
   storefrontRouter.use("/blog", storefrontBlogRouter);
   storefrontRouter.use("/faqs", storefrontFaqRouter);
@@ -242,6 +251,11 @@ storefrontRouter.use("/banners", storefrontBannerRouter);
   app.use("/api/storefront/v1", storefrontRouter);
 
   // Error handling middleware (must be registered after routes)
+  // 404 handler for API routes
+  app.use("/api", (req, res) => {
+    res.status(404).json({ status: "error", message: `API route not found: ${req.method} ${req.originalUrl}`, errors: [] });
+  });
+
   app.use(errorHandler);
 
   // Vite middleware for development
