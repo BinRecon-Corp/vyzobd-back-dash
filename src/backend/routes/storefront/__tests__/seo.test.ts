@@ -45,8 +45,8 @@ test("Storefront SEO Integration Tests", async (t) => {
         name: "SEO Cat",
         slug: `${TEST_PREFIX}cat`,
         description: "Cat description text",
-        seoTitle: "SEO Cat Meta Title",
-        seoDescription: "SEO Cat Meta Desc",
+        metaTitle: "SEO Cat Meta Title",
+        metaDescription: "SEO Cat Meta Desc",
         image: "https://example.com/cat.png",
         isActive: true
       }
