@@ -2,6 +2,7 @@ import { prisma } from "../config/db";
 import { AppError } from "../utils/AppError";
 import { EventService } from "./event.service";
 import { ActivityType } from "@prisma/client";
+import { StorefrontSettingService } from "./storefront/setting.service";
 
 export class SettingService {
   static async getBranding() {
@@ -17,6 +18,7 @@ export class SettingService {
     } else {
       setting = await prisma.brandingSetting.create({ data });
     }
+    StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
         userId,
@@ -42,6 +44,7 @@ export class SettingService {
     } else {
       setting = await prisma.sEOSetting.create({ data });
     }
+    StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
         userId,
@@ -121,6 +124,7 @@ export class SettingService {
     } else {
       setting = await prisma.analyticsSetting.create({ data: sanitizedData });
     }
+    StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
         userId,

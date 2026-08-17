@@ -1,23 +1,28 @@
 import { prisma } from "../../config/db";
 
+let cachedPublicSettings: any = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 30 * 1000; // 30 seconds TTL
+
 export class StorefrontSettingService {
+  static clearCache() {
+    cachedPublicSettings = null;
+    lastCacheTime = 0;
+  }
+
   static async getPublicSettings() {
-    let [branding, seo, analytics] = await Promise.all([
+    const now = Date.now();
+    if (cachedPublicSettings && now - lastCacheTime < CACHE_TTL_MS) {
+      return cachedPublicSettings;
+    }
+
+    const [branding, seo, analytics] = await Promise.all([
       prisma.brandingSetting.findFirst(),
       prisma.sEOSetting.findFirst(),
       prisma.analyticsSetting.findFirst()
     ]);
 
-    if (!analytics) {
-      analytics = await prisma.analyticsSetting.create({
-        data: {
-          enableAnalytics: true,
-          googleAnalyticsId: process.env.GA_MEASUREMENT_ID || null,
-        }
-      });
-    }
-
-    return {
+    const result = {
       branding: branding ? {
         siteName: branding.siteName,
         siteTitle: branding.siteTitle,
@@ -55,7 +60,23 @@ export class StorefrontSettingService {
         googleAdsId: analytics.googleAdsId,
         hotjarId: analytics.hotjarId,
         enableAnalytics: analytics.enableAnalytics
-      } : null
+      } : {
+        googleAnalyticsId: process.env.GA_MEASUREMENT_ID || null,
+        ga4MeasurementId: process.env.GA_MEASUREMENT_ID || null,
+        googleTagManagerId: null,
+        gtmContainerId: null,
+        facebookPixelId: null,
+        metaPixelId: null,
+        tiktokPixelId: null,
+        googleAdsId: null,
+        hotjarId: null,
+        enableAnalytics: false
+      }
     };
+
+    cachedPublicSettings = result;
+    lastCacheTime = now;
+
+    return result;
   }
 }

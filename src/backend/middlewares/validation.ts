@@ -68,8 +68,11 @@ export const validateBody = (schema: z.ZodSchema) => {
       req.body = await schema.parseAsync(req.body);
       next();
     } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        const errorMsg = (error as any).errors.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      if (error instanceof z.ZodError || error?.name === "ZodError") {
+        const issues = (error as any).issues || (error as any).errors || [];
+        const errorMsg = issues.length > 0 
+          ? issues.map((e: any) => `${e.path?.join(".") || "field"}: ${e.message}`).join(", ")
+          : error.message || "Invalid request payload";
         return next(new AppError(errorMsg, 400, "VALIDATION_ERROR"));
       }
       next(error);
@@ -84,8 +87,11 @@ export const validateQuery = (schema: z.ZodSchema) => {
       req.query = await schema.parseAsync(req.query) as any;
       next();
     } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        const errorMsg = (error as any).errors.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(", ");
+      if (error instanceof z.ZodError || error?.name === "ZodError") {
+        const issues = (error as any).issues || (error as any).errors || [];
+        const errorMsg = issues.length > 0 
+          ? issues.map((e: any) => `${e.path?.join(".") || "field"}: ${e.message}`).join(", ")
+          : error.message || "Invalid query parameters";
         return next(new AppError(errorMsg, 400, "VALIDATION_ERROR"));
       }
       next(error);

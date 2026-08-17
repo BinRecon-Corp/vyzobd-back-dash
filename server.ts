@@ -91,8 +91,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000; // Required by infrastructure
 
-  // Enable trust proxy for reverse proxies (PM2, Nginx, Cloud Run)
-  app.set("trust proxy", 1);
+  // Enable trust proxy for reverse proxies (Apache HTTP Server, Next.js, PM2)
+  app.set("trust proxy", process.env.TRUST_PROXY || ["loopback", "linklocal", "uniquelocal"]);
 
   // Start automatic refresh token cleanup job (Part 7)
   startRefreshTokenCleanupJob();
