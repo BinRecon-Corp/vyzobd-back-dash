@@ -131,7 +131,7 @@ async function startServer() {
     next();
   });
 
-  // Part 5 - Restricted CORS configuration (Wildcard blocked in production)
+  // Restricted CORS configuration (Wildcard blocked in production)
   const allowedOrigins = env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS.split(",").map(o => o.trim()) : [];
   if (process.env.APP_URL) {
     allowedOrigins.push(process.env.APP_URL);
@@ -140,20 +140,38 @@ async function startServer() {
   app.use(cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      const isAllowed = allowedOrigins.some((allowed) => {
-        if (allowed === "*") return true;
-        return origin === allowed || origin.startsWith(allowed);
-      });
+      const isAllowed =
+        allowedOrigins.includes("*") ||
+        allowedOrigins.some((allowed) => origin === allowed || origin.startsWith(allowed)) ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1");
+
       if (isAllowed) {
         callback(null, true);
       } else {
-        console.warn(`[CORS] Blocked request from origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
+        callback(null, false);
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "X-Cart-Session-Id",
+      "x-cart-session-id",
+      "X-Session-Id",
+      "x-session-id",
+      "X-Client-Id",
+      "x-client-id",
+    ],
+    exposedHeaders: [
+      "X-Cart-Session-Id",
+      "x-cart-session-id",
+      "X-Session-Id",
+      "x-session-id",
+    ],
   }));
 
   app.use(express.json());
@@ -253,6 +271,7 @@ storefrontRouter.use("/banners", storefrontBannerRouter);
   storefrontRouter.use("/returns", storefrontReturnRouter);
   
   app.use("/api/storefront/v1", storefrontRouter);
+  app.use("/api/v1/storefront/v1", storefrontRouter);
 
   // Error handling middleware (must be registered after routes)
   // 404 handler for API routes

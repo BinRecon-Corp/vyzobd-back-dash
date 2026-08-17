@@ -30,11 +30,11 @@ export const errorHandler = (
       });
     }
 
-    // Never expose internal errors for storefront
-    return res.status(500).json({
+    const statusCode = err.statusCode || 500;
+    return res.status(statusCode).json({
       status: "error",
       message: err.message || "Internal Server Error",
-      errors: []
+      errors: (err as any).errors || []
     });
   }
 

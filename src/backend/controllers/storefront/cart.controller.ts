@@ -1,6 +1,26 @@
 import { Response, NextFunction } from "express";
+import crypto from "crypto";
 import { CustomerAuthRequest } from "../../middlewares/customerAuth";
-import { StorefrontCartService } from "../../services/storefront/cart.service";
+import { StorefrontCartService, CartIdentifier } from "../../services/storefront/cart.service";
+
+const resolveCartIdentifier = (req: CustomerAuthRequest, res: Response): CartIdentifier => {
+  const customerId = req.customer?.id;
+  let sessionId = (
+    req.headers["x-cart-session-id"] ||
+    req.headers["x-session-id"] ||
+    req.query.sessionId ||
+    req.body?.sessionId
+  ) as string | undefined;
+
+  if (!customerId && !sessionId) {
+    sessionId = crypto.randomUUID();
+    res.setHeader("X-Cart-Session-Id", sessionId);
+  } else if (sessionId) {
+    res.setHeader("X-Cart-Session-Id", sessionId);
+  }
+
+  return { customerId, sessionId };
+};
 
 export const getCart = async (
   req: CustomerAuthRequest,
@@ -8,12 +28,15 @@ export const getCart = async (
   next: NextFunction
 ) => {
   try {
-    const customerId = req.customer!.id;
-    const cart = await StorefrontCartService.getCart(customerId);
+    const identifier = resolveCartIdentifier(req, res);
+    const cart = await StorefrontCartService.getCart(identifier);
 
     res.status(200).json({
       status: "success",
-      data: { cart },
+      data: {
+        cart,
+        ...cart,
+      },
     });
   } catch (error) {
     next(error);
@@ -26,19 +49,22 @@ export const addItemToCart = async (
   next: NextFunction
 ) => {
   try {
-    const customerId = req.customer!.id;
+    const identifier = resolveCartIdentifier(req, res);
     const { productId, variantId, quantity } = req.body;
 
-    const cart = await StorefrontCartService.addItem(customerId, {
+    const cart = await StorefrontCartService.addItem(identifier, {
       productId,
       variantId,
-      quantity,
+      quantity: Number(quantity) || 1,
     });
 
     res.status(200).json({
       status: "success",
       message: "Item added to cart successfully",
-      data: { cart },
+      data: {
+        cart,
+        ...cart,
+      },
     });
   } catch (error) {
     next(error);
@@ -51,16 +77,19 @@ export const updateCartItem = async (
   next: NextFunction
 ) => {
   try {
-    const customerId = req.customer!.id;
+    const identifier = resolveCartIdentifier(req, res);
     const { id } = req.params;
     const { quantity } = req.body;
 
-    const cart = await StorefrontCartService.updateItem(customerId, id, quantity);
+    const cart = await StorefrontCartService.updateItem(identifier, id, Number(quantity));
 
     res.status(200).json({
       status: "success",
       message: "Cart item updated successfully",
-      data: { cart },
+      data: {
+        cart,
+        ...cart,
+      },
     });
   } catch (error) {
     next(error);
@@ -73,15 +102,18 @@ export const removeCartItem = async (
   next: NextFunction
 ) => {
   try {
-    const customerId = req.customer!.id;
+    const identifier = resolveCartIdentifier(req, res);
     const { id } = req.params;
 
-    const cart = await StorefrontCartService.removeItem(customerId, id);
+    const cart = await StorefrontCartService.removeItem(identifier, id);
 
     res.status(200).json({
       status: "success",
       message: "Item removed from cart successfully",
-      data: { cart },
+      data: {
+        cart,
+        ...cart,
+      },
     });
   } catch (error) {
     next(error);
@@ -94,13 +126,16 @@ export const clearCart = async (
   next: NextFunction
 ) => {
   try {
-    const customerId = req.customer!.id;
-    const cart = await StorefrontCartService.clearCart(customerId);
+    const identifier = resolveCartIdentifier(req, res);
+    const cart = await StorefrontCartService.clearCart(identifier);
 
     res.status(200).json({
       status: "success",
       message: "Cart cleared successfully",
-      data: { cart },
+      data: {
+        cart,
+        ...cart,
+      },
     });
   } catch (error) {
     next(error);

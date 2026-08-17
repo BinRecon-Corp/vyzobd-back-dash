@@ -1,10 +1,32 @@
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 
+export interface CartIdentifier {
+  customerId?: string;
+  sessionId?: string;
+}
+
 export class StorefrontCartService {
-  static async getCart(customerId: string) {
-    let cart = await prisma.cart.findUnique({
-      where: { customerId },
+  private static getCartWhereClause(identifier: CartIdentifier) {
+    if (identifier.customerId) {
+      return { customerId: identifier.customerId };
+    }
+    if (identifier.sessionId) {
+      return { sessionId: identifier.sessionId };
+    }
+    throw new AppError("A customer ID or cart session ID is required", 400, "BAD_REQUEST");
+  }
+
+  static async getCart(identifier: CartIdentifier) {
+    const whereClause = this.getCartWhereClause(identifier);
+
+    // If both customerId and sessionId are present, merge guest cart into customer cart
+    if (identifier.customerId && identifier.sessionId) {
+      await this.mergeGuestCart(identifier.sessionId, identifier.customerId);
+    }
+
+    let cart = await prisma.cart.findFirst({
+      where: whereClause,
       include: {
         items: {
           include: {
@@ -55,7 +77,9 @@ export class StorefrontCartService {
 
     if (!cart) {
       cart = await prisma.cart.create({
-        data: { customerId },
+        data: identifier.customerId
+          ? { customerId: identifier.customerId }
+          : { sessionId: identifier.sessionId! },
         include: {
           items: {
             include: {
@@ -138,11 +162,18 @@ export class StorefrontCartService {
       };
     });
 
+    const itemCount = itemsWithPricing.reduce((sum, item) => sum + item.quantity, 0);
+
     return {
       id: cart.id,
-      customerId: cart.customerId,
-      itemCount: itemsWithPricing.reduce((sum, item) => sum + item.quantity, 0),
+      customerId: cart.customerId || null,
+      sessionId: cart.sessionId || null,
+      itemCount,
       subtotal,
+      discount: 0,
+      shippingFee: 0,
+      estimatedTax: 0,
+      total: subtotal,
       items: itemsWithPricing,
       createdAt: cart.createdAt,
       updatedAt: cart.updatedAt,
@@ -150,9 +181,17 @@ export class StorefrontCartService {
   }
 
   static async addItem(
-    customerId: string,
+    identifier: CartIdentifier,
     dto: { productId: string; variantId?: string | null; quantity: number }
   ) {
+    if (!dto.productId) {
+      throw new AppError("Product ID is required", 400, "BAD_REQUEST");
+    }
+
+    if (!dto.quantity || dto.quantity < 1) {
+      throw new AppError("Quantity must be at least 1", 400, "BAD_REQUEST");
+    }
+
     const product = await prisma.product.findFirst({
       where: {
         id: dto.productId,
@@ -170,7 +209,7 @@ export class StorefrontCartService {
     }
 
     let variant: any = null;
-    if (dto.variantId) {
+    if (dto.variantId && dto.variantId.trim() !== "") {
       variant = await prisma.productVariant.findFirst({
         where: {
           id: dto.variantId,
@@ -184,15 +223,16 @@ export class StorefrontCartService {
       });
 
       if (!variant) {
-        throw new AppError("Product variant not found or unavailable", 404, "NOT_FOUND");
+        throw new AppError("Product variant not found or does not belong to this product", 404, "NOT_FOUND");
       }
     }
 
+    // Stock validation
     if (product.trackInventory) {
       let availableStock = 0;
 
       if (variant) {
-        const totalStock = variant.inventories.reduce(
+        const totalStock = (variant.inventories || []).reduce(
           (sum: number, inv: any) => sum + (inv.quantityAvailable - inv.quantityReserved),
           0
         );
@@ -204,12 +244,13 @@ export class StorefrontCartService {
         );
       }
 
-      const cart = await prisma.cart.findUnique({
-        where: { customerId },
+      const whereClause = this.getCartWhereClause(identifier);
+      const existingCart = await prisma.cart.findFirst({
+        where: whereClause,
         include: { items: true },
       });
 
-      const existingCartItem = cart?.items.find(
+      const existingCartItem = existingCart?.items.find(
         (i) => i.productId === dto.productId && i.variantId === (dto.variantId || null)
       );
 
@@ -217,21 +258,26 @@ export class StorefrontCartService {
 
       if (requestedTotal > availableStock) {
         throw new AppError(
-          `Insufficient stock. Available: ${availableStock}, Requested in cart: ${requestedTotal}`,
-          400,
+          `Insufficient stock available. In stock: ${availableStock}, Requested in cart: ${requestedTotal}`,
+          409,
           "INSUFFICIENT_STOCK"
         );
       }
     }
 
+    const targetVariantId = dto.variantId && dto.variantId.trim() !== "" ? dto.variantId : null;
+
     return await prisma.$transaction(async (tx) => {
-      let cart = await tx.cart.findUnique({
-        where: { customerId },
+      const whereClause = this.getCartWhereClause(identifier);
+      let cart = await tx.cart.findFirst({
+        where: whereClause,
       });
 
       if (!cart) {
         cart = await tx.cart.create({
-          data: { customerId },
+          data: identifier.customerId
+            ? { customerId: identifier.customerId }
+            : { sessionId: identifier.sessionId! },
         });
       }
 
@@ -239,7 +285,7 @@ export class StorefrontCartService {
         where: {
           cartId: cart.id,
           productId: dto.productId,
-          variantId: dto.variantId || null,
+          variantId: targetVariantId,
         },
       });
 
@@ -255,23 +301,28 @@ export class StorefrontCartService {
           data: {
             cartId: cart.id,
             productId: dto.productId,
-            variantId: dto.variantId || null,
+            variantId: targetVariantId,
             quantity: dto.quantity,
           },
         });
       }
 
-      return this.getCart(customerId);
+      return this.getCart(identifier);
     });
   }
 
   static async updateItem(
-    customerId: string,
+    identifier: CartIdentifier,
     cartItemId: string,
     quantity: number
   ) {
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
+    if (quantity < 1) {
+      throw new AppError("Quantity must be at least 1", 400, "BAD_REQUEST");
+    }
+
+    const whereClause = this.getCartWhereClause(identifier);
+    const cart = await prisma.cart.findFirst({
+      where: whereClause,
     });
 
     if (!cart) {
@@ -300,7 +351,7 @@ export class StorefrontCartService {
     if (cartItem.product.trackInventory) {
       let availableStock = 0;
       if (cartItem.variant) {
-        const totalStock = cartItem.variant.inventories.reduce(
+        const totalStock = (cartItem.variant.inventories || []).reduce(
           (sum, inv) => sum + (inv.quantityAvailable - inv.quantityReserved),
           0
         );
@@ -314,8 +365,8 @@ export class StorefrontCartService {
 
       if (quantity > availableStock) {
         throw new AppError(
-          `Insufficient stock. Available: ${availableStock}, Requested: ${quantity}`,
-          400,
+          `Insufficient stock available. In stock: ${availableStock}, Requested: ${quantity}`,
+          409,
           "INSUFFICIENT_STOCK"
         );
       }
@@ -326,16 +377,17 @@ export class StorefrontCartService {
       data: { quantity },
     });
 
-    return this.getCart(customerId);
+    return this.getCart(identifier);
   }
 
-  static async removeItem(customerId: string, cartItemId: string) {
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
+  static async removeItem(identifier: CartIdentifier, cartItemId: string) {
+    const whereClause = this.getCartWhereClause(identifier);
+    const cart = await prisma.cart.findFirst({
+      where: whereClause,
     });
 
     if (!cart) {
-      return this.getCart(customerId);
+      return this.getCart(identifier);
     }
 
     await prisma.cartItem.deleteMany({
@@ -345,12 +397,13 @@ export class StorefrontCartService {
       },
     });
 
-    return this.getCart(customerId);
+    return this.getCart(identifier);
   }
 
-  static async clearCart(customerId: string) {
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
+  static async clearCart(identifier: CartIdentifier) {
+    const whereClause = this.getCartWhereClause(identifier);
+    const cart = await prisma.cart.findFirst({
+      where: whereClause,
     });
 
     if (cart) {
@@ -359,6 +412,56 @@ export class StorefrontCartService {
       });
     }
 
-    return this.getCart(customerId);
+    return this.getCart(identifier);
+  }
+
+  static async mergeGuestCart(guestSessionId: string, customerId: string) {
+    const guestCart = await prisma.cart.findFirst({
+      where: { sessionId: guestSessionId },
+      include: { items: true },
+    });
+
+    if (!guestCart || guestCart.items.length === 0) {
+      return;
+    }
+
+    let customerCart = await prisma.cart.findFirst({
+      where: { customerId },
+      include: { items: true },
+    });
+
+    if (!customerCart) {
+      customerCart = await prisma.cart.create({
+        data: { customerId },
+        include: { items: true },
+      });
+    }
+
+    for (const guestItem of guestCart.items) {
+      const existingItem = customerCart.items.find(
+        (i) => i.productId === guestItem.productId && i.variantId === guestItem.variantId
+      );
+
+      if (existingItem) {
+        await prisma.cartItem.update({
+          where: { id: existingItem.id },
+          data: { quantity: existingItem.quantity + guestItem.quantity },
+        });
+      } else {
+        await prisma.cartItem.create({
+          data: {
+            cartId: customerCart.id,
+            productId: guestItem.productId,
+            variantId: guestItem.variantId,
+            quantity: guestItem.quantity,
+          },
+        });
+      }
+    }
+
+    // Delete guest cart after merge
+    await prisma.cart.delete({
+      where: { id: guestCart.id },
+    });
   }
 }

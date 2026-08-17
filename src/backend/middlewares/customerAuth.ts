@@ -11,6 +11,49 @@ export interface CustomerAuthRequest extends Request {
   };
 }
 
+export const optionalCustomerAuth = async (
+  req: CustomerAuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    let token;
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return next();
+    }
+
+    try {
+      const decoded = verifyCustomerToken(token);
+      if (decoded.tokenType === "access") {
+        const currentCustomer = await prisma.customer.findUnique({
+          where: { id: decoded.id },
+        });
+
+        if (currentCustomer && currentCustomer.isActive && !currentCustomer.deletedAt) {
+          req.customer = {
+            id: currentCustomer.id,
+            email: currentCustomer.email,
+            firstName: currentCustomer.firstName,
+          };
+        }
+      }
+    } catch {
+      // For optional auth, an invalid token simply leaves req.customer undefined (guest mode)
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const requireCustomerAuth = async (
   req: CustomerAuthRequest,
   res: Response,

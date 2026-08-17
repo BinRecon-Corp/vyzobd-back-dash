@@ -921,8 +921,9 @@ model WishlistItem {
 
 model Cart {
   id                String         @id @default(uuid())
-  customerId        String         @unique
-  customer          Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId        String?        @unique
+  sessionId         String?        @unique
+  customer          Customer?      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items             CartItem[]
   shippingAddressId String?
   billingAddressId  String?
@@ -933,6 +934,7 @@ model Cart {
   AbandonedCart     AbandonedCart?
 
   @@index([customerId])
+  @@index([sessionId])
   @@index([couponId])
 }
 

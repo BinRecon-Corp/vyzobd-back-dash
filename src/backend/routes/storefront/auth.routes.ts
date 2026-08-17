@@ -8,6 +8,7 @@ import {
   resetPassword,
   verifyEmail,
 } from "../../controllers/storefront/auth.controller";
+import { getMyProfile } from "../../controllers/storefront/account.controller";
 import { requireCustomerAuth } from "../../middlewares/customerAuth";
 import {
   loginLimiter,
@@ -28,6 +29,10 @@ router.post("/register", validateBody(customerRegisterSchema), register);
 router.post("/login", loginLimiter, validateBody(customerLoginSchema), login);
 router.post("/refresh", refresh);
 router.post("/logout", requireCustomerAuth, logout);
+
+// Profile and session inspection endpoints for storefront client compatibility
+router.get("/me", requireCustomerAuth, getMyProfile);
+router.get("/profile", requireCustomerAuth, getMyProfile);
 
 router.post(
   "/forgot-password",
