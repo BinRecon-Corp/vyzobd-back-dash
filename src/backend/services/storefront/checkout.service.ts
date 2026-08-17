@@ -489,6 +489,10 @@ export class StorefrontCheckoutService {
           status: "Pending",
           paymentStatus: "Unpaid",
           totalAmount: session.grandTotal,
+          subtotal: session.subtotal,
+          taxAmount: session.tax,
+          shippingFee: session.shipping,
+          discountAmount: session.discount,
           shippingAddress: this.formatAddress(session.shippingAddress),
           billingAddress: this.formatAddress(session.billingAddress),
           paymentMethod,
@@ -503,6 +507,11 @@ export class StorefrontCheckoutService {
         productVariantId: item.variantId || null,
         quantity: item.quantity,
         price: item.unitPrice,
+        productName: item.productName,
+        productSku: item.productSlug,
+        variantSku: item.variantSku,
+        subtotal: item.subtotal,
+        total: item.subtotal,
       }));
 
       await tx.orderItem.createMany({
@@ -516,6 +525,18 @@ export class StorefrontCheckoutService {
           status: "Pending",
           action: "Order successfully placed and checked out.",
         },
+      });
+
+      // Create COD Payment record
+      await tx.payment.create({
+        data: {
+          orderId: newOrder.id,
+          customerId,
+          provider: "COD",
+          amount: session.grandTotal,
+          currency: "USD",
+          status: "PENDING",
+        }
       });
 
       // Reset / Clear cart items and coupon/addresses in database

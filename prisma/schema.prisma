@@ -454,6 +454,10 @@ model Order {
   status                   String                  @default("Pending")
   paymentStatus            String                  @default("Unpaid")
   totalAmount              Decimal
+  subtotal                 Decimal?
+  taxAmount                Decimal?
+  shippingFee              Decimal?
+  discountAmount           Decimal?
   shippingAddress          String?
   billingAddress           String?
   paymentMethod            String?
@@ -502,6 +506,13 @@ model OrderItem {
   returnItems      ReturnItem[]
   quantity         Int
   price            Decimal
+  productName      String?
+  productSku       String?
+  variantSku       String?
+  subtotal         Decimal?
+  taxAmount        Decimal?
+  discountAmount   Decimal?
+  total            Decimal?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 

@@ -279,6 +279,12 @@ export class StorefrontCartService {
             ? { customerId: identifier.customerId }
             : { sessionId: identifier.sessionId! },
         });
+      } else {
+        // Lock the cart row to serialize concurrent add-to-cart requests
+        await tx.cart.update({
+          where: { id: cart.id },
+          data: { updatedAt: new Date() }
+        });
       }
 
       const existingItem = await tx.cartItem.findFirst({
@@ -422,46 +428,51 @@ export class StorefrontCartService {
     });
 
     if (!guestCart || guestCart.items.length === 0) {
+      if (guestCart) {
+        await prisma.cart.delete({ where: { id: guestCart.id } });
+      }
       return;
     }
 
-    let customerCart = await prisma.cart.findFirst({
-      where: { customerId },
-      include: { items: true },
-    });
-
-    if (!customerCart) {
-      customerCart = await prisma.cart.create({
-        data: { customerId },
+    await prisma.$transaction(async (tx) => {
+      let customerCart = await tx.cart.findFirst({
+        where: { customerId },
         include: { items: true },
       });
-    }
 
-    for (const guestItem of guestCart.items) {
-      const existingItem = customerCart.items.find(
-        (i) => i.productId === guestItem.productId && i.variantId === guestItem.variantId
-      );
-
-      if (existingItem) {
-        await prisma.cartItem.update({
-          where: { id: existingItem.id },
-          data: { quantity: existingItem.quantity + guestItem.quantity },
-        });
-      } else {
-        await prisma.cartItem.create({
-          data: {
-            cartId: customerCart.id,
-            productId: guestItem.productId,
-            variantId: guestItem.variantId,
-            quantity: guestItem.quantity,
-          },
+      if (!customerCart) {
+        customerCart = await tx.cart.create({
+          data: { customerId },
+          include: { items: true },
         });
       }
-    }
 
-    // Delete guest cart after merge
-    await prisma.cart.delete({
-      where: { id: guestCart.id },
+      for (const guestItem of guestCart.items) {
+        const existingItem = customerCart.items.find(
+          (i) => i.productId === guestItem.productId && i.variantId === guestItem.variantId
+        );
+
+        if (existingItem) {
+          await tx.cartItem.update({
+            where: { id: existingItem.id },
+            data: { quantity: existingItem.quantity + guestItem.quantity },
+          });
+        } else {
+          await tx.cartItem.create({
+            data: {
+              cartId: customerCart.id,
+              productId: guestItem.productId,
+              variantId: guestItem.variantId,
+              quantity: guestItem.quantity,
+            },
+          });
+        }
+      }
+
+      // Delete guest cart after merge
+      await tx.cart.delete({
+        where: { id: guestCart.id },
+      });
     });
   }
 }

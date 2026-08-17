@@ -1,22 +1,8 @@
-import { Request, Response, NextFunction } from "express";
-import { ZodError } from "zod";
-import { logger } from "../config/logger";
+const fs = require('fs');
+const file = 'src/backend/middlewares/errorHandler.ts';
+let code = fs.readFileSync(file, 'utf8');
 
-export interface AppError extends Error {
-  statusCode?: number;
-  code?: string;
-  isOperational?: boolean;
-}
-
-export const errorHandler = (
-  err: any,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  logger.error(err);
-
-  const isProd = process.env.NODE_ENV === "production";
+const replacement = `  const isProd = process.env.NODE_ENV === "production";
   
   // Detect Prisma and JWT errors
   const isPrismaError = 
@@ -63,7 +49,7 @@ export const errorHandler = (
 
   // Clean up paths in production
   if (isProd && typeof message === "string") {
-    message = message.replace(/\/[\w\-\.\/]+/g, "[path]");
+    message = message.replace(/\\/[\\w\\-\\.\\/]+/g, "[path]");
   }
 
   const isStorefront = req.originalUrl.startsWith("/api/storefront");
@@ -108,4 +94,21 @@ export const errorHandler = (
       message,
     },
   });
-};
+};`;
+
+const startStr = `  const isProd = process.env.NODE_ENV === "production";`;
+const endStr = `};`;
+
+const startIndex = code.indexOf(`  const isProd = process.env.NODE_ENV === "production";`);
+if (startIndex !== -1) {
+    // wait we need to remove the first block of storefront handling that happens early
+    const earlyStorefrontStr = `  const isStorefront = req.originalUrl.startsWith("/api/storefront");
+  if (isStorefront) {`;
+    const earlyStorefrontIdx = code.indexOf(earlyStorefrontStr);
+    
+    code = code.substring(0, earlyStorefrontIdx) + replacement;
+    fs.writeFileSync(file, code);
+    console.log('Fixed error handler');
+} else {
+    console.log('Could not find start index');
+}

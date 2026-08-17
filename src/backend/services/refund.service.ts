@@ -5,21 +5,14 @@ import { MeasurementProtocolService } from "./measurement-protocol.service";
 
 export class AdminRefundService {
   static async processRefund(refundId: string, approve: boolean, providerReference?: string) {
-    const refund = await prisma.refund.findUnique({
-      where: { id: refundId },
-      include: { payment: true, order: true },
-    });
-
-    if (!refund) {
-      throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
-    }
-
-    if (refund.status !== RefundStatus.PENDING) {
-      throw new AppError(`Refund cannot be processed from status ${refund.status}`, 400, "INVALID_STATUS");
-    }
-
     if (!approve) {
       return await prisma.$transaction(async (tx) => {
+        const refund = await tx.refund.findUnique({ where: { id: refundId } });
+        if (!refund) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
+        if (refund.status !== RefundStatus.PENDING) {
+          throw new AppError(`Refund cannot be processed from status ${refund.status}`, 400, "INVALID_STATUS");
+        }
+
         const rejectedRefund = await tx.refund.update({
           where: { id: refund.id },
           data: { status: RefundStatus.REJECTED },
@@ -39,10 +32,24 @@ export class AdminRefundService {
 
     // Process approval
     return await prisma.$transaction(async (tx) => {
-      const currentPayment = await tx.payment.findUnique({ where: { id: refund.paymentId } });
+      const refund = await tx.refund.findUnique({ 
+        where: { id: refundId },
+        include: { payment: true, order: true },
+      });
+      if (!refund) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
+      if (refund.status !== RefundStatus.PENDING) {
+        throw new AppError(`Refund cannot be processed from status ${refund.status}`, 400, "INVALID_STATUS");
+      }
+
+      const currentPayment = await tx.payment.update({
+        where: { id: refund.paymentId },
+        data: { updatedAt: new Date() } // Lock the row
+      });
+
       if (!currentPayment) {
         throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
       }
+
       const currentRefundable = currentPayment.amount.sub(currentPayment.refundedAmount);
       
       if (refund.amount.gt(currentRefundable)) {
