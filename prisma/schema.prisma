@@ -130,8 +130,8 @@ model Customer {
 
 model CustomerNote {
   id         String   @id @default(uuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   note       String
   author     String?
   createdAt  DateTime @default(now())
@@ -449,8 +449,8 @@ model Inventory {
 model Order {
   id                       String                  @id @default(uuid())
   orderNumber              String                  @unique
-  customerId               String
-  customer                 Customer                @relation(fields: [customerId], references: [id])
+  customerId               String?
+  customer                 Customer?                @relation(fields: [customerId], references: [id])
   status                   String                  @default("Pending")
   paymentStatus            String                  @default("Unpaid")
   totalAmount              Decimal
@@ -642,8 +642,8 @@ model Review {
   id         String    @id @default(uuid())
   productId  String
   product    Product   @relation(fields: [productId], references: [id])
-  customerId String
-  customer   Customer  @relation(fields: [customerId], references: [id])
+  customerId               String?
+  customer                 Customer?                @relation(fields: [customerId], references: [id])
   rating     Int       @default(5)
   comment    String?
   isApproved Boolean   @default(false)
@@ -858,8 +858,8 @@ model FAQ {
 
 model CustomerAddress {
   id         String   @id @default(uuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   label      String?
   fullName   String
   phone      String?
@@ -878,8 +878,8 @@ model CustomerAddress {
 
 model CustomerRefreshToken {
   id         String    @id @default(uuid())
-  customerId String
-  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   tokenHash  String    @unique
   expiresAt  DateTime
   ipAddress  String?
@@ -893,8 +893,8 @@ model CustomerRefreshToken {
 
 model CustomerSession {
   id           String   @id @default(uuid())
-  customerId   String
-  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   token        String   @unique
   expiresAt    DateTime
   ipAddress    String?
@@ -909,7 +909,7 @@ model CustomerSession {
 model Wishlist {
   id         String         @id @default(uuid())
   customerId String         @unique
-  customer   Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items      WishlistItem[]
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
@@ -990,7 +990,7 @@ enum PaymentProvider {
 model Payment {
   id                   String               @id @default(uuid())
   orderId              String
-  customerId           String
+  customerId           String?
   provider             PaymentProvider      @default(COD)
   amount               Decimal
   currency             String               @default("USD")
@@ -1001,7 +1001,7 @@ model Payment {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   order                Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customer             Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   transactions         PaymentTransaction[]
   refunds              Refund[]
 
@@ -1061,7 +1061,7 @@ model Refund {
 
   payment      Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customer     Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   transactions RefundTransaction[]
 
   @@index([paymentId])
@@ -1194,7 +1194,7 @@ model ReturnRequest {
   updatedAt  DateTime     @updatedAt
 
   order    Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customer Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items    ReturnItem[]
 
   @@index([orderId])
@@ -1284,7 +1284,7 @@ model Notification {
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   Order    Order?   @relation(fields: [orderId], references: [id])
   orderId  String?
 
@@ -1302,7 +1302,7 @@ model NotificationPreference {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   Order    Order[]
 }
 
@@ -1316,7 +1316,7 @@ model CustomerActivity {
   userAgent   String?
   createdAt   DateTime     @default(now())
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   Order    Order?   @relation(fields: [orderId], references: [id])
   orderId  String?
 

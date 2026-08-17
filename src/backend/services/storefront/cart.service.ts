@@ -17,15 +17,15 @@ export class StorefrontCartService {
     throw new AppError("A customer ID or cart session ID is required", 400, "BAD_REQUEST");
   }
 
-  static async getCart(identifier: CartIdentifier) {
+  static async getCart(identifier: CartIdentifier, dbClient: any = prisma) {
     const whereClause = this.getCartWhereClause(identifier);
 
     // If both customerId and sessionId are present, merge guest cart into customer cart
     if (identifier.customerId && identifier.sessionId) {
-      await this.mergeGuestCart(identifier.sessionId, identifier.customerId);
+      await this.mergeGuestCart(identifier.sessionId, identifier.customerId, dbClient);
     }
 
-    let cart = await prisma.cart.findFirst({
+    let cart = await dbClient.cart.findFirst({
       where: whereClause,
       include: {
         items: {
@@ -76,7 +76,7 @@ export class StorefrontCartService {
     });
 
     if (!cart) {
-      cart = await prisma.cart.create({
+      cart = await dbClient.cart.create({
         data: identifier.customerId
           ? { customerId: identifier.customerId }
           : { sessionId: identifier.sessionId! },
@@ -313,7 +313,7 @@ export class StorefrontCartService {
         });
       }
 
-      return this.getCart(identifier);
+      return this.getCart(identifier, tx);
     });
   }
 
@@ -421,20 +421,20 @@ export class StorefrontCartService {
     return this.getCart(identifier);
   }
 
-  static async mergeGuestCart(guestSessionId: string, customerId: string) {
-    const guestCart = await prisma.cart.findFirst({
+  static async mergeGuestCart(guestSessionId: string, customerId: string, dbClient: any = prisma) {
+    const guestCart = await dbClient.cart.findFirst({
       where: { sessionId: guestSessionId },
       include: { items: true },
     });
 
     if (!guestCart || guestCart.items.length === 0) {
       if (guestCart) {
-        await prisma.cart.delete({ where: { id: guestCart.id } });
+        await dbClient.cart.delete({ where: { id: guestCart.id } });
       }
       return;
     }
 
-    await prisma.$transaction(async (tx) => {
+    const performMerge = async (tx: any) => {
       let customerCart = await tx.cart.findFirst({
         where: { customerId },
         include: { items: true },
@@ -473,6 +473,12 @@ export class StorefrontCartService {
       await tx.cart.delete({
         where: { id: guestCart.id },
       });
-    });
+    };
+
+    if (dbClient.$transaction) {
+      await dbClient.$transaction(performMerge);
+    } else {
+      await performMerge(dbClient);
+    }
   }
 }

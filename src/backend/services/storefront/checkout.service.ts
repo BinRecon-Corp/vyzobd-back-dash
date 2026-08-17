@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
+import { CartIdentifier, StorefrontCartService } from "./cart.service";
 
 import { mapOrderToStorefrontDTO } from "../../dtos/storefront/mappers";
 
@@ -10,16 +11,25 @@ export class StorefrontCheckoutService {
    */
   private static formatAddress(address: any): string {
     if (!address) return "";
-    return `${address.fullName}\n${address.address1}${address.address2 ? ", " + address.address2 : ""}\n${address.city}, ${address.state} ${address.postalCode}\n${address.country}\nPhone: ${address.phone || "N/A"}`;
+    const name = address.fullName || `${address.firstName || ""} ${address.lastName || ""}`.trim() || "N/A";
+    const line1 = address.address1 || address.addressLine1 || address.address || "";
+    const line2 = address.address2 || address.addressLine2 ? `, ${address.address2 || address.addressLine2}` : "";
+    const city = address.city || "";
+    const state = address.state || "";
+    const postalCode = address.postalCode || address.zipCode || "";
+    const country = address.country || "";
+    const phone = address.phone || "N/A";
+
+    return `${name}\n${line1}${line2}\n${city}${state ? ", " + state : ""} ${postalCode}\n${country}\nPhone: ${phone}`;
   }
 
   /**
    * Retrieves or initializes the checkout session details and calculates all fees.
    * Never trusts the frontend, calculates everything dynamically.
    */
-  static async getCheckoutSession(customerId: string) {
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
+  static async getCheckoutSession(identifier: CartIdentifier) {
+    const cart = await prisma.cart.findFirst({
+      where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
       include: {
         items: {
           include: {
@@ -51,13 +61,13 @@ export class StorefrontCheckoutService {
 
       // Product validation
       if (!product || !product.isActive || product.status !== "Active" || product.deletedAt) {
-        throw new AppError(`Product "${product?.name || "Unknown"}" is no longer active or available`, 400, "PRODUCT_UNAVAILABLE");
+        throw new AppError(`Product "${product?.name || "Unknown"}" is no longer active or available`, 404, "PRODUCT_UNAVAILABLE");
       }
 
       // Variant validation if applicable
       if (item.variantId) {
         if (!variant || !variant.isActive || variant.deletedAt) {
-          throw new AppError(`Selected variant for "${product.name}" is no longer active or available`, 400, "VARIANT_UNAVAILABLE");
+          throw new AppError(`Selected variant for "${product.name}" is no longer active or available`, 404, "VARIANT_UNAVAILABLE");
         }
       }
 
@@ -132,12 +142,12 @@ export class StorefrontCheckoutService {
 
           // Per-customer usage limit
           if (isCouponValid && coupon.usagePerCustomer !== null) {
-            const customerOrdersWithCoupon = await prisma.order.count({
+            const customerOrdersWithCoupon = identifier.customerId ? await prisma.order.count({
               where: {
-                customerId,
+                customerId: identifier.customerId,
                 couponId: coupon.id,
               },
-            });
+            }) : 0;
             if (customerOrdersWithCoupon >= coupon.usagePerCustomer) {
               isCouponValid = false;
             }
@@ -171,14 +181,14 @@ export class StorefrontCheckoutService {
           } else {
             // Remove invalid/expired coupon automatically from cart session
             await prisma.cart.update({
-              where: { customerId },
+              where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
               data: { couponId: null },
             });
           }
         } else {
           // Expirations expired or not started yet
           await prisma.cart.update({
-            where: { customerId },
+            where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
             data: { couponId: null },
           });
         }
@@ -191,13 +201,13 @@ export class StorefrontCheckoutService {
 
     if (cart.shippingAddressId) {
       shippingAddress = await prisma.customerAddress.findFirst({
-        where: { id: cart.shippingAddressId, customerId },
+        where: identifier.customerId ? { id: cart.shippingAddressId, customerId: identifier.customerId } : { id: cart.shippingAddressId },
       });
     }
 
     if (cart.billingAddressId) {
       billingAddress = await prisma.customerAddress.findFirst({
-        where: { id: cart.billingAddressId, customerId },
+        where: identifier.customerId ? { id: cart.billingAddressId, customerId: identifier.customerId } : { id: cart.billingAddressId },
       });
     }
 
@@ -214,7 +224,7 @@ export class StorefrontCheckoutService {
 
     return {
       cartId: cart.id,
-      customerId,
+      customerId: identifier.customerId,
       items: validatedItems,
       subtotal,
       discount,
@@ -231,7 +241,7 @@ export class StorefrontCheckoutService {
   /**
    * Applies a coupon code to the user checkout session
    */
-  static async applyCoupon(customerId: string, couponCode: string) {
+  static async applyCoupon(identifier: CartIdentifier, couponCode: string) {
     const coupon = await prisma.coupon.findFirst({
       where: {
         code: { equals: couponCode, mode: "insensitive" },
@@ -258,20 +268,20 @@ export class StorefrontCheckoutService {
 
     // Verify per customer limits
     if (coupon.usagePerCustomer !== null) {
-      const customerOrdersWithCoupon = await prisma.order.count({
-        where: {
-          customerId,
-          couponId: coupon.id,
-        },
-      });
+      const customerOrdersWithCoupon = identifier.customerId ? await prisma.order.count({
+              where: {
+                customerId: identifier.customerId,
+                couponId: coupon.id,
+              },
+            }) : 0;
       if (customerOrdersWithCoupon >= coupon.usagePerCustomer) {
         throw new AppError("You have reached the maximum usage limit for this coupon", 400, "CUSTOMER_LIMIT_REACHED");
       }
     }
 
     // Get cart to check minOrderAmount
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
+    const cart = await prisma.cart.findFirst({
+      where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
       include: {
         items: {
           include: {
@@ -298,23 +308,23 @@ export class StorefrontCheckoutService {
 
     // Update cart with applied coupon
     await prisma.cart.update({
-      where: { customerId },
+      where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
       data: { couponId: coupon.id },
     });
 
-    return this.getCheckoutSession(customerId);
+    return this.getCheckoutSession(identifier);
   }
 
   /**
    * Saves shipping and billing address selections to user's cart session
    */
   static async updateAddresses(
-    customerId: string,
+    identifier: CartIdentifier,
     shippingAddressId: string,
     billingAddressId?: string
   ) {
     const shippingAddress = await prisma.customerAddress.findFirst({
-      where: { id: shippingAddressId, customerId },
+      where: { id: shippingAddressId, customerId: identifier.customerId! },
     });
 
     if (!shippingAddress) {
@@ -325,7 +335,7 @@ export class StorefrontCheckoutService {
 
     if (billingAddressId) {
       const billingAddress = await prisma.customerAddress.findFirst({
-        where: { id: billingAddressId, customerId },
+        where: { id: billingAddressId, customerId: identifier.customerId! },
       });
 
       if (!billingAddress) {
@@ -335,34 +345,41 @@ export class StorefrontCheckoutService {
     }
 
     await prisma.cart.update({
-      where: { customerId },
+      where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
       data: {
         shippingAddressId,
         billingAddressId: resolvedBillingAddressId,
       },
     });
 
-    return this.getCheckoutSession(customerId);
+    return this.getCheckoutSession(identifier);
   }
 
   /**
    * Places the order, updates inventories, clears the cart inside a Prisma transaction
    */
   static async completeCheckout(
-    customerId: string,
+    identifier: CartIdentifier,
     paymentMethod: string,
     clientId?: string,
-    sessionId?: string
+    sessionId?: string,
+    shippingAddressObj?: any,
+    billingAddressObj?: any
   ) {
     // Capture clientId and sessionId from checkout payload for analytics scope
     if (clientId || sessionId) {
-      console.log(`[Analytics] Checkout session captured for customer ${customerId}: clientId=${clientId}, sessionId=${sessionId}`);
+      console.log(`[Analytics] Checkout session captured for customer ${identifier.customerId || identifier.sessionId}: clientId=${clientId}, sessionId=${sessionId}`);
     }
 
     // 1. Load active checkout session (validates active products, variant statuses, and current stock)
-    const session = await this.getCheckoutSession(customerId);
+    const session = await this.getCheckoutSession(identifier);
 
-    if (!session.shippingAddress) {
+    let finalShippingAddress = shippingAddressObj || session.shippingAddress;
+    let finalBillingAddress = (billingAddressObj && billingAddressObj.sameAsShipping === true)
+      ? finalShippingAddress
+      : (billingAddressObj || session.billingAddress || finalShippingAddress);
+
+    if (!finalShippingAddress) {
       throw new AppError("Shipping address is required to complete checkout", 400, "MISSING_SHIPPING_ADDRESS");
     }
 
@@ -376,7 +393,7 @@ export class StorefrontCheckoutService {
         });
 
         if (!product || !product.isActive || product.status !== "Active" || product.deletedAt) {
-          throw new AppError(`Product "${item.productName}" has become unavailable`, 400, "PRODUCT_UNAVAILABLE");
+          throw new AppError(`Product "${item.productName}" has become unavailable`, 404, "PRODUCT_UNAVAILABLE");
         }
 
         if (product.trackInventory) {
@@ -387,7 +404,7 @@ export class StorefrontCheckoutService {
             });
 
             if (!variant || !variant.isActive || variant.deletedAt) {
-              throw new AppError(`Variant of "${item.productName}" has become unavailable`, 400, "VARIANT_UNAVAILABLE");
+              throw new AppError(`Variant of "${item.productName}" has become unavailable`, 404, "VARIANT_UNAVAILABLE");
             }
 
             const availableStock = variant.inventories.reduce(
@@ -396,7 +413,7 @@ export class StorefrontCheckoutService {
             );
 
             if (item.quantity > availableStock) {
-              throw new AppError(`Stock for "${item.productName}" variant changed. Available: ${availableStock}, Requested: ${item.quantity}`, 400, "INSUFFICIENT_STOCK");
+              throw new AppError(`Stock for "${item.productName}" variant changed. Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
             }
 
             // Deduct inventory quantityAvailable inside transaction
@@ -416,19 +433,19 @@ export class StorefrontCheckoutService {
                 },
               });
               if (updated.count === 0) {
-                throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 400, "INSUFFICIENT_STOCK");
+                throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
               }
             }
           } else {
             // Check direct product inventory
             if (!product.inventory) {
-              throw new AppError(`Inventory tracking is enabled but no inventory record found for "${product.name}"`, 400, "INSUFFICIENT_STOCK");
+              throw new AppError(`Inventory tracking is enabled but no inventory record found for "${product.name}"`, 409, "INSUFFICIENT_STOCK");
             }
 
             const availableStock = product.inventory.quantityAvailable - product.inventory.quantityReserved;
 
             if (item.quantity > availableStock) {
-              throw new AppError(`Stock for "${product.name}" changed. Available: ${availableStock}, Requested: ${item.quantity}`, 400, "INSUFFICIENT_STOCK");
+              throw new AppError(`Stock for "${product.name}" changed. Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
             }
 
             const updated = await tx.inventory.updateMany({
@@ -441,7 +458,7 @@ export class StorefrontCheckoutService {
               },
             });
             if (updated.count === 0) {
-              throw new AppError(`Insufficient stock for "${product.name}" during checkout. Please try again.`, 400, "INSUFFICIENT_STOCK");
+              throw new AppError(`Insufficient stock for "${product.name}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
             }
           }
         }
@@ -485,7 +502,7 @@ export class StorefrontCheckoutService {
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
-          customerId,
+          customerId: identifier.customerId || null,
           status: "Pending",
           paymentStatus: "Unpaid",
           totalAmount: session.grandTotal,
@@ -493,8 +510,8 @@ export class StorefrontCheckoutService {
           taxAmount: session.tax,
           shippingFee: session.shipping,
           discountAmount: session.discount,
-          shippingAddress: this.formatAddress(session.shippingAddress),
-          billingAddress: this.formatAddress(session.billingAddress),
+          shippingAddress: this.formatAddress(finalShippingAddress),
+          billingAddress: this.formatAddress(finalBillingAddress),
           paymentMethod,
           couponId: session.coupon?.id || null,
         },
@@ -531,7 +548,7 @@ export class StorefrontCheckoutService {
       await tx.payment.create({
         data: {
           orderId: newOrder.id,
-          customerId,
+          customerId: identifier.customerId || null,
           provider: "COD",
           amount: session.grandTotal,
           currency: "USD",

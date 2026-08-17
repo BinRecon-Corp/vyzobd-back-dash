@@ -5,7 +5,7 @@ import {
   updateAddresses,
   completeCheckout,
 } from "../../controllers/storefront/checkout.controller";
-import { requireCustomerAuth } from "../../middlewares/customerAuth";
+import { optionalCustomerAuth } from "../../middlewares/customerAuth";
 import { validateBody } from "../../middlewares/validation";
 import {
   applyCouponSchema,
@@ -15,7 +15,7 @@ import {
 
 const router = express.Router();
 
-router.use(requireCustomerAuth);
+router.use(optionalCustomerAuth);
 
 // Handles both GET /session and POST /session as specified in guidelines
 router.get("/session", getCheckoutSession);
