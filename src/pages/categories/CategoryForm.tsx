@@ -4,6 +4,7 @@ import { Input } from '@/src/components/ui/input';
 import { Card, CardContent } from '@/src/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories } from '../../services/category.service';
+import { MediaUploaderInput } from '../../components/admin/MediaUploaderInput';
 
 interface CategoryFormProps {
   initialData?: any;
@@ -71,9 +72,14 @@ export function CategoryForm({ initialData, onSubmit, isLoading }: CategoryFormP
               </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Image URL</label>
-              <Input name="image" value={formData.image} onChange={handleChange} placeholder="https://..." />
+            <div className="space-y-2 col-span-1 md:col-span-2">
+              <MediaUploaderInput
+                label="Category Banner Image"
+                value={formData.image}
+                onChange={(url) => setFormData((prev) => ({ ...prev, image: url }))}
+                folder="categories"
+                placeholder="Upload or enter Category Image URL"
+              />
             </div>
 
             <div className="space-y-2">

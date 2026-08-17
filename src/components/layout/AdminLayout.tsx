@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useLocation, Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { cn } from '@/src/lib/utils';
+import { ChevronRight } from 'lucide-react';
 
 export function AdminLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(
     typeof window !== 'undefined' ? window.innerWidth >= 768 : true
   );
+  
+  const location = useLocation();
+  const pathnames = location.pathname.split('/').filter((x) => x);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
         setSidebarOpen(false);
@@ -23,19 +27,43 @@ export function AdminLayout() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
+    <div className="relative min-h-screen bg-muted/40">
       <Sidebar isOpen={isSidebarOpen} onToggle={() => setSidebarOpen(!isSidebarOpen)} />
       
       <div className={cn(
-        "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+        "flex min-h-screen flex-col transition-all duration-300 ease-in-out",
         isSidebarOpen ? "md:ml-64" : "md:ml-16"
       )}>
         <Header onMenuClick={() => setSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
         
-        <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
+          {pathnames.length > 0 && (
+            <nav className="flex items-center text-sm text-muted-foreground mb-6 overflow-x-auto whitespace-nowrap py-1" aria-label="Breadcrumb">
+              <Link to="/" className="hover:text-foreground transition-colors shrink-0">Home</Link>
+              {pathnames.map((value, index) => {
+                const to = `/${pathnames.slice(0, index + 1).join('/')}`;
+                const isLast = index === pathnames.length - 1;
+                const title = value.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                return (
+                  <React.Fragment key={to}>
+                    <ChevronRight className="w-4 h-4 mx-1 opacity-50 shrink-0" />
+                    {isLast ? (
+                      <span className="text-foreground font-medium shrink-0" aria-current="page">{title}</span>
+                    ) : (
+                      <Link to={to} className="hover:text-foreground transition-colors shrink-0">
+                        {title}
+                      </Link>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </nav>
+          )}
           <Outlet />
         </main>
       </div>
     </div>
   );
 }
+

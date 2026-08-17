@@ -1,8 +1,8 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { StorefrontProduct, PaginatedResponse } from "../../dtos/storefront/types";
 import { mapProductToStorefrontDTO } from "../../dtos/storefront/mappers";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 export interface SearchProductsOptions {
   q?: string;
@@ -29,10 +29,10 @@ export const storefrontSearchService = {
     if (q) {
       andConditions.push({
         OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { slug: { contains: q, mode: "insensitive" } },
-          { shortDescription: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
+          { name: { contains: q } },
+          { slug: { contains: q } },
+          { shortDescription: { contains: q } },
+          { description: { contains: q } },
         ]
       });
     }
@@ -153,10 +153,10 @@ export const storefrontSearchService = {
     if (q) {
       andConditions.push({
         OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { slug: { contains: q, mode: "insensitive" } },
-          { shortDescription: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
+          { name: { contains: q } },
+          { slug: { contains: q } },
+          { shortDescription: { contains: q } },
+          { description: { contains: q } },
         ]
       });
     }

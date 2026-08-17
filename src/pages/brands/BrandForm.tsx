@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Card, CardContent } from '@/src/components/ui/card';
+import { MediaUploaderInput } from '../../components/admin/MediaUploaderInput';
 
 interface BrandFormProps {
   initialData?: any;
@@ -48,9 +49,14 @@ export function BrandForm({ initialData, onSubmit, isLoading }: BrandFormProps) 
               <Input type="url" name="website" value={formData.website} onChange={handleChange} placeholder="https://..." />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Logo URL</label>
-              <Input name="logoUrl" value={formData.logoUrl} onChange={handleChange} placeholder="https://..." />
+            <div className="space-y-2 col-span-1 md:col-span-2">
+              <MediaUploaderInput
+                label="Brand Logo"
+                value={formData.logoUrl}
+                onChange={(url) => setFormData((prev) => ({ ...prev, logoUrl: url }))}
+                folder="brands"
+                placeholder="Upload or enter Brand Logo URL"
+              />
             </div>
 
             <div className="space-y-2 flex items-center h-full pt-6">

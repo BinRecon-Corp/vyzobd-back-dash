@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+
 import { mapCategoryToStorefrontDTO } from "../../dtos/storefront/mappers";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 export class StorefrontCategoryService {
   async getCategories(tree: boolean = true) {

@@ -6,16 +6,19 @@ import {
   updateAttribute,
   deleteAttribute,
 } from "../controllers/attribute.controller";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
 const router = express.Router();
 
+router.use(requireAuth);
+
 router.route("/")
-  .get(getAllAttributes)
-  .post(createAttribute);
+  .get(requirePermission("Attributes", "read"), getAllAttributes)
+  .post(requirePermission("Attributes", "write"), createAttribute);
 
 router.route("/:id")
-  .get(getAttributeById)
-  .put(updateAttribute)
-  .delete(deleteAttribute);
+  .get(requirePermission("Attributes", "read"), getAttributeById)
+  .put(requirePermission("Attributes", "write"), updateAttribute)
+  .delete(requirePermission("Attributes", "delete"), deleteAttribute);
 
 export default router;

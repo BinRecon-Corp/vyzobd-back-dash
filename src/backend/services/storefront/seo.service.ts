@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+
 import { SeoResponse } from "../../dtos/storefront/seo.dto";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 function getBaseUrl(host: string): string {
   const envUrl = process.env.STOREFRONT_BASE_URL;
@@ -150,8 +150,8 @@ export const seoService = {
         slug: true,
         description: true,
         image: true,
-        seoTitle: true,
-        seoDescription: true
+        metaTitle: true,
+        metaDescription: true
       }
     });
 
@@ -160,8 +160,8 @@ export const seoService = {
     }
 
     // Fallbacks
-    const title = category.seoTitle || category.name;
-    const description = category.seoDescription || category.description || "";
+    const title = category.metaTitle || category.name;
+    const description = category.metaDescription || category.description || "";
     const ogImage = category.image || null;
 
     const baseUrl = getBaseUrl(host);

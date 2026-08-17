@@ -118,16 +118,55 @@ export function ProductView() {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader><CardTitle>Media</CardTitle></CardHeader>
-            <CardContent>
-              {primaryImage ? (
-                <div className="aspect-square w-full overflow-hidden rounded-md border">
-                  <img src={primaryImage} alt={product.name} className="object-cover w-full h-full" />
-                </div>
-              ) : (
-                <div className="aspect-square w-full rounded-md border bg-muted flex flex-col items-center justify-center text-muted-foreground">
-                  <ImageIcon className="h-10 w-10 mb-2 opacity-20" />
-                  <span>No image</span>
+            <CardHeader><CardTitle>Product Media</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {/* Primary Image / Thumbnail */}
+              <div>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                  Primary Thumbnail
+                </span>
+                {product.thumbnail || (typeof product.primaryImage === 'string' ? product.primaryImage : product.primaryImage?.imageUrl || product.primaryImage?.url) || product.images?.find((i: any) => i.isPrimary)?.url ? (
+                  <div className="aspect-square w-full overflow-hidden rounded-xl border bg-muted shadow-sm">
+                    <img 
+                      src={
+                        product.thumbnail || 
+                        (typeof product.primaryImage === 'string' ? product.primaryImage : product.primaryImage?.imageUrl || product.primaryImage?.url) || 
+                        product.images?.find((i: any) => i.isPrimary)?.url ||
+                        product.images?.[0]?.url
+                      } 
+                      alt={product.name} 
+                      className="object-cover w-full h-full" 
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-square w-full rounded-xl border bg-muted flex flex-col items-center justify-center text-muted-foreground">
+                    <ImageIcon className="h-10 w-10 mb-2 opacity-20" />
+                    <span className="text-sm">No primary image</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Gallery Images */}
+              {product.images && product.images.length > 1 && (
+                <div className="pt-2 border-t">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
+                    Media Gallery ({product.images.length})
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {product.images.map((img: any, idx: number) => {
+                      const src = img.imageUrl || img.url;
+                      return (
+                        <div key={img.id || idx} className="aspect-square rounded-lg border overflow-hidden bg-muted relative group">
+                          <img src={src} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                          {img.isPrimary && (
+                            <span className="absolute bottom-1 left-1 bg-amber-500 text-white text-[9px] font-bold px-1 rounded shadow">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </CardContent>

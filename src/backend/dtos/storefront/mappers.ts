@@ -36,7 +36,9 @@ export function mapBrandToStorefrontDTO(brand: any): StorefrontBrand & { website
 export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
   const images = product.images?.map((img: any): StorefrontProductImage => ({
     id: img.id,
-    url: img.url,
+    url: img.imageUrl || img.url,
+    imageUrl: img.imageUrl || img.url,
+    publicId: img.publicId || null,
     altText: img.altText,
     isPrimary: img.isPrimary,
     sortOrder: img.sortOrder,
@@ -52,13 +54,14 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
       }
     }
     
-    // Find variant image, assuming it might be linked via product images, 
-    // or just leave it null if not explicitly stored on variant.
-    // The schema has images ProductImage[] on ProductVariant, so:
     let image = null;
     if (v.images && v.images.length > 0) {
-      image = v.images[0].url;
+      image = v.images[0].imageUrl || v.images[0].url;
     }
+
+    const calculatedStock = v.inventories && v.inventories.length > 0
+      ? v.inventories.reduce((sum: number, inv: any) => sum + Math.max(0, (inv.quantityAvailable ?? inv.quantity ?? 0) - (inv.quantityReserved ?? 0)), 0)
+      : (v.stock ?? 0);
 
     return {
       id: v.id,
@@ -66,14 +69,23 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
       barcode: v.barcode,
       price: v.price ? Number(v.price) : null,
       compareAtPrice: v.compareAtPrice ? Number(v.compareAtPrice) : null,
-      stock: v.stock || 0, // Fallback if inventory is tracked differently
-      inStock: v.stock > 0 || v.inventories?.some((i: any) => i.quantity > 0) || false,
+      stock: calculatedStock,
+      inStock: calculatedStock > 0,
       options,
       image,
     };
   }) || [];
 
-  const primaryImage = product.ogImage || (images.find((i: any) => i.isPrimary)?.url) || images[0]?.url || null;
+  const primaryImageObj = images.find((i: any) => i.isPrimary) || images[0] || null;
+  const primaryImageUrl = primaryImageObj?.imageUrl || primaryImageObj?.url || product.ogImage || null;
+  const gallery = images.filter((i: any) => !i.isPrimary);
+
+  const rootStock = product.inventory
+    ? Math.max(0, (product.inventory.quantityAvailable ?? product.inventory.quantity ?? 0) - (product.inventory.quantityReserved ?? 0))
+    : (variants.length > 0 ? variants.reduce((sum, v) => sum + v.stock, 0) : 0);
+  const rootInStock = product.inventory
+    ? rootStock > 0
+    : (variants.length > 0 ? variants.some(v => v.inStock) : false);
 
   return {
     id: product.id,
@@ -84,7 +96,7 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     price: product.price ? Number(product.price) : null,
     seoTitle: product.metaTitle || product.name,
     seoDescription: product.metaDescription || product.shortDescription || null,
-    ogImage: primaryImage,
+    ogImage: primaryImageUrl,
     gtin: product.gtin,
     mpn: product.mpn,
     condition: product.condition,
@@ -93,5 +105,179 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     images,
     variants,
     tags: product.tags?.map((pt: any) => pt.tag?.name).filter(Boolean) || [],
+    thumbnail: primaryImageUrl,
+    gallery,
+    primaryImage: primaryImageObj || primaryImageUrl,
+    stock: rootStock,
+    inStock: rootInStock,
+  };
+}
+
+export function mapOrderToStorefrontDTO(order: any) {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    totalAmount: order.totalAmount ? Number(order.totalAmount) : null,
+    shippingAddress: order.shippingAddress,
+    billingAddress: order.billingAddress,
+    paymentMethod: order.paymentMethod,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+    coupon: order.coupon ? {
+      code: order.coupon.code,
+      discountType: order.coupon.discountType,
+      discountValue: order.coupon.discountValue ? Number(order.coupon.discountValue) : null,
+    } : null,
+    items: order.items?.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      price: item.price ? Number(item.price) : null,
+      productName: item.product?.name,
+      productSlug: item.product?.slug,
+      productImage: item.product?.images?.[0]?.url || null,
+      variantSku: item.productVariant?.sku || null,
+    })) || [],
+    timeline: order.timeline?.map((event: any) => ({
+      id: event.id,
+      status: event.status,
+      action: event.action,
+      createdAt: event.createdAt,
+    })) || [],
+  };
+}
+
+export function mapShipmentToStorefrontDTO(shipment: any) {
+  return {
+    id: shipment.id,
+    trackingNumber: shipment.trackingNumber,
+    status: shipment.status,
+    shippedAt: shipment.shippedAt,
+    estimatedDelivery: shipment.estimatedDelivery,
+    courierName: shipment.courier?.name,
+    trackingUrl: shipment.courier?.trackingUrlPrefix ? `${shipment.courier.trackingUrlPrefix}${shipment.trackingNumber}` : null,
+    createdAt: shipment.createdAt,
+    items: shipment.items?.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      productName: item.orderItem?.product?.name,
+    })) || [],
+    trackingEvents: shipment.trackingEvents?.map((event: any) => ({
+      id: event.id,
+      status: event.status,
+      location: event.location,
+      description: event.description,
+      timestamp: event.timestamp,
+    })) || []
+  };
+}
+
+export function mapReturnRequestToStorefrontDTO(returnReq: any) {
+  return {
+    id: returnReq.id,
+    orderId: returnReq.orderId,
+    reason: returnReq.reason,
+    status: returnReq.status,
+    createdAt: returnReq.createdAt,
+    items: returnReq.items?.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      reason: item.reason,
+      condition: item.condition,
+      productName: item.orderItem?.product?.name,
+      productImage: item.orderItem?.product?.images?.[0]?.url || null,
+    })) || []
+  };
+}
+
+export function mapRefundToStorefrontDTO(refund: any) {
+  return {
+    id: refund.id,
+    orderId: refund.orderId,
+    amount: refund.amount ? Number(refund.amount) : null,
+    currency: refund.currency,
+    status: refund.status,
+    reason: refund.reason,
+    createdAt: refund.createdAt,
+    provider: refund.payment?.provider,
+  };
+}
+
+// --- Home Content Mappers ---
+
+import {
+  StorefrontBanner,
+  StorefrontPopup,
+  StorefrontPromotion,
+  StorefrontCoupon,
+  StorefrontCampaign,
+  StorefrontAnnouncement
+} from "./types";
+
+export function mapBannerToStorefrontDTO(banner: any): StorefrontBanner {
+  return {
+    id: banner.id,
+    title: banner.title,
+    desktopImage: banner.desktopImage,
+    mobileImage: banner.mobileImage,
+    linkUrl: banner.linkUrl,
+    ctaText: banner.ctaText,
+    priority: banner.priority
+  };
+}
+
+export function mapPopupToStorefrontDTO(popup: any): StorefrontPopup {
+  return {
+    id: popup.id,
+    title: popup.title,
+    type: popup.type,
+    headline: popup.headline,
+    body: popup.body,
+    couponCode: popup.couponCode,
+    imageUrl: popup.imageUrl,
+    delaySeconds: popup.delaySeconds
+  };
+}
+
+export function mapPromotionToStorefrontDTO(promotion: any): StorefrontPromotion {
+  return {
+    id: promotion.id,
+    name: promotion.name,
+    type: promotion.type,
+    discountType: promotion.discountType,
+    discountValue: promotion.discountValue ? Number(promotion.discountValue) : null,
+    priority: promotion.priority,
+    isStackable: promotion.isStackable
+  };
+}
+
+export function mapCouponToStorefrontDTO(coupon: any): StorefrontCoupon {
+  return {
+    id: coupon.id,
+    code: coupon.code,
+    discountType: coupon.discountType,
+    discountValue: Number(coupon.discountValue),
+    validUntil: coupon.validUntil,
+    minOrderAmount: coupon.minOrderAmount ? Number(coupon.minOrderAmount) : null
+  };
+}
+
+export function mapCampaignToStorefrontDTO(campaign: any): StorefrontCampaign {
+  return {
+    id: campaign.id,
+    name: campaign.name,
+    type: campaign.type,
+    subject: campaign.subject,
+    content: campaign.content
+  };
+}
+
+export function mapAnnouncementToStorefrontDTO(setting: any): StorefrontAnnouncement {
+  return {
+    id: setting.id,
+    key: setting.key,
+    value: setting.value,
+    type: setting.type
   };
 }

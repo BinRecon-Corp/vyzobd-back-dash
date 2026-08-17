@@ -10,6 +10,7 @@ export interface AuthRequest extends Request {
     email: string;
     roleId: string;
     roleName: string;
+    permissions: Array<{ module: string, action: string }>;
   };
 }
 
@@ -33,11 +34,15 @@ export const requireAuth = async (
       );
     }
 
-    const decoded = jwt.verify(token, env.JWT_SECRET) as any;
+    // Part 6 - JWT Hardening (signature, expiration, issuer, audience verification)
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      issuer: "ecommerce-admin-api",
+      audience: "ecommerce-admin-app"
+    }) as any;
 
     const currentUser = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: { role: true },
+      include: { role: { include: { permissions: true } } },
     });
 
     if (!currentUser || !currentUser.isActive) {
@@ -51,9 +56,34 @@ export const requireAuth = async (
       email: currentUser.email,
       roleId: currentUser.roleId,
       roleName: currentUser.role.name,
+      permissions: currentUser.role.permissions.map(p => ({ module: p.module, action: p.action })),
     };
+
     next();
-  } catch (error) {
+  } catch (error: any) {
+    // Part 8 & Part 13 - Invalid JWT security logging
+    const ip = req.ip || req.socket.remoteAddress || "Unknown";
+    console.warn(`[SECURITY] Invalid or malformed JWT Token attempt from IP: ${ip}, error: ${error.message}`);
+    
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId: null,
+          action: "INVALID_TOKEN",
+          entityType: "Security",
+          entityId: null,
+          ipAddress: (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || null,
+          details: JSON.stringify({
+            reason: error.message || "JWT verification failed",
+            tokenFragment: req.headers.authorization ? req.headers.authorization.substring(0, 15) + "..." : null,
+            timestamp: new Date().toISOString()
+          })
+        }
+      });
+    } catch (logErr) {
+      console.error("Failed to log invalid token to activity log:", logErr);
+    }
+
     return next(new AppError("Invalid or expired token", 401, "UNAUTHORIZED"));
   }
 };
@@ -65,22 +95,43 @@ export const requirePermission = (module: string, action: string) => {
         return next(new AppError("User not authenticated", 401, "UNAUTHORIZED"));
       }
 
-      const role = await prisma.role.findUnique({
-        where: { id: req.user.roleId },
-        include: { permissions: true },
-      });
-
-      if (!role) {
-        return next(new AppError("Role not found", 403, "FORBIDDEN"));
+      // SuperAdmin bypasses all permission checks
+      if (req.user.roleName === "SuperAdmin") {
+        return next();
       }
 
-      const hasPermission = role.permissions.some(
-        (p) => p.module === module && (p.action === action || p.action === "all")
+      const hasPermission = req.user.permissions.some(
+        (p) =>
+          p.module.toLowerCase() === module.toLowerCase() &&
+          (p.action.toLowerCase() === action.toLowerCase() || p.action === "all")
       );
 
       if (!hasPermission) {
+        // Part 8 & Part 13 - Permission denied security logging
+        console.warn(`[SECURITY] Permission Denied for user ${req.user.email} calling action ${action} on module ${module}`);
+        
+        try {
+          await prisma.activityLog.create({
+            data: {
+              userId: req.user.id,
+              action: "ACCESS_DENIED",
+              entityType: "Security",
+              entityId: module,
+              ipAddress: (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || null,
+              details: JSON.stringify({
+                module,
+                action,
+                reason: "Required privileges missing",
+                timestamp: new Date().toISOString()
+              })
+            }
+          });
+        } catch (logErr) {
+          console.error("Failed to log access denied to activity log:", logErr);
+        }
+
         return next(
-          new AppError("You do not have permission to perform this action", 403, "FORBIDDEN")
+          new AppError(`You do not have permission (${action} on ${module}) to perform this action`, 403, "FORBIDDEN")
         );
       }
 
@@ -89,4 +140,33 @@ export const requirePermission = (module: string, action: string) => {
       next(error);
     }
   };
+};
+
+export const requireSuperAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user || req.user.roleName !== "SuperAdmin") {
+    // Part 8 & Part 13 - Permission denied logs
+    const userId = req.user?.id || null;
+    console.warn(`[SECURITY] SuperAdmin access denied for user ${req.user?.email || "Anonymous"}`);
+    
+    try {
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: "ACCESS_DENIED",
+          entityType: "Security",
+          entityId: "SuperAdminModule",
+          ipAddress: (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || null,
+          details: JSON.stringify({
+            reason: "SuperAdmin authorization required",
+            timestamp: new Date().toISOString()
+          })
+        }
+      });
+    } catch (logErr) {
+      console.error("Failed to log access denied to activity log:", logErr);
+    }
+
+    return next(new AppError("Only SuperAdmin can perform this action", 403, "FORBIDDEN"));
+  }
+  next();
 };

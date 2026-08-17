@@ -1,3 +1,4 @@
+import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
@@ -127,7 +128,7 @@ export function ProductVariants({ productId }: ProductVariantsProps) {
     }
   };
 
-  if (isLoading) return <div>Loading variants...</div>;
+  if (isLoading) return <LoadingSpinner message="Loading variants..." />;
 
   return (
     <Card className="mt-6">

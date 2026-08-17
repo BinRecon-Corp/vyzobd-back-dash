@@ -1,8 +1,8 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { StorefrontProduct, PaginatedResponse } from "../../dtos/storefront/types";
 import { mapProductToStorefrontDTO } from "../../dtos/storefront/mappers";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../config/db";
 
 interface GetProductsOptions {
   page?: number;
@@ -29,9 +29,9 @@ export class StorefrontProductService {
 
     if (options.search) {
       where.OR = [
-        { name: { contains: options.search, mode: "insensitive" } },
-        { slug: { contains: options.search, mode: "insensitive" } },
-        { description: { contains: options.search, mode: "insensitive" } },
+        { name: { contains: options.search } },
+        { slug: { contains: options.search } },
+        { description: { contains: options.search } },
       ];
     }
 
@@ -73,6 +73,11 @@ export class StorefrontProductService {
     // Sorting
     let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
     switch (options.sort) {
+      case "featured":
+      case "bestsellers":
+      case "newest":
+        orderBy = { createdAt: "desc" };
+        break;
       case "oldest":
         orderBy = { createdAt: "asc" };
         break;
@@ -88,7 +93,6 @@ export class StorefrontProductService {
       case "name_desc":
         orderBy = { name: "desc" };
         break;
-      case "newest":
       default:
         orderBy = { createdAt: "desc" };
         break;
@@ -110,10 +114,12 @@ export class StorefrontProductService {
           tags: {
             include: { tag: true }
           },
+          inventory: true,
           variants: {
             where: { deletedAt: null, isActive: true },
             include: {
               images: true,
+              inventories: true,
               attributes: {
                 include: {
                   attributeValue: {
@@ -161,10 +167,12 @@ export class StorefrontProductService {
         tags: {
           include: { tag: true }
         },
+        inventory: true,
         variants: {
           where: { deletedAt: null, isActive: true },
           include: {
             images: true,
+            inventories: true,
             attributes: {
               include: {
                 attributeValue: {

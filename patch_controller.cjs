@@ -1,23 +1,8 @@
 const fs = require('fs');
-const file = 'src/backend/controllers/storefront/brand.controller.ts';
-let code = fs.readFileSync(file, 'utf8');
-
-const newMethod = `
-export const getBrandBySlug = asyncHandler(async (req: Request, res: Response) => {
-  const { slug } = req.params;
-  const data = await storefrontBrandService.getBrandBySlug(slug);
-
-  if (!data) {
-    return res.status(404).json({ success: false, error: "Brand not found" });
-  }
-
-  res.json({
-    success: true,
-    data,
-    meta: {}
-  });
-});
-`;
-
-code += '\n' + newMethod;
-fs.writeFileSync(file, code);
+let content = fs.readFileSync('src/backend/controllers/customer-auth.controller.ts', 'utf8');
+content = content.replace(/\.\.\/\.\.\/config\/db/g, '../config/db');
+content = content.replace(/\.\.\/\.\.\/utils\/AppError/g, '../utils/AppError');
+content = content.replace(/\.\.\/\.\.\/utils\/customerJwt/g, '../utils/customerJwt');
+content = content.replace(/\.\.\/\.\.\/config\/env/g, '../config/env');
+content = content.replace(/\.\.\/\.\.\/middlewares\/customerAuth/g, '../middlewares/customerAuth');
+fs.writeFileSync('src/backend/controllers/customer-auth.controller.ts', content);

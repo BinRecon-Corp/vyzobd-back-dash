@@ -1,15 +1,35 @@
 const fs = require('fs');
-const file = 'server.ts';
-let code = fs.readFileSync(file, 'utf8');
+let serverTs = fs.readFileSync('server.ts', 'utf8');
 
-code = code.replace(
-  'import storefrontSearchRouter from "./src/backend/routes/storefront/search.routes";',
-  'import storefrontSearchRouter from "./src/backend/routes/storefront/search.routes";\nimport storefrontMerchantRouter from "./src/backend/routes/storefront/merchant.routes";'
+const importLines = `
+import storefrontBannerRouter from "./src/backend/routes/storefront/banner.routes";
+import storefrontPopupRouter from "./src/backend/routes/storefront/popup.routes";
+import storefrontPromotionRouter from "./src/backend/routes/storefront/promotion.routes";
+import storefrontCouponRouter from "./src/backend/routes/storefront/coupon.routes";
+import storefrontCampaignRouter from "./src/backend/routes/storefront/campaign.routes";
+import storefrontAnnouncementRouter from "./src/backend/routes/storefront/announcement.routes";
+import storefrontHomeRouter from "./src/backend/routes/storefront/home.routes";
+`;
+
+serverTs = serverTs.replace(
+  'import { storefrontRequestLogger }',
+  importLines.trim() + '\nimport { storefrontRequestLogger }'
 );
 
-code = code.replace(
-  'storefrontRouter.use("/search", storefrontSearchRouter);',
-  'storefrontRouter.use("/search", storefrontSearchRouter);\n  storefrontRouter.use("/merchant", storefrontMerchantRouter);'
+const mountLines = `
+  storefrontRouter.use("/banners", storefrontBannerRouter);
+  storefrontRouter.use("/popups", storefrontPopupRouter);
+  storefrontRouter.use("/promotions", storefrontPromotionRouter);
+  storefrontRouter.use("/coupons", storefrontCouponRouter);
+  storefrontRouter.use("/campaigns", storefrontCampaignRouter);
+  storefrontRouter.use("/announcements", storefrontAnnouncementRouter);
+  storefrontRouter.use("/home", storefrontHomeRouter);
+`;
+
+serverTs = serverTs.replace(
+  '  storefrontRouter.use("/products", storefrontProductRouter);',
+  mountLines.trim() + '\n  storefrontRouter.use("/products", storefrontProductRouter);'
 );
 
-fs.writeFileSync(file, code);
+fs.writeFileSync('server.ts', serverTs);
+console.log('Patched server.ts successfully');

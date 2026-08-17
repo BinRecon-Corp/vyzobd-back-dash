@@ -1,14 +1,14 @@
 const fs = require('fs');
-const file = 'src/backend/routes/storefront/brand.routes.ts';
-let code = fs.readFileSync(file, 'utf8');
+let content = fs.readFileSync('src/backend/routes/customer-auth.routes.ts', 'utf8');
 
-code = code.replace(
-  'import { getBrands } from "../../controllers/storefront/brand.controller";',
-  'import { getBrands, getBrandBySlug } from "../../controllers/storefront/brand.controller";'
-);
-code = code.replace(
-  'export default router;',
-  'router.get("/:slug", getBrandBySlug);\n\nexport default router;'
+content = content.replace(
+  'import { register, login, logout } from "../controllers/customer-auth.controller";',
+  'import { register, login, logout, googleAuth } from "../controllers/customer-auth.controller";'
 );
 
-fs.writeFileSync(file, code);
+content = content.replace(
+  'router.post("/logout", requireCustomerAuth, logout);',
+  'router.post("/logout", requireCustomerAuth, logout);\nrouter.post("/google", googleAuth);'
+);
+
+fs.writeFileSync('src/backend/routes/customer-auth.routes.ts', content);

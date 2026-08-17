@@ -83,19 +83,26 @@ export const createCategory = asyncHandler(async (req: Request, res: Response) =
 
   const slug = generateSlug(name) + "-" + Math.random().toString(36).substring(2, 6);
 
+  const createData: any = {
+    name,
+    slug,
+    description,
+    image,
+    icon,
+    sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+    isActive: isActive !== undefined ? isActive : true,
+    metaTitle: seoTitle,
+    metaDescription: seoDescription,
+  };
+
+  if (parentId) {
+    createData.parent = {
+      connect: { id: parentId }
+    };
+  }
+
   const category = await prisma.category.create({
-    data: {
-      name,
-      slug,
-      description,
-      image,
-      icon,
-      parentId: parentId || null,
-      sortOrder: sortOrder ? parseInt(sortOrder) : 0,
-      isActive: isActive !== undefined ? isActive : true,
-      seoTitle,
-      seoDescription,
-    },
+    data: createData,
   });
 
   res.status(201).json({ success: true, data: category });
@@ -116,20 +123,31 @@ export const updateCategory = asyncHandler(async (req: Request, res: Response) =
     throw new AppError("Category cannot be its own parent", 400, "VALIDATION_ERROR");
   }
 
+  const updateData: any = {
+    name,
+    ...(name && { slug: generateSlug(name) + "-" + Math.random().toString(36).substring(2, 6) }),
+    description,
+    image,
+    icon,
+    sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : existingCategory.sortOrder,
+    isActive: isActive !== undefined ? isActive : existingCategory.isActive,
+    metaTitle: seoTitle,
+    metaDescription: seoDescription,
+  };
+
+  if (parentId) {
+    updateData.parent = {
+      connect: { id: parentId }
+    };
+  } else if (parentId === null || parentId === "") {
+    updateData.parent = {
+      disconnect: true
+    };
+  }
+
   const category = await prisma.category.update({
     where: { id },
-    data: {
-      name,
-      ...(name && { slug: generateSlug(name) + "-" + Math.random().toString(36).substring(2, 6) }),
-      description,
-      image,
-      icon,
-      parentId: parentId || null,
-      sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : existingCategory.sortOrder,
-      isActive: isActive !== undefined ? isActive : existingCategory.isActive,
-      seoTitle,
-      seoDescription,
-    },
+    data: updateData,
   });
 
   res.status(200).json({ success: true, data: category });

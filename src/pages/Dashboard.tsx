@@ -1,7 +1,10 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
-import { DollarSign, Users, ShoppingBag, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/src/components/ui/card';
+import { DollarSign, Users, ShoppingBag, TrendingUp, ShieldAlert, ShieldCheck, Lock, ArrowRight } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { getAuditLogs, AuditLog } from '../services/auditLog.service';
+import { Link } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 
 const data = [
   { name: 'Jan', total: 1200 },
@@ -14,6 +17,24 @@ const data = [
 ];
 
 export function Dashboard() {
+  const [securityEvents, setSecurityEvents] = useState<AuditLog[]>([]);
+  const [fetchingLogs, setFetchingLogs] = useState(false);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setFetchingLogs(true);
+        const res = await getAuditLogs({ limit: 5 });
+        setSecurityEvents(res.logs);
+      } catch (err) {
+        console.error("Failed to load dashboard security events:", err);
+      } finally {
+        setFetchingLogs(false);
+      }
+    };
+    fetchEvents();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -124,6 +145,76 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-primary" />
+              Recent Security &amp; Admin Audit Events
+            </CardTitle>
+            <CardDescription className="text-xs">
+              A real-time ledger of administrative operations, staff actions, and access alerts.
+            </CardDescription>
+          </div>
+          <Link to="/settings/audit-logs">
+            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 flex items-center gap-1">
+              View All Logs
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {fetchingLogs && securityEvents.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+              Fetching security events...
+            </div>
+          ) : securityEvents.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground text-sm">
+              No recent security logs found.
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {securityEvents.map((event) => {
+                const isFailed = event.action.includes("FAILED") || event.action.includes("ALERT") || event.action.includes("LOCKED") || event.action.includes("REVOKED");
+                const isSuccess = event.action.includes("SUCCESS") || event.action.includes("CREATED") || event.action.includes("ENABLED");
+                
+                return (
+                  <div key={event.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-full mt-0.5 ${
+                        isFailed ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" :
+                        isSuccess ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                        "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      }`}>
+                        {isFailed ? <ShieldAlert className="h-4 w-4" /> :
+                         isSuccess ? <ShieldCheck className="h-4 w-4" /> :
+                         <Lock className="h-4 w-4" />}
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">{event.action}</span>
+                          <span className="text-xs font-mono text-muted-foreground">({event.entityType})</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Actor: <strong className="text-foreground">{event.user ? `${event.user.firstName} ${event.user.lastName || ""}`.trim() : "System"}</strong> 
+                          {event.user?.email && ` (${event.user.email})`}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex sm:flex-col items-start sm:items-end justify-between sm:justify-center text-xs text-muted-foreground">
+                      <span className="font-mono bg-muted px-1.5 py-0.5 rounded sm:mb-1">{event.ipAddress || "Localhost"}</span>
+                      <span>{new Date(event.createdAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

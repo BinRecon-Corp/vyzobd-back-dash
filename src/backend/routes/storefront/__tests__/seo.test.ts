@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert";
 import request from "supertest";
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+
 import storefrontSeoRouter from "../seo.routes";
 import { errorHandler } from "../../../middlewares/errorHandler";
 import { storefrontRequestLogger } from "../../../middlewares/storefront/logging.middleware";
 
-const prisma = new PrismaClient();
+import { prisma } from "../../../config/db";
 const app = express();
 app.use(express.json());
 
@@ -45,8 +45,8 @@ test("Storefront SEO Integration Tests", async (t) => {
         name: "SEO Cat",
         slug: `${TEST_PREFIX}cat`,
         description: "Cat description text",
-        seoTitle: "SEO Cat Meta Title",
-        seoDescription: "SEO Cat Meta Desc",
+        metaTitle: "SEO Cat Meta Title",
+        metaDescription: "SEO Cat Meta Desc",
         image: "https://example.com/cat.png",
         isActive: true
       }

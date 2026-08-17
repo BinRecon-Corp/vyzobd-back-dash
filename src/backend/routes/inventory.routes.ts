@@ -5,12 +5,15 @@ import {
   getInventoryValue,
   getAllInventory
 } from "../controllers/inventory.controller";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
 const router = express.Router();
 
-router.get("/low-stock", getLowStock);
-router.get("/out-of-stock", getOutOfStock);
-router.get("/value", getInventoryValue);
-router.get("/", getAllInventory);
+router.use(requireAuth);
+
+router.get("/low-stock", requirePermission("Inventory", "read"), getLowStock);
+router.get("/out-of-stock", requirePermission("Inventory", "read"), getOutOfStock);
+router.get("/value", requirePermission("Inventory", "read"), getInventoryValue);
+router.get("/", requirePermission("Inventory", "read"), getAllInventory);
 
 export default router;

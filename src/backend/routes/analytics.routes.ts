@@ -1,25 +1,27 @@
-import { Router } from "express";
+import express from "express";
 import { 
-  trackServerPurchase,
-  getOverviewMetrics,
-  getRevenueMetrics,
-  getOrdersMetrics,
-  getProductsMetrics,
-  getCategoryMetrics,
-  getBrandMetrics,
-  getGa4Metrics
+  getOverview, 
+  getCustomers, 
+  getProducts,
+  getRevenue,
+  getOrders,
+  getCategories,
+  getBrands,
+  getGa4
 } from "../controllers/analytics.controller";
+import { requireAuth, requirePermission } from "../middlewares/auth";
 
-const router = Router();
+const router = express.Router();
 
-router.post("/track-purchase", trackServerPurchase);
+router.use(requireAuth);
 
-router.get("/overview", getOverviewMetrics);
-router.get("/revenue", getRevenueMetrics);
-router.get("/orders", getOrdersMetrics);
-router.get("/products", getProductsMetrics);
-router.get("/categories", getCategoryMetrics);
-router.get("/brands", getBrandMetrics);
-router.get("/ga4", getGa4Metrics);
+router.get("/overview", requirePermission("Orders", "read"), getOverview);
+router.get("/customers", requirePermission("Customers", "read"), getCustomers);
+router.get("/products", requirePermission("Products", "read"), getProducts);
+router.get("/revenue", requirePermission("Orders", "read"), getRevenue);
+router.get("/orders", requirePermission("Orders", "read"), getOrders);
+router.get("/categories", requirePermission("Categories", "read"), getCategories);
+router.get("/brands", requirePermission("Brands", "read"), getBrands);
+router.get("/ga4", requirePermission("Orders", "read"), getGa4);
 
 export default router;
