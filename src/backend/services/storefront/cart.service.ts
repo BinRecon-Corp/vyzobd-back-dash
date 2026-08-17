@@ -232,10 +232,13 @@ export class StorefrontCartService {
       let availableStock = 0;
 
       if (variant) {
-        const totalStock = (variant.inventories || []).reduce(
+        let totalStock = (variant.inventories || []).reduce(
           (sum: number, inv: any) => sum + (inv.quantityAvailable - inv.quantityReserved),
           0
         );
+        if (totalStock === 0 && (!variant.inventories || variant.inventories.length === 0) && product.inventory) {
+          totalStock = product.inventory.quantityAvailable - product.inventory.quantityReserved;
+        }
         availableStock = Math.max(0, totalStock);
       } else if (product.inventory) {
         availableStock = Math.max(

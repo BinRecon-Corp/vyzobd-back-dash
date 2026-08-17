@@ -13,6 +13,8 @@ import {
   getSessions,
   revokeSession,
   revokeAllOtherSessions,
+  getNotificationPreferences,
+  updateNotificationPreferences,
 } from "../../controllers/storefront/account.controller";
 import { requireCustomerAuth } from "../../middlewares/customerAuth";
 import { validateBody, validateParamsUUID } from "../../middlewares/validation";
@@ -22,6 +24,7 @@ import {
   changePasswordSchema,
   createAddressSchema,
   updateAddressSchema,
+  updateNotificationPrefSchema,
 } from "../../validators/account.validator";
 
 const router = express.Router();
@@ -44,5 +47,9 @@ router.delete("/addresses/:id", validateParamsUUID(["id"]), deleteAddress);
 router.get("/sessions", getSessions);
 router.delete("/sessions/:id", validateParamsUUID(["id"]), revokeSession);
 router.delete("/sessions", revokeAllOtherSessions);
+
+router.get("/notification-preferences", getNotificationPreferences);
+router.put("/notification-preferences", validateBody(updateNotificationPrefSchema), updateNotificationPreferences);
+
 
 export default router;

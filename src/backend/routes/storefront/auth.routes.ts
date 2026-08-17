@@ -1,3 +1,4 @@
+import { z } from "zod";
 import express from "express";
 import {
   register,
@@ -7,6 +8,7 @@ import {
   forgotPassword,
   resetPassword,
   verifyEmail,
+  resendVerificationEmail,
 } from "../../controllers/storefront/auth.controller";
 import { getMyProfile } from "../../controllers/storefront/account.controller";
 import { requireCustomerAuth } from "../../middlewares/customerAuth";
@@ -14,6 +16,9 @@ import {
   loginLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
+  registerLimiter,
+  verifyEmailLimiter,
+  resendVerificationLimiter,
 } from "../../middlewares/rateLimiter";
 import { validateBody } from "../../middlewares/validation";
 import {
@@ -25,7 +30,7 @@ import {
 
 const router = express.Router();
 
-router.post("/register", validateBody(customerRegisterSchema), register);
+router.post("/register", registerLimiter, validateBody(customerRegisterSchema), register);
 router.post("/login", loginLimiter, validateBody(customerLoginSchema), login);
 router.post("/refresh", refresh);
 router.post("/logout", requireCustomerAuth, logout);
@@ -48,6 +53,8 @@ router.post(
   resetPassword
 );
 
-router.post("/verify-email", verifyEmail);
+router.post("/verify-email", verifyEmailLimiter, verifyEmail);
+
+router.post("/resend-verification", resendVerificationLimiter, validateBody(z.object({ email: z.string().email() })), resendVerificationEmail);
 
 export default router;

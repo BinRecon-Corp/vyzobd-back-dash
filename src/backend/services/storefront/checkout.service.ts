@@ -75,10 +75,13 @@ export class StorefrontCheckoutService {
       if (product.trackInventory) {
         let availableStock = 0;
         if (variant) {
-          const totalStock = variant.inventories.reduce(
+          let totalStock = variant.inventories.reduce(
             (sum: number, inv: any) => sum + (inv.quantityAvailable - inv.quantityReserved),
             0
           );
+          if (totalStock === 0 && variant.inventories.length === 0 && product.inventory) {
+            totalStock = product.inventory.quantityAvailable - product.inventory.quantityReserved;
+          }
           availableStock = Math.max(0, totalStock);
         } else if (product.inventory) {
           availableStock = Math.max(
@@ -235,6 +238,7 @@ export class StorefrontCheckoutService {
       shippingAddress,
       billingAddress,
       paymentMethod: cart.paymentMethod,
+      shippingMethod: shipping.equals(0) ? "free" : "standard",
     };
   }
 
@@ -371,6 +375,12 @@ export class StorefrontCheckoutService {
       console.log(`[Analytics] Checkout session captured for customer ${identifier.customerId || identifier.sessionId}: clientId=${clientId}, sessionId=${sessionId}`);
     }
 
+    const supportedProviders = ["COD", "STRIPE", "BKASH", "NAGAD", "SSLCOMMERZ"];
+    const normalizedPaymentMethod = (paymentMethod || "").toUpperCase();
+    if (!supportedProviders.includes(normalizedPaymentMethod)) {
+      throw new AppError(`Invalid payment method: ${paymentMethod}`, 400, "INVALID_PAYMENT_METHOD");
+    }
+
     // 1. Load active checkout session (validates active products, variant statuses, and current stock)
     const session = await this.getCheckoutSession(identifier);
 
@@ -407,26 +417,26 @@ export class StorefrontCheckoutService {
               throw new AppError(`Variant of "${item.productName}" has become unavailable`, 404, "VARIANT_UNAVAILABLE");
             }
 
-            const availableStock = variant.inventories.reduce(
+            let availableStock = variant.inventories.reduce(
               (sum: number, inv: any) => sum + (inv.quantityAvailable - inv.quantityReserved),
               0
             );
+            
+            const useFallback = availableStock === 0 && variant.inventories.length === 0 && product.inventory;
+            if (useFallback) {
+              availableStock = product.inventory.quantityAvailable - product.inventory.quantityReserved;
+            }
 
             if (item.quantity > availableStock) {
               throw new AppError(`Stock for "${item.productName}" variant changed. Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
             }
 
             // Deduct inventory quantityAvailable inside transaction
-            // Variant inventories can be spread across warehouses, let's pick the first one with enough stock or standard warehouse
-            const targetInventory = variant.inventories.find(
-              (inv: any) => (inv.quantityAvailable - inv.quantityReserved) >= item.quantity
-            ) || variant.inventories[0];
-
-            if (targetInventory) {
+            if (useFallback) {
               const updated = await tx.inventory.updateMany({
                 where: { 
-                  id: targetInventory.id,
-                  quantityAvailable: { gte: item.quantity + targetInventory.quantityReserved }
+                  id: product.inventory.id,
+                  quantityAvailable: { gte: item.quantity + product.inventory.quantityReserved }
                 },
                 data: {
                   quantityAvailable: { decrement: item.quantity },
@@ -434,6 +444,26 @@ export class StorefrontCheckoutService {
               });
               if (updated.count === 0) {
                 throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
+              }
+            } else {
+              // Variant inventories can be spread across warehouses, let's pick the first one with enough stock or standard warehouse
+              const targetInventory = variant.inventories.find(
+                (inv: any) => (inv.quantityAvailable - inv.quantityReserved) >= item.quantity
+              ) || variant.inventories[0];
+
+              if (targetInventory) {
+                const updated = await tx.inventory.updateMany({
+                  where: { 
+                    id: targetInventory.id,
+                    quantityAvailable: { gte: item.quantity + targetInventory.quantityReserved }
+                  },
+                  data: {
+                    quantityAvailable: { decrement: item.quantity },
+                  },
+                });
+                if (updated.count === 0) {
+                  throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
+                }
               }
             }
           } else {
@@ -512,7 +542,7 @@ export class StorefrontCheckoutService {
           discountAmount: session.discount,
           shippingAddress: this.formatAddress(finalShippingAddress),
           billingAddress: this.formatAddress(finalBillingAddress),
-          paymentMethod,
+          paymentMethod: normalizedPaymentMethod,
           couponId: session.coupon?.id || null,
         },
       });
@@ -544,12 +574,12 @@ export class StorefrontCheckoutService {
         },
       });
 
-      // Create COD Payment record
+      // Create Payment record
       await tx.payment.create({
         data: {
           orderId: newOrder.id,
           customerId: identifier.customerId || null,
-          provider: "COD",
+          provider: normalizedPaymentMethod as any,
           amount: session.grandTotal,
           currency: "USD",
           status: "PENDING",

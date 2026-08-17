@@ -5,6 +5,7 @@ export const updateProfileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
+  avatarUrl: z.string().url().optional().nullable(),
 });
 
 export const updateEmailSchema = z.object({
@@ -35,3 +36,9 @@ export const createAddressSchema = z.object({
 });
 
 export const updateAddressSchema = createAddressSchema.partial();
+
+export const updateNotificationPrefSchema = z.object({
+  email: z.boolean().optional(),
+  sms: z.boolean().optional(),
+  inApp: z.boolean().optional(),
+});

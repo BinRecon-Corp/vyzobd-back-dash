@@ -44,6 +44,8 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
     sortOrder: img.sortOrder,
   })) || [];
 
+  const isSingleVariant = product.variants?.length === 1;
+
   const variants = product.variants?.map((v: any): StorefrontVariant => {
     const options: Record<string, string> = {};
     if (v.attributes) {
@@ -61,7 +63,9 @@ export function mapProductToStorefrontDTO(product: any): StorefrontProduct {
 
     const calculatedStock = v.inventories && v.inventories.length > 0
       ? v.inventories.reduce((sum: number, inv: any) => sum + Math.max(0, (inv.quantityAvailable ?? inv.quantity ?? 0) - (inv.quantityReserved ?? 0)), 0)
-      : (v.stock ?? 0);
+      : (isSingleVariant && product.inventory
+          ? Math.max(0, (product.inventory.quantityAvailable ?? product.inventory.quantity ?? 0) - (product.inventory.quantityReserved ?? 0))
+          : (v.stock ?? 0));
 
     return {
       id: v.id,
@@ -120,6 +124,10 @@ export function mapOrderToStorefrontDTO(order: any) {
     status: order.status,
     paymentStatus: order.paymentStatus,
     totalAmount: order.totalAmount ? Number(order.totalAmount) : null,
+    subtotal: order.subtotal ? Number(order.subtotal) : null,
+    taxAmount: order.taxAmount ? Number(order.taxAmount) : null,
+    shippingFee: order.shippingFee ? Number(order.shippingFee) : null,
+    discountAmount: order.discountAmount ? Number(order.discountAmount) : null,
     shippingAddress: order.shippingAddress,
     billingAddress: order.billingAddress,
     paymentMethod: order.paymentMethod,

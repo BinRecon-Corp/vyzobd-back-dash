@@ -1,3 +1,4 @@
+import { emailService } from "../../services/email.service";
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
@@ -38,7 +39,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       },
     });
 
-    // TODO: Send verification email here
+    await emailService.sendVerificationEmail(email, firstName, verificationToken);
 
     res.status(201).json({
       status: "success",
@@ -314,6 +315,43 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     res.status(200).json({
       status: "success",
       message: "Email verified successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resendVerificationEmail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    
+    const customer = await prisma.customer.findUnique({
+      where: { email },
+    });
+
+    if (!customer) {
+      return next(new AppError("Customer not found", 404, "NOT_FOUND"));
+    }
+
+    if (customer.emailVerified) {
+      return next(new AppError("Email is already verified", 400, "BAD_REQUEST"));
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        verificationToken,
+        verificationExpires,
+      },
+    });
+
+    await emailService.sendVerificationEmail(email, customer.firstName, verificationToken);
+    res.status(200).json({
+      status: "success",
+      message: "Verification email sent",
     });
   } catch (error) {
     next(error);

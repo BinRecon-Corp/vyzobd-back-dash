@@ -1,3 +1,4 @@
+import { emailService } from "../../services/email.service";
 import { Response, NextFunction } from "express";
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
@@ -49,17 +50,18 @@ export const getMyProfile = async (req: CustomerAuthRequest, res: Response, next
 
 export const updateMyProfile = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { firstName, lastName, phone } = req.body;
+    const { firstName, lastName, phone, avatarUrl } = req.body;
 
     const customer = await prisma.customer.update({
       where: { id: req.customer!.id },
-      data: { firstName, lastName, phone },
+      data: { firstName, lastName, phone, avatarUrl },
       select: {
         id: true,
         firstName: true,
         lastName: true,
         email: true,
         phone: true,
+        avatarUrl: true,
         emailVerified: true,
         lastLoginAt: true,
         createdAt: true,
@@ -113,7 +115,7 @@ export const updateEmail = async (req: CustomerAuthRequest, res: Response, next:
       },
     });
 
-    // TODO: Send verification email for the new email address
+    await emailService.sendVerificationEmail(newEmail, customer.firstName, verificationToken);
 
     res.status(200).json({
       status: "success",
@@ -352,6 +354,48 @@ export const revokeAllOtherSessions = async (req: CustomerAuthRequest, res: Resp
     res.status(200).json({
       status: "success",
       message: "All other sessions revoked",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getNotificationPreferences = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customerId = req.customer!.id;
+    let prefs = await prisma.notificationPreference.findUnique({
+      where: { customerId }
+    });
+    
+    if (!prefs) {
+      prefs = await prisma.notificationPreference.create({
+        data: { customerId }
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: { preferences: prefs },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateNotificationPreferences = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customerId = req.customer!.id;
+    const { email, sms, inApp } = req.body;
+    
+    const prefs = await prisma.notificationPreference.upsert({
+      where: { customerId },
+      update: { email, sms, inApp },
+      create: { customerId, email: email ?? true, sms: sms ?? false, inApp: inApp ?? true },
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: { preferences: prefs },
     });
   } catch (error) {
     next(error);
