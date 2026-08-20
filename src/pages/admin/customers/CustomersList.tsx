@@ -197,7 +197,7 @@ export function CustomersList() {
                       {cust.totalOrders || 0}
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-emerald-600">
-                      ${Number(cust.lifetimeValue || 0).toFixed(2)}
+                      ৳{Number(cust.lifetimeValue || 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {cust.lastOrderDate ? new Date(cust.lastOrderDate).toLocaleDateString() : "Never"}

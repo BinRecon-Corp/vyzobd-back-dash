@@ -84,7 +84,7 @@ export function PaymentsList() {
                   <TableCell>{payment.orderId?.split("-")[0]}</TableCell>
                   <TableCell>{payment.customer?.email || 'Guest'}</TableCell>
                   <TableCell>{payment.provider}</TableCell>
-                  <TableCell>${payment.amount}</TableCell>
+                  <TableCell>৳{payment.amount}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
                       {payment.status}

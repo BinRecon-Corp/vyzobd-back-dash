@@ -5,7 +5,7 @@ import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
-import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette, RefreshCw } from "lucide-react";
+import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette, RefreshCw, Phone } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useBranding } from "../../../context/BrandingContext";
 import { MediaUploaderInput } from "../../../components/admin/MediaUploaderInput";
@@ -20,6 +20,7 @@ const TABS = [
   { id: "Security", label: "Security", icon: Shield },
   { id: "Shipping", label: "Shipping", icon: Truck },
   { id: "Tax", label: "Tax Rules", icon: Receipt },
+  { id: "Store", label: "Store Contact", icon: Phone },
 ];
 
 export function Settings() {
@@ -250,7 +251,7 @@ export function Settings() {
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-1 block">Default Currency</label>
-                        <Input name="defaultCurrency" value={formData.defaultCurrency || "USD"} onChange={handleChange} placeholder="USD" />
+                        <Input name="defaultCurrency" value={formData.defaultCurrency || "BDT"} onChange={handleChange} placeholder="BDT" />
                       </div>
                     </div>
 
@@ -532,6 +533,25 @@ export function Settings() {
                         />
                         Catalog Prices Already Include Sales Tax
                       </label>
+                    </div>
+                  </div>
+                )}
+
+                
+                {/* STORE CONTACT TAB */}
+                {activeTab === "Store" && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">WhatsApp Order Number</label>
+                        <p className="text-xs text-muted-foreground mb-2">Phone number customers can use to place orders through WhatsApp.</p>
+                        <Input name="whatsappOrderNumber" type="text" value={formData.whatsappOrderNumber || ""} onChange={handleChange} placeholder="+8801712345678" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Call For Order Number</label>
+                        <p className="text-xs text-muted-foreground mb-2">Phone number customers can call to place an order.</p>
+                        <Input name="callOrderNumber" type="text" value={formData.callOrderNumber || ""} onChange={handleChange} placeholder="+8801812345678" />
+                      </div>
                     </div>
                   </div>
                 )}

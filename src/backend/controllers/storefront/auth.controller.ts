@@ -18,6 +18,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     });
 
     if (existingCustomer) {
+      if (!existingCustomer.emailVerified) {
+        return next(new AppError("Email already registered but not verified. Please verify your email or request a new verification link.", 400, "UNVERIFIED_EMAIL"));
+      }
       return next(new AppError("Email already in use", 400, "BAD_REQUEST"));
     }
 
@@ -39,11 +42,19 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       },
     });
 
-    await emailService.sendVerificationEmail(email, firstName, verificationToken);
+    let emailSent = true;
+    try {
+      await emailService.sendVerificationEmail(email, firstName, verificationToken);
+    } catch (err) {
+      console.warn("[AUTH] Failed to send registration email, but customer created:", err.message);
+      emailSent = false;
+    }
 
     res.status(201).json({
       status: "success",
-      message: "Registration successful. Please check your email to verify your account.",
+      message: emailSent 
+        ? "Registration successful. Please check your email to verify your account."
+        : "Registration successful, but we could not send the verification email. Please try logging in and using 'resend verification'.",
       data: {
         id: customer.id,
         email: customer.email,
@@ -232,7 +243,12 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       },
     });
 
-    // TODO: Send email with resetToken (not the hash)
+    try {
+      await emailService.sendPasswordResetEmail(customer.email, customer.firstName, resetToken);
+    } catch (err) {
+      console.warn("[AUTH] Failed to send password reset email:", err.message);
+      // We still return success to prevent email enumeration, but we log internally
+    }
 
     res.status(200).json({
       status: "success",

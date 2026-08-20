@@ -104,9 +104,6 @@ model Customer {
   verificationExpires  DateTime?
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
-  pendingEmail                 String?
-  pendingEmailVerificationToken String?
-  pendingEmailVerificationExpires DateTime?
   lastLoginAt          DateTime?
 
   addresses              CustomerAddress[]

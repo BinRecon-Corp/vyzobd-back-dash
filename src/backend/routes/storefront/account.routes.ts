@@ -4,6 +4,7 @@ import {
   getMyProfile,
   updateMyProfile,
   updateEmail,
+  verifyEmailChange,
   changePassword,
   getAddresses,
   getAddressById,
@@ -17,6 +18,7 @@ import {
   updateNotificationPreferences,
 } from "../../controllers/storefront/account.controller";
 import { requireCustomerAuth } from "../../middlewares/customerAuth";
+import { verifyEmailLimiter } from "../../middlewares/rateLimiter";
 import { validateBody, validateParamsUUID } from "../../middlewares/validation";
 import {
   updateProfileSchema,
@@ -36,6 +38,7 @@ router.get("/dashboard", getDashboard);
 router.get("/me", getMyProfile);
 router.put("/me", validateBody(updateProfileSchema), updateMyProfile);
 router.put("/email", validateBody(updateEmailSchema), updateEmail);
+router.post("/verify-email-change", verifyEmailLimiter, verifyEmailChange);
 router.put("/password", validateBody(changePasswordSchema), changePassword);
 
 router.get("/addresses", getAddresses);

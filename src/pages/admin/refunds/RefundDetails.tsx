@@ -51,7 +51,7 @@ export function RefundDetails() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Amount</p>
-              <p className="font-medium">${refund.amount}</p>
+              <p className="font-medium">৳{refund.amount}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Status</p>

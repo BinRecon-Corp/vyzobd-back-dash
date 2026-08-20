@@ -97,9 +97,16 @@ export const updateEmail = async (req: CustomerAuthRequest, res: Response, next:
       return next(new AppError("New email must be different", 400, "BAD_REQUEST"));
     }
 
-    const existingEmail = await prisma.customer.findUnique({ where: { email: newEmail } });
+    const existingEmail = await prisma.customer.findFirst({ 
+      where: { 
+        OR: [
+          { email: newEmail },
+          { pendingEmail: newEmail }
+        ]
+      } 
+    });
     if (existingEmail) {
-      return next(new AppError("Email already in use", 400, "BAD_REQUEST"));
+      return next(new AppError("Email already in use or pending verification", 400, "BAD_REQUEST"));
     }
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
@@ -108,18 +115,30 @@ export const updateEmail = async (req: CustomerAuthRequest, res: Response, next:
     await prisma.customer.update({
       where: { id: customerId },
       data: {
-        email: newEmail,
-        emailVerified: false,
-        verificationToken,
-        verificationExpires,
+        pendingEmail: newEmail,
+        pendingEmailVerificationToken: verificationToken,
+        pendingEmailVerificationExpires: verificationExpires,
       },
     });
 
-    await emailService.sendVerificationEmail(newEmail, customer.firstName, verificationToken);
+    try {
+      await emailService.sendEmailChangeVerificationEmail(newEmail, customer.firstName, verificationToken);
+    } catch (err) {
+      // Revert pending email changes on SMTP failure
+      await prisma.customer.update({
+        where: { id: customerId },
+        data: {
+          pendingEmail: null,
+          pendingEmailVerificationToken: null,
+          pendingEmailVerificationExpires: null,
+        }
+      });
+      return next(new AppError("Failed to send verification email to the new address. Please try again.", 500, "EMAIL_SEND_FAILED"));
+    }
 
     res.status(200).json({
       status: "success",
-      message: "Email updated. Please verify your new email address.",
+      message: "A verification email has been sent to your new address. Your current email will remain active until verified.",
     });
   } catch (error) {
     next(error);
@@ -396,6 +415,55 @@ export const updateNotificationPreferences = async (req: CustomerAuthRequest, re
     res.status(200).json({
       status: "success",
       data: { preferences: prefs },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyEmailChange = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { token } = req.body;
+    const customerId = req.customer!.id;
+
+    if (!token) {
+      return next(new AppError("Token is required", 400, "BAD_REQUEST"));
+    }
+
+    const customer = await prisma.customer.findFirst({
+      where: {
+        id: customerId,
+        pendingEmailVerificationToken: token,
+        pendingEmailVerificationExpires: { gt: new Date() },
+      },
+    });
+
+    if (!customer || !customer.pendingEmail) {
+      return next(new AppError("Token is invalid or has expired", 400, "BAD_REQUEST"));
+    }
+
+    // Ensure the pending email wasn't taken by someone else in the meantime
+    const existing = await prisma.customer.findUnique({
+      where: { email: customer.pendingEmail }
+    });
+    if (existing) {
+      return next(new AppError("This email is already in use by another account", 400, "BAD_REQUEST"));
+    }
+
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        email: customer.pendingEmail,
+        emailVerified: true,
+        pendingEmail: null,
+        pendingEmailVerificationToken: null,
+        pendingEmailVerificationExpires: null,
+      },
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Email changed and verified successfully.",
     });
   } catch (error) {
     next(error);

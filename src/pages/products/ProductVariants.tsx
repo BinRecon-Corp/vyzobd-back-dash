@@ -290,10 +290,10 @@ export function ProductVariants({ productId }: ProductVariantsProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    ${Number(variant.price).toFixed(2)}
+                    ৳{Number(variant.price).toFixed(2)}
                     {variant.compareAtPrice && (
                       <span className="text-muted-foreground line-through ml-2 text-xs">
-                        ${Number(variant.compareAtPrice).toFixed(2)}
+                        ৳{Number(variant.compareAtPrice).toFixed(2)}
                       </span>
                     )}
                   </TableCell>

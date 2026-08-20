@@ -113,7 +113,7 @@ export function Products() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{product.sku || 'N/A'}</TableCell>
-                      <TableCell>${product.price ? Number(product.price).toFixed(2) : '0.00'}</TableCell>
+                      <TableCell>৳{product.price ? Number(product.price).toFixed(2) : '0.00'}</TableCell>
                       <TableCell>{product.inventory?.quantity || 0}</TableCell>
                       <TableCell>
                         <Badge variant={product.status === 'Active' ? 'success' : 'secondary'}>

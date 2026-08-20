@@ -51,7 +51,7 @@ export function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
+            <div className="text-2xl font-bold">৳45,231.89</div>
             <p className="text-xs text-emerald-500 flex items-center mt-1">
               <TrendingUp className="h-3 w-3 mr-1" /> +20.1% from last month
             </p>
@@ -111,7 +111,7 @@ export function Dashboard() {
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `৳${value}`} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
                     itemStyle={{ color: 'hsl(var(--foreground))' }}
@@ -138,7 +138,7 @@ export function Dashboard() {
                     <p className="text-sm font-medium leading-none">Olivia Martin</p>
                     <p className="text-sm text-muted-foreground">olivia.martin@email.com</p>
                   </div>
-                  <div className="ml-auto font-medium">+$1,999.00</div>
+                  <div className="ml-auto font-medium">+৳1,999.00</div>
                 </div>
               ))}
             </div>

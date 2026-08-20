@@ -302,7 +302,7 @@ export function OrdersList() {
                       {order.items?.length || 0} {order.items?.length === 1 ? "item" : "items"}
                     </td>
                     <td className="px-4 py-3 font-semibold text-foreground">
-                      ${Number(order.totalAmount || 0).toFixed(2)}
+                      ৳{Number(order.totalAmount || 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(order.createdAt).toLocaleDateString()}
@@ -490,8 +490,8 @@ export function OrdersList() {
                     <tr key={idx}>
                       <td className="py-2 px-2 font-medium">{item.product?.name || "Product"}</td>
                       <td className="py-2 px-2 text-center">{item.quantity}</td>
-                      {printType === "invoice" && <td className="py-2 px-2 text-right">${Number(item.price).toFixed(2)}</td>}
-                      {printType === "invoice" && <td className="py-2 px-2 text-right">${(item.quantity * Number(item.price)).toFixed(2)}</td>}
+                      {printType === "invoice" && <td className="py-2 px-2 text-right">৳{Number(item.price).toFixed(2)}</td>}
+                      {printType === "invoice" && <td className="py-2 px-2 text-right">৳{(item.quantity * Number(item.price)).toFixed(2)}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -502,7 +502,7 @@ export function OrdersList() {
                   <div className="w-48 space-y-1">
                     <div className="flex justify-between font-bold text-base border-t pt-1">
                       <span>Total Amount:</span>
-                      <span className="text-primary">${Number(printOrder.totalAmount || 0).toFixed(2)}</span>
+                      <span className="text-primary">৳{Number(printOrder.totalAmount || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>

@@ -32,7 +32,7 @@ export const getAllPromotions = asyncHandler(async (req: Request, res: Response)
       ...promo,
       parsedRules: promo.rules ? JSON.parse(promo.rules) : {},
       stats: {
-        revenueImpact: "$3,450.00",
+        revenueImpact: "৳3,450.00",
         ordersGenerated: 28,
         customerAcquisition: 12,
       },

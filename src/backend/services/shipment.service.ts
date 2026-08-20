@@ -1,4 +1,5 @@
 import { prisma } from "../config/db";
+import { emailService } from "./email.service";
 import { AppError } from "../utils/AppError";
 import { ShipmentStatus, TrackingStatus, NotificationType, NotificationChannel } from "@prisma/client";
 
@@ -165,8 +166,7 @@ export class AdminShipmentService {
       throw new AppError("Shipment not found", 404, "SHIPMENT_NOT_FOUND");
     }
 
-    return await prisma.$transaction(async (tx) => {
-      let resolvedCourierId = courierId || shipment.courierId;
+    const updatedShipmentTransaction = await prisma.$transaction(async (tx) => {   let resolvedCourierId = courierId || shipment.courierId;
 
       if (!resolvedCourierId && courierName) {
         let courierRecord = await tx.courier.findFirst({
@@ -255,5 +255,26 @@ export class AdminShipmentService {
 
       return updatedShipment;
     });
+
+    if (shipment.status !== status) {
+      try {
+        if (status === "SHIPPED" || status === "DELIVERED") {
+          const fullOrder = await prisma.order.findUnique({
+            where: { id: shipment.orderId },
+            include: { customer: true, items: true }
+          });
+          
+          if (fullOrder && fullOrder.customer && fullOrder.customer.email) {
+            if (status === "SHIPPED") {
+              emailService.sendOrderShippedEmail(fullOrder.customer, updatedShipmentTransaction, fullOrder).catch(() => {});
+            } else if (status === "DELIVERED") {
+              emailService.sendOrderDeliveredEmail(fullOrder.customer, updatedShipmentTransaction, fullOrder).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {}
+    }
+
+    return updatedShipmentTransaction;
   }
 }

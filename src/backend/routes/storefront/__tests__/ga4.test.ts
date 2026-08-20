@@ -124,7 +124,7 @@ test("Storefront GA4 Integration Tests", async (t) => {
     assert.strictEqual(targetItem.item_brand, "GA4 Brand");
     assert.strictEqual(targetItem.item_category, "GA4 Cat");
     assert.strictEqual(targetItem.price, 129.99);
-    assert.strictEqual(targetItem.currency, "USD");
+    assert.strictEqual(targetItem.currency, "BDT");
     assert.strictEqual(targetItem.item_variant, "GA4-VAR-1");
 
     // Ensure sensitive properties are never exposed
@@ -138,7 +138,7 @@ test("Storefront GA4 Integration Tests", async (t) => {
     assert.strictEqual(res.status, 200);
     assert.ok(res.body.ga4);
     assert.strictEqual(res.body.ga4.event, "view_item");
-    assert.strictEqual(res.body.ga4.ecommerce.currency, "USD");
+    assert.strictEqual(res.body.ga4.ecommerce.currency, "BDT");
     assert.strictEqual(res.body.ga4.ecommerce.value, 129.99);
     
     const items = res.body.ga4.ecommerce.items;
@@ -151,7 +151,7 @@ test("Storefront GA4 Integration Tests", async (t) => {
     assert.strictEqual(targetItem.item_brand, "GA4 Brand");
     assert.strictEqual(targetItem.item_category, "GA4 Cat");
     assert.strictEqual(targetItem.price, 129.99);
-    assert.strictEqual(targetItem.currency, "USD");
+    assert.strictEqual(targetItem.currency, "BDT");
     assert.strictEqual(targetItem.item_variant, "GA4-VAR-1");
 
     // Validate no forbidden exposures

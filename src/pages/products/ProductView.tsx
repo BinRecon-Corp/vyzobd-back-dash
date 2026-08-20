@@ -62,7 +62,7 @@ export function ProductView() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Price</h3>
-                    <p className="text-lg">{product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}</p>
+                    <p className="text-lg">{product.price ? `৳${Number(product.price).toFixed(2)}` : 'N/A'}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground">Category</h3>

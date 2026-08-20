@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db";
+import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
 import { PaymentProvider, PaymentStatus } from "@prisma/client";
 import { MeasurementProtocolService } from "../measurement-protocol.service";
@@ -87,7 +88,7 @@ export class StorefrontPaymentService {
     }
 
     const amount = order.totalAmount;
-    const currency = "USD";
+    const currency = "BDT";
 
     return await prisma.$transaction(async (tx) => {
       // 1. Create Payment Record
@@ -169,8 +170,8 @@ export class StorefrontPaymentService {
     const providerAdapter = this.getProviderAdapter(payment.provider);
     const isSuccess = await providerAdapter.verifyPayment(providerTransactionId, payment.id);
 
+    const newStatus = isSuccess ? PaymentStatus.PAID : PaymentStatus.FAILED;
     const result = await prisma.$transaction(async (tx) => {
-      const newStatus = isSuccess ? PaymentStatus.PAID : PaymentStatus.FAILED;
 
       // 1. Update Payment
       const updatedPayment = await tx.payment.update({
@@ -214,6 +215,23 @@ export class StorefrontPaymentService {
       return updatedPayment;
     });
 
+    if (payment.status !== newStatus) {
+      try {
+        const fullOrder = await prisma.order.findUnique({
+          where: { id: payment.orderId },
+          include: { customer: true, items: true }
+        });
+        if (fullOrder && fullOrder.customer && fullOrder.customer.email) {
+          if (isSuccess) {
+            emailService.sendPaymentSuccessEmail(fullOrder.customer, result, fullOrder).catch(() => {});
+            emailService.sendOrderProcessingEmail(fullOrder.customer, fullOrder).catch(() => {});
+          } else {
+            emailService.sendPaymentFailedEmail(fullOrder.customer, result, fullOrder).catch(() => {});
+          }
+        }
+      } catch (err) {}
+    }
+    
     if (isSuccess) {
       MeasurementProtocolService.processOrderPaymentSuccess(payment.orderId).catch((err) => {
         console.error("[Analytics] Error tracking purchase on verifyPayment:", err);
@@ -319,6 +337,27 @@ export class StorefrontPaymentService {
           data: { processed: true, processedAt: new Date() }
       });
       
+      if (payment.status !== newStatus) {
+        try {
+          const fullOrder = await prisma.order.findUnique({
+            where: { id: payment.orderId },
+            include: { customer: true, items: true }
+          });
+          
+          if (fullOrder && fullOrder.customer && fullOrder.customer.email) {
+            // Need to get the updated payment object to pass to email service
+            const updatedPayment = await prisma.payment.findUnique({ where: { id: payment.id } });
+            
+            if (isSuccess) {
+              emailService.sendPaymentSuccessEmail(fullOrder.customer, updatedPayment, fullOrder).catch(() => {});
+              emailService.sendOrderProcessingEmail(fullOrder.customer, fullOrder).catch(() => {});
+            } else {
+              emailService.sendPaymentFailedEmail(fullOrder.customer, updatedPayment, fullOrder).catch(() => {});
+            }
+          }
+        } catch (err) {}
+      }
+
       return { success: true };
     } catch (error: any) {
       console.error("Webhook processing error", error);

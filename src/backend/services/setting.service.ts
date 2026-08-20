@@ -5,6 +5,35 @@ import { ActivityType } from "@prisma/client";
 import { StorefrontSettingService } from "./storefront/setting.service";
 
 export class SettingService {
+  static async getStore() {
+    let setting = await prisma.storeSetting.findFirst();
+    if (!setting) setting = await prisma.storeSetting.create({ data: {} });
+    return setting;
+  }
+
+  static async updateStore(data: any, userId: string) {
+    const payload = {
+      whatsappOrderNumber: data.whatsappOrderNumber?.trim() || null,
+      callOrderNumber: data.callOrderNumber?.trim() || null,
+    };
+    let setting = await prisma.storeSetting.findFirst();
+    if (setting) {
+      setting = await prisma.storeSetting.update({ where: { id: setting.id }, data: payload });
+    } else {
+      setting = await prisma.storeSetting.create({ data: payload });
+    }
+    StorefrontSettingService.clearCache();
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: "UPDATE_STORE",
+        entityType: "Settings",
+        entityId: setting.id,
+        details: JSON.stringify(payload)
+      }
+    });
+    return setting;
+  }
   static async getBranding() {
     let setting = await prisma.brandingSetting.findFirst();
     if (!setting) setting = await prisma.brandingSetting.create({ data: {} });

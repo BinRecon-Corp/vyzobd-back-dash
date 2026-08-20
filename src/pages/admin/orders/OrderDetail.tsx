@@ -230,10 +230,10 @@ export function OrderDetail() {
                       </td>
                       <td className="py-3 px-3 text-center font-medium">{item.quantity}</td>
                       <td className="py-3 px-3 text-right text-muted-foreground">
-                        ${Number(item.price).toFixed(2)}
+                        ৳{Number(item.price).toFixed(2)}
                       </td>
                       <td className="py-3 px-3 text-right font-semibold text-foreground">
-                        ${(item.quantity * Number(item.price)).toFixed(2)}
+                        ৳{(item.quantity * Number(item.price)).toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -244,11 +244,11 @@ export function OrderDetail() {
             <div className="border-t pt-3 space-y-1 text-sm text-right">
               <div className="flex justify-end gap-6 text-muted-foreground">
                 <span>Subtotal:</span>
-                <span className="font-medium text-foreground">${Number(order.totalAmount || 0).toFixed(2)}</span>
+                <span className="font-medium text-foreground">৳{Number(order.totalAmount || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-end gap-6 font-bold text-base text-foreground pt-2 border-t">
                 <span>Total Amount:</span>
-                <span className="text-primary">${Number(order.totalAmount || 0).toFixed(2)}</span>
+                <span className="text-primary">৳{Number(order.totalAmount || 0).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -507,8 +507,8 @@ export function OrderDetail() {
                     <tr key={idx}>
                       <td className="py-2 px-2 font-medium">{item.product?.name || "Product"}</td>
                       <td className="py-2 px-2 text-center">{item.quantity}</td>
-                      {printType === "invoice" && <td className="py-2 px-2 text-right">${Number(item.price).toFixed(2)}</td>}
-                      {printType === "invoice" && <td className="py-2 px-2 text-right">${(item.quantity * Number(item.price)).toFixed(2)}</td>}
+                      {printType === "invoice" && <td className="py-2 px-2 text-right">৳{Number(item.price).toFixed(2)}</td>}
+                      {printType === "invoice" && <td className="py-2 px-2 text-right">৳{(item.quantity * Number(item.price)).toFixed(2)}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -519,7 +519,7 @@ export function OrderDetail() {
                   <div className="w-48 space-y-1">
                     <div className="flex justify-between font-bold text-base border-t pt-1">
                       <span>Total Amount:</span>
-                      <span className="text-primary">${Number(order.totalAmount || 0).toFixed(2)}</span>
+                      <span className="text-primary">৳{Number(order.totalAmount || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import express from "express";
 import { 
   getGeneral, updateGeneral,
+  getStore, updateStore,
   getBranding, updateBranding,
   getSEO, updateSEO,
   getSMTP, updateSMTP,
@@ -50,3 +51,5 @@ router.get("/tax", requirePermission("Settings", "read"), getTax);
 router.put("/tax", requirePermission("Settings", "write"), validateBody(updateTaxSettingsSchema), updateTax);
 
 export default router;
+router.get('/store', requirePermission('Settings', 'read'), getStore);
+router.put('/store', requirePermission('Settings', 'write'), updateStore);

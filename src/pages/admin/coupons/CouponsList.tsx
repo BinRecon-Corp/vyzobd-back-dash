@@ -175,7 +175,7 @@ export function CouponsList() {
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold">৳{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
             <p className="text-xs text-muted-foreground mt-1">Attributed to valid coupon codes</p>
           </CardContent>
         </Card>
@@ -248,7 +248,7 @@ export function CouponsList() {
                     </td>
                     <td className="px-4 py-3 font-semibold">
                       {coupon.discountType === 'percentage' && `${coupon.discountValue}%`}
-                      {coupon.discountType === 'fixed' && `$${coupon.discountValue}`}
+                      {coupon.discountType === 'fixed' && `৳${coupon.discountValue}`}
                       {coupon.discountType === 'free_shipping' && 'Free Shipping'}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -261,7 +261,7 @@ export function CouponsList() {
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <div className="font-semibold text-foreground">{coupon.stats?.totalUses || 0} / {coupon.usageLimit || '∞'} uses</div>
-                      <div className="text-emerald-600 font-medium">${(coupon.stats?.revenueGenerated || 0).toFixed(2)} rev</div>
+                      <div className="text-emerald-600 font-medium">৳{(coupon.stats?.revenueGenerated || 0).toFixed(2)} rev</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${

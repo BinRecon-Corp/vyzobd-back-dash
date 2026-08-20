@@ -80,7 +80,7 @@ export function RefundsList() {
                   <TableCell>{refund.paymentId?.split("-")[0]}</TableCell>
                   <TableCell>{refund.orderId?.split("-")[0]}</TableCell>
                   <TableCell>{refund.customer?.email || 'Guest'}</TableCell>
-                  <TableCell>${refund.amount}</TableCell>
+                  <TableCell>৳{refund.amount}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
                       {refund.status}

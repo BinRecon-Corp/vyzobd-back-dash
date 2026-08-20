@@ -169,7 +169,7 @@ export function CustomerDetail() {
           </div>
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase">Lifetime Value (LTV)</p>
-            <p className="text-xl font-bold text-foreground">${Number(customer.lifetimeValue || 0).toFixed(2)}</p>
+            <p className="text-xl font-bold text-foreground">৳{Number(customer.lifetimeValue || 0).toFixed(2)}</p>
           </div>
         </div>
 
@@ -233,7 +233,7 @@ export function CustomerDetail() {
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right font-semibold text-foreground">
-                          ${Number(ord.totalAmount || 0).toFixed(2)}
+                          ৳{Number(ord.totalAmount || 0).toFixed(2)}
                         </td>
                         <td className="py-3 px-3 text-right">
                           <Link

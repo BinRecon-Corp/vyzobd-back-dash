@@ -16,10 +16,11 @@ export class StorefrontSettingService {
       return cachedPublicSettings;
     }
 
-    const [branding, seo, analytics] = await Promise.all([
+    const [branding, seo, analytics, store] = await Promise.all([
       prisma.brandingSetting.findFirst(),
       prisma.sEOSetting.findFirst(),
-      prisma.analyticsSetting.findFirst()
+      prisma.analyticsSetting.findFirst(),
+      prisma.storeSetting.findFirst()
     ]);
 
     const result = {
@@ -52,7 +53,7 @@ export class StorefrontSettingService {
       analytics: analytics ? {
         googleAnalyticsId: analytics.googleAnalyticsId,
         ga4MeasurementId: analytics.googleAnalyticsId,
-        googleTagManagerId: analytics.googleTagManagerId,
+        googleTagManagerId: analytics.googleTagManagerId,        
         gtmContainerId: analytics.googleTagManagerId,
         facebookPixelId: analytics.facebookPixelId,
         metaPixelId: analytics.facebookPixelId,
@@ -68,15 +69,18 @@ export class StorefrontSettingService {
         facebookPixelId: null,
         metaPixelId: null,
         tiktokPixelId: null,
-        googleAdsId: null,
+        googleAdsId: null,        
         hotjarId: null,
         enableAnalytics: false
-      }
+      },
+      store: store ? {
+        whatsappOrderNumber: store.whatsappOrderNumber,
+        callOrderNumber: store.callOrderNumber
+      } : null
     };
 
     cachedPublicSettings = result;
     lastCacheTime = now;
-
     return result;
   }
 }

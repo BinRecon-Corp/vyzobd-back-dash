@@ -3,6 +3,7 @@ import { prisma } from "../config/db";
 import { AuthRequest } from "../middlewares/auth";
 import { AppError } from "../utils/AppError";
 import { AuditService } from "../services/audit.service";
+import { emailService } from "../services/email.service";
 import { MeasurementProtocolService } from "../services/measurement-protocol.service";
 
 // GET /api/v1/orders
@@ -217,6 +218,20 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       { oldStatus: existingOrder.status, newStatus: status, paymentStatus },
       req
     );
+
+    if (status && status !== existingOrder.status && updatedOrder.customer && updatedOrder.customer.email) {
+      try {
+        if (status === "Processing") {
+          emailService.sendOrderProcessingEmail(updatedOrder.customer, updatedOrder).catch(() => {});
+        } else if (status === "Confirmed") {
+          emailService.sendOrderConfirmedEmail(updatedOrder.customer, updatedOrder).catch(() => {});
+        } else if (status === "Cancelled") {
+          emailService.sendOrderCancelledEmail(updatedOrder.customer, updatedOrder).catch(() => {});
+        }
+      } catch (err) {
+        console.error(`[Email Service] Failed to dispatch order status email for ${id}`);
+      }
+    }
 
     if (
       existingOrder.paymentStatus?.toUpperCase() !== "PAID" &&

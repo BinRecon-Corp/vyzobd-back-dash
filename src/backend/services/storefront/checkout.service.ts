@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from "../../config/db";
+import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
 import { CartIdentifier, StorefrontCartService } from "./cart.service";
 
@@ -581,7 +582,7 @@ export class StorefrontCheckoutService {
           customerId: identifier.customerId || null,
           provider: normalizedPaymentMethod as any,
           amount: session.grandTotal,
-          currency: "USD",
+          currency: "BDT",
           status: "PENDING",
         }
       });
@@ -603,6 +604,46 @@ export class StorefrontCheckoutService {
 
       return newOrder;
     });
+
+    try {
+      if (identifier.customerId) {
+        const customer = await prisma.customer.findUnique({
+          where: { id: identifier.customerId },
+          select: { email: true, firstName: true, lastName: true }
+        });
+        if (customer && customer.email) {
+          const fullOrder = await prisma.order.findUnique({
+            where: { id: order.id },
+            include: { items: true }
+          });
+          if (fullOrder) {
+            emailService.sendOrderConfirmationEmail(customer, fullOrder).catch((err) => {
+              console.error(`[Email Service] Failed to send order confirmation to ${customer.email}`);
+            });
+          }
+        }
+      } else if (order.shippingAddress) {
+         // Maybe guest email is inside shipping address JSON string? It might have email inside. 
+         // Let's parse it and if email exists, send to it.
+         try {
+           const parsedAddress = JSON.parse(order.shippingAddress);
+           if (parsedAddress && parsedAddress.email) {
+              const fullOrder = await prisma.order.findUnique({
+                where: { id: order.id },
+                include: { items: true }
+              });
+              if (fullOrder) {
+                const guestCustomer = { email: parsedAddress.email, firstName: parsedAddress.fullName || "Guest" };
+                emailService.sendOrderConfirmationEmail(guestCustomer, fullOrder).catch((err) => {
+                  console.error(`[Email Service] Failed to send order confirmation to guest email ${guestCustomer.email}`);
+                });
+              }
+           }
+         } catch(e) { }
+      }
+    } catch (err) {
+      console.error(`[Email Service] Error in confirmation email block:`, err);
+    }
 
     return mapOrderToStorefrontDTO(order);
   }
