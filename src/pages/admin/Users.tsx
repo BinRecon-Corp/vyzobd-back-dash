@@ -29,6 +29,8 @@ import {
 } from "../../components/ui/dropdown-menu";
 import { UserFormModal } from "../../components/admin/users/UserFormModal";
 import { UserEffectivePermissionsModal } from "../../components/admin/users/UserEffectivePermissionsModal";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { notify } from "../../lib/notify";
 import {
   Users as UsersIcon,
   UserPlus,
@@ -70,6 +72,11 @@ export function Users() {
   const [newPasswordValue, setNewPasswordValue] = useState("");
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
 
+  // Confirmation dialog states
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [userToForceLogout, setUserToForceLogout] = useState<any | null>(null);
+  const [bulkActionType, setBulkActionType] = useState<"activate" | "deactivate" | null>(null);
+
   // Queries
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
     queryKey: ["users", page, limit, search],
@@ -96,17 +103,13 @@ export function Users() {
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       updateUserStatus(id, isActive),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setSelectedUsers([]);
+      notify.success("Status Updated", `User status updated to ${variables.isActive ? "Active" : "Inactive"}.`);
     },
     onError: (error: any) => {
-      alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error?.message ||
-          error?.message ||
-          "Error updating user status"
-      );
+      notify.apiError(error, "Failed to update user status.");
     },
   });
 
@@ -117,15 +120,12 @@ export function Users() {
       setIsResetPasswordModalOpen(false);
       setUserToResetPassword(null);
       setNewPasswordValue("");
-      alert("Password reset successfully. Active sessions have been revoked.");
+      notify.success("Password Reset", "Temporary password has been set. All previous active sessions were revoked.");
     },
     onError: (error: any) => {
-      setResetPasswordError(
-        error?.response?.data?.message ||
-          error?.response?.data?.error?.message ||
-          error?.message ||
-          "Error resetting password"
-      );
+      const msg = error?.response?.data?.message || error?.response?.data?.error?.message || error?.message || "Error resetting password";
+      setResetPasswordError(msg);
+      notify.apiError(error, "Failed to reset password.");
     },
   });
 
@@ -134,29 +134,22 @@ export function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify.success("Administrator Deleted", `Administrator account ${userToDelete?.email || ""} was removed.`);
+      setUserToDelete(null);
     },
     onError: (error: any) => {
-      alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error?.message ||
-          error?.message ||
-          "Error deleting user"
-      );
+      notify.apiError(error, "Failed to delete administrator account.");
     },
   });
 
   const forceLogoutMutation = useMutation({
     mutationFn: forceLogoutUser,
     onSuccess: () => {
-      alert("User sessions have been forcibly revoked.");
+      notify.success("Sessions Revoked", `Active sessions for ${userToForceLogout?.email || "user"} have been terminated.`);
+      setUserToForceLogout(null);
     },
     onError: (error: any) => {
-      alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error?.message ||
-          error?.message ||
-          "Error revoking user sessions"
-      );
+      notify.apiError(error, "Failed to revoke active user sessions.");
     },
   });
 
@@ -180,6 +173,10 @@ export function Users() {
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify.success(editingUser ? "User Updated" : "User Created", `Administrator account successfully ${editingUser ? "updated" : "provisioned"}.`);
+    },
+    onError: (error: any) => {
+      notify.apiError(error, "Failed to save administrator account.");
     },
   });
 
@@ -226,19 +223,18 @@ export function Users() {
     }
   };
 
-  const handleBulkActivate = async () => {
-    if (confirm(`Are you sure you want to activate ${selectedUsers.length} selected users?`)) {
+  const handleExecuteBulkAction = async () => {
+    if (!bulkActionType) return;
+    const isActive = bulkActionType === "activate";
+    try {
       for (const id of selectedUsers) {
-        await toggleStatusMutation.mutateAsync({ id, isActive: true });
+        await toggleStatusMutation.mutateAsync({ id, isActive });
       }
-    }
-  };
-
-  const handleBulkDeactivate = async () => {
-    if (confirm(`Are you sure you want to deactivate ${selectedUsers.length} selected users?`)) {
-      for (const id of selectedUsers) {
-        await toggleStatusMutation.mutateAsync({ id, isActive: false });
-      }
+      notify.success("Bulk Action Complete", `Successfully ${isActive ? "activated" : "deactivated"} ${selectedUsers.length} administrators.`);
+      setSelectedUsers([]);
+      setBulkActionType(null);
+    } catch (err) {
+      notify.apiError(err, "An error occurred during bulk operation.");
     }
   };
 
@@ -268,7 +264,7 @@ export function Users() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleBulkActivate}
+                onClick={() => setBulkActionType("activate")}
                 className="text-xs"
               >
                 <CheckSquare className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
@@ -278,7 +274,7 @@ export function Users() {
                 variant="outline"
                 size="sm"
                 className="text-xs text-destructive hover:bg-destructive/10"
-                onClick={handleBulkDeactivate}
+                onClick={() => setBulkActionType("deactivate")}
               >
                 <Power className="mr-1.5 h-3.5 w-3.5" />
                 Deactivate ({selectedUsers.length})
@@ -470,11 +466,7 @@ export function Users() {
 
                             {hasPermission("Users", "write") && (
                               <DropdownMenuItem
-                                onClick={() => {
-                                  if (confirm(`Revoke all active sessions for ${user.email}?`)) {
-                                    forceLogoutMutation.mutate(user.id);
-                                  }
-                                }}
+                                onClick={() => setUserToForceLogout(user)}
                               >
                                 <LogOut className="mr-2 h-3.5 w-3.5" /> Force Logout
                               </DropdownMenuItem>
@@ -485,15 +477,7 @@ export function Users() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                                  onClick={() => {
-                                    if (
-                                      confirm(
-                                        `Are you sure you want to delete administrator ${user.firstName} ${user.lastName}?`
-                                      )
-                                    ) {
-                                      deleteMutation.mutate(user.id);
-                                    }
-                                  }}
+                                  onClick={() => setUserToDelete(user)}
                                 >
                                   <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Account
                                 </DropdownMenuItem>
@@ -638,6 +622,50 @@ export function Users() {
           </Card>
         </div>
       )}
+
+      {/* Delete User Confirmation */}
+      <ConfirmDialog
+        isOpen={!!userToDelete}
+        onOpenChange={(open) => !open && setUserToDelete(null)}
+        title="Delete Administrator"
+        description={
+          <>
+            Are you sure you want to permanently remove administrator account <strong>{userToDelete?.firstName} {userToDelete?.lastName} ({userToDelete?.email})</strong>? This action cannot be undone.
+          </>
+        }
+        confirmText="Delete Account"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => userToDelete && deleteMutation.mutate(userToDelete.id)}
+      />
+
+      {/* Force Logout Confirmation */}
+      <ConfirmDialog
+        isOpen={!!userToForceLogout}
+        onOpenChange={(open) => !open && setUserToForceLogout(null)}
+        title="Force Session Logout"
+        description={
+          <>
+            Are you sure you want to revoke all active sessions for <strong>{userToForceLogout?.email}</strong>? They will be immediately signed out of all devices.
+          </>
+        }
+        confirmText="Revoke Sessions"
+        variant="warning"
+        isLoading={forceLogoutMutation.isPending}
+        onConfirm={() => userToForceLogout && forceLogoutMutation.mutate(userToForceLogout.id)}
+      />
+
+      {/* Bulk Action Confirmation */}
+      <ConfirmDialog
+        isOpen={!!bulkActionType}
+        onOpenChange={(open) => !open && setBulkActionType(null)}
+        title={`Bulk ${bulkActionType === "activate" ? "Activation" : "Deactivation"}`}
+        description={`Are you sure you want to ${bulkActionType === "activate" ? "activate" : "deactivate"} ${selectedUsers.length} selected administrator account(s)?`}
+        confirmText={`Confirm ${bulkActionType === "activate" ? "Activate" : "Deactivate"}`}
+        variant={bulkActionType === "deactivate" ? "destructive" : "default"}
+        isLoading={toggleStatusMutation.isPending}
+        onConfirm={handleExecuteBulkAction}
+      />
     </div>
   );
 }

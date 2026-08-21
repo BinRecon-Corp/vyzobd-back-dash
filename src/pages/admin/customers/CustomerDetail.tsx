@@ -23,6 +23,8 @@ import {
 } from "../../../services/customer.service";
 import { Button } from "../../../components/ui/button";
 import { useAuth } from "../../../context/AuthContext";
+import { ConfirmDialog } from "../../../components/common/ConfirmDialog";
+import { notify } from "../../../lib/notify";
 
 export function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +37,8 @@ export function CustomerDetail() {
 
   const [noteText, setNoteText] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const fetchCustomerDetails = async () => {
     if (!id) return;
@@ -60,21 +64,24 @@ export function CustomerDetail() {
     try {
       const updated = await updateCustomerStatus(id, newStatus);
       setCustomer({ ...customer, isActive: updated.isActive });
-      alert(`Customer account ${updated.isActive ? "activated" : "deactivated"}.`);
+      notify.success("Status Updated", `Customer account ${updated.isActive ? "activated" : "deactivated"}.`);
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update status.");
+      notify.apiError(err, "Failed to update customer status.");
     }
   };
 
-  const handleResetPassword = async () => {
+  const handleConfirmResetPassword = async () => {
     if (!id || !customer) return;
-    if (!confirm(`Force password reset for ${customer.email}?`)) return;
+    setIsResetting(true);
     try {
       const res = await resetCustomerPassword(id);
-      alert(res.message || "Password reset notification sent.");
+      notify.success("Password Reset Sent", res?.message || `Password reset instructions sent to ${customer.email}.`);
+      setShowResetConfirm(false);
       fetchCustomerDetails();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to reset password.");
+      notify.apiError(err, "Failed to reset customer password.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -85,9 +92,10 @@ export function CustomerDetail() {
     try {
       await addCustomerNote(id, noteText);
       setNoteText("");
+      notify.success("Note Added", "Internal customer note recorded.");
       fetchCustomerDetails();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to add note.");
+      notify.apiError(err, "Failed to add internal note.");
     } finally {
       setSubmittingNote(false);
     }
@@ -145,7 +153,7 @@ export function CustomerDetail() {
 
         {hasPermission("Customers", "write") && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleResetPassword} className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowResetConfirm(true)} className="gap-2">
               <Key className="w-4 h-4 text-amber-600" /> Force Password Reset
             </Button>
             <Button
@@ -321,6 +329,21 @@ export function CustomerDetail() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        title="Reset Customer Password"
+        description={
+          <>
+            Are you sure you want to trigger a password reset for <strong>{customer?.email}</strong>? An automated reset instructions email will be sent immediately.
+          </>
+        }
+        confirmText="Trigger Password Reset"
+        variant="warning"
+        isLoading={isResetting}
+        onConfirm={handleConfirmResetPassword}
+      />
     </div>
   );
 }

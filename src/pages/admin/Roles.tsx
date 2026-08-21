@@ -12,6 +12,7 @@ import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { RoleFormModal } from "../../components/admin/roles/RoleFormModal";
 import { DeleteRoleModal } from "../../components/admin/roles/DeleteRoleModal";
+import { notify } from "../../lib/notify";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -90,6 +91,13 @@ export function Roles() {
     onSuccess: () => {
       setIsFormModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify.success(
+        formModalRole && !isCloneMode ? "Role Updated" : "Role Created",
+        "Role permissions and details have been synchronized."
+      );
+    },
+    onError: (err) => {
+      notify.apiError(err, "Failed to save role configuration.");
     },
   });
 
@@ -100,8 +108,13 @@ export function Roles() {
     },
     onSuccess: () => {
       setIsDeleteModalOpen(false);
+      const name = roleToDelete?.name;
       setRoleToDelete(null);
       queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify.success("Role Deleted", `Custom role "${name || "Role"}" was deleted.`);
+    },
+    onError: (err) => {
+      notify.apiError(err, "Failed to delete role.");
     },
   });
 

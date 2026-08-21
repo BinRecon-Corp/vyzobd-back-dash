@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
+import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
+import { notify } from '../../../lib/notify';
 
 export function CouponsList() {
   const queryClient = useQueryClient();
@@ -27,6 +29,7 @@ export function CouponsList() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -51,36 +54,53 @@ export function CouponsList() {
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Coupon>) => couponService.create(data),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsModalOpen(false);
       resetForm();
+      notify.success('Coupon Created', `Coupon code "${res?.code || formData.code}" created successfully.`);
     },
+    onError: (err) => notify.apiError(err, 'Failed to create coupon.')
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Coupon> }) => couponService.update(id, data),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsModalOpen(false);
       setEditingCoupon(null);
       resetForm();
+      notify.success('Coupon Updated', `Coupon code "${res?.code || 'Coupon'}" updated.`);
     },
+    onError: (err) => notify.apiError(err, 'Failed to update coupon.')
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => couponService.toggleActive(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coupons'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
+      notify.success('Status Updated', 'Coupon activation state changed.');
+    },
+    onError: (err) => notify.apiError(err, 'Failed to toggle coupon status.')
   });
 
   const duplicateMutation = useMutation({
     mutationFn: (id: string) => couponService.duplicate(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coupons'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
+      notify.success('Coupon Duplicated', 'A cloned coupon draft was created.');
+    },
+    onError: (err) => notify.apiError(err, 'Failed to duplicate coupon.')
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => couponService.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coupons'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
+      notify.success('Coupon Deleted', `Coupon "${couponToDelete?.code || 'Coupon'}" was removed.`);
+      setCouponToDelete(null);
+    },
+    onError: (err) => notify.apiError(err, 'Failed to delete coupon.')
   });
 
   const resetForm = () => {
@@ -303,11 +323,7 @@ export function CouponsList() {
                           size="icon" 
                           variant="ghost" 
                           title="Delete Coupon"
-                          onClick={() => {
-                            if (confirm(`Delete coupon ${coupon.code}?`)) {
-                              deleteMutation.mutate(coupon.id);
-                            }
-                          }}
+                          onClick={() => setCouponToDelete(coupon)}
                         >
                           <Trash2 className="h-4 w-4 text-rose-500" />
                         </Button>
@@ -466,6 +482,21 @@ export function CouponsList() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!couponToDelete}
+        onOpenChange={(open) => !open && setCouponToDelete(null)}
+        title="Delete Coupon"
+        description={
+          <>
+            Are you sure you want to permanently delete coupon <strong>{couponToDelete?.code}</strong>? Any active carts using this code will no longer receive the discount.
+          </>
+        }
+        confirmText="Delete Coupon"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => couponToDelete && deleteMutation.mutate(couponToDelete.id)}
+      />
     </div>
   );
 }

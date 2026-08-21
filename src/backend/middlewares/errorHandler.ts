@@ -61,6 +61,11 @@ export const errorHandler = (
     message = "Invalid or expired authentication token.";
   }
 
+  // Sanitize internal server errors in production
+  if (isProd && statusCode === 500) {
+    message = "An unexpected server error occurred. Please contact the administrator if this persists.";
+  }
+
   // Clean up paths in production
   if (isProd && typeof message === "string") {
     message = message.replace(/\/[\w\-\.\/]+/g, "[path]");

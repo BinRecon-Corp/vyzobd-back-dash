@@ -25,6 +25,8 @@ import {
   Cloud,
   FileCheck
 } from 'lucide-react';
+import { ConfirmDialog } from '../../../components/common/ConfirmDialog';
+import { notify } from '../../../lib/notify';
 
 const FOLDERS = [
   { id: 'all', label: 'All Media' },
@@ -51,6 +53,8 @@ export function MediaLibrary() {
   // Selection & Batch Delete
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+  const [assetToDelete, setAssetToDelete] = useState<{ id: string; filename?: string } | null>(null);
+  const [isBatchDeleteConfirmOpen, setIsBatchDeleteConfirmOpen] = useState(false);
 
   // Upload States
   const [dragActive, setDragActive] = useState(false);
@@ -105,11 +109,10 @@ export function MediaLibrary() {
       } else {
         await mediaService.uploadMultiple(fileArray, selectedFolder === 'all' ? 'media' : selectedFolder);
       }
-      setUploadSuccess(`Successfully uploaded ${fileArray.length} file(s)!`);
+      notify.success('Upload Complete', `Successfully uploaded ${fileArray.length} file(s) to ${selectedFolder === 'all' ? 'media' : selectedFolder}.`);
       queryClient.invalidateQueries({ queryKey: ['media-assets'] });
-      setTimeout(() => setUploadSuccess(null), 3000);
     } catch (err: any) {
-      setUploadError(err.message || 'Upload failed');
+      notify.apiError(err, 'Asset upload failed');
     } finally {
       setIsUploading(false);
     }
@@ -136,32 +139,45 @@ export function MediaLibrary() {
   };
 
   // Single Delete
-  const handleDeleteSingle = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this asset?')) return;
+  const handleDeleteSingle = (id: string, filename?: string) => {
+    setAssetToDelete({ id, filename });
+  };
+
+  const confirmDeleteSingle = async () => {
+    if (!assetToDelete) return;
     try {
-      await mediaService.deleteAsset(id);
+      await mediaService.deleteAsset(assetToDelete.id);
       queryClient.invalidateQueries({ queryKey: ['media-assets'] });
-      if (activeAsset?.id === id) setActiveAsset(null);
-      setSelectedIds((prev) => prev.filter((i) => i !== id));
+      if (activeAsset?.id === assetToDelete.id) setActiveAsset(null);
+      setSelectedIds((prev) => prev.filter((i) => i !== assetToDelete.id));
+      notify.success('Asset Deleted', `Media asset was removed.`);
+      setAssetToDelete(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to delete asset');
+      notify.apiError(err, 'Failed to delete asset');
+      setAssetToDelete(null);
     }
   };
 
   // Batch Delete
-  const handleBatchDelete = async () => {
+  const handleBatchDelete = () => {
     if (selectedIds.length === 0) return;
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected asset(s)?`)) return;
+    setIsBatchDeleteConfirmOpen(true);
+  };
 
+  const confirmBatchDelete = async () => {
     setIsBatchDeleting(true);
     try {
       for (const id of selectedIds) {
         await mediaService.deleteAsset(id);
       }
+      const count = selectedIds.length;
       setSelectedIds([]);
       queryClient.invalidateQueries({ queryKey: ['media-assets'] });
+      notify.success('Batch Delete Complete', `${count} asset(s) deleted successfully.`);
+      setIsBatchDeleteConfirmOpen(false);
     } catch (err: any) {
-      alert(err.message || 'Error during batch delete');
+      notify.apiError(err, 'Error during batch delete');
+      setIsBatchDeleteConfirmOpen(false);
     } finally {
       setIsBatchDeleting(false);
     }
@@ -234,7 +250,7 @@ export function MediaLibrary() {
         <div
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
-          onOver={handleDrag}
+          onDragOver={handleDrag}
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer bg-muted/20 ${
             dragActive ? 'border-primary bg-primary/10' : 'border-muted-foreground/30 hover:border-primary'
@@ -426,7 +442,7 @@ export function MediaLibrary() {
                       </button>
                       {canDelete && (
                         <button
-                          onClick={() => handleDeleteSingle(asset.id)}
+                          onClick={() => handleDeleteSingle(asset.id, asset.filename)}
                           className="p-1 hover:text-red-600"
                           title="Delete"
                         >
@@ -521,7 +537,7 @@ export function MediaLibrary() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteSingle(asset.id)}
+                            onClick={() => handleDeleteSingle(asset.id, asset.filename)}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                             title="Delete"
                           >
@@ -627,7 +643,7 @@ export function MediaLibrary() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => handleDeleteSingle(activeAsset.id)}
+                  onClick={() => handleDeleteSingle(activeAsset.id, activeAsset.filename)}
                   className="gap-1.5"
                 >
                   <Trash2 className="h-4 w-4" /> Delete Asset
@@ -640,6 +656,37 @@ export function MediaLibrary() {
           </div>
         </div>
       )}
+
+      {/* Single Asset Delete Dialog */}
+      <ConfirmDialog
+        isOpen={!!assetToDelete}
+        onOpenChange={(open) => !open && setAssetToDelete(null)}
+        title="Delete Media Asset"
+        description={
+          <>
+            Are you sure you want to delete {assetToDelete?.filename ? <strong>"{assetToDelete.filename}"</strong> : 'this asset'}? This action cannot be undone.
+          </>
+        }
+        confirmText="Delete Asset"
+        variant="destructive"
+        onConfirm={confirmDeleteSingle}
+      />
+
+      {/* Batch Delete Dialog */}
+      <ConfirmDialog
+        isOpen={isBatchDeleteConfirmOpen}
+        onOpenChange={(open) => !open && setIsBatchDeleteConfirmOpen(false)}
+        title="Batch Delete Media Assets"
+        description={
+          <>
+            Are you sure you want to permanently delete <strong>{selectedIds.length}</strong> selected asset(s)?
+          </>
+        }
+        confirmText={`Delete ${selectedIds.length} Assets`}
+        variant="destructive"
+        isLoading={isBatchDeleting}
+        onConfirm={confirmBatchDelete}
+      />
     </div>
   );
 }

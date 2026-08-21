@@ -24,6 +24,7 @@ import { getOrders, updateOrderStatus } from "../../../services/order.service";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { useAuth } from "../../../context/AuthContext";
+import { notify } from "../../../lib/notify";
 
 export function OrdersList() {
   const navigate = useNavigate();
@@ -112,9 +113,10 @@ export function OrdersList() {
         paymentStatus: newPaymentStatus,
       });
       setStatusModalOpen(false);
+      notify.success("Order Updated", `Order #${selectedOrder.orderNumber || selectedOrder.id.slice(0, 8)} status set to ${newStatus}.`);
       fetchOrders();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update status.");
+      notify.apiError(err, "Failed to update order status.");
     } finally {
       setUpdating(false);
     }

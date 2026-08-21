@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/ca
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
+import { notify } from "../../lib/notify";
 import {
   ArrowLeft,
   Save,
@@ -75,16 +76,10 @@ export function RolePermissions() {
       setInitialPermissions([...selectedPermissions]);
       setIsDirty(false);
       setShowSelfLockoutWarningDialog(false);
-      setSaveSuccessMessage("Role permissions successfully saved and active user sessions refreshed.");
-      setTimeout(() => setSaveSuccessMessage(null), 5000);
+      notify.success("Permissions Updated", `Permissions matrix for "${role?.name || "Role"}" saved successfully.`);
     },
     onError: (err: any) => {
-      alert(
-        err?.response?.data?.message ||
-          err?.response?.data?.error?.message ||
-          err?.message ||
-          "Failed to update role permissions"
-      );
+      notify.apiError(err, "Failed to update role permissions.");
     },
   });
 

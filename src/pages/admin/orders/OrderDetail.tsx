@@ -28,6 +28,7 @@ import { getUsers } from "../../../services/user.service";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { useAuth } from "../../../context/AuthContext";
+import { notify } from "../../../lib/notify";
 
 export function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -95,9 +96,9 @@ export function OrderDetail() {
         paymentStatus: newPaymentStatus,
       });
       setOrder(updated);
-      alert("Order status updated successfully!");
+      notify.success("Order Updated", `Status changed to ${newStatus} (${newPaymentStatus}).`);
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to update status.");
+      notify.apiError(err, "Failed to update order status.");
     } finally {
       setUpdatingStatus(false);
     }
@@ -109,9 +110,9 @@ export function OrderDetail() {
       const updated = await assignOrderStaff(id, staffId || null);
       setOrder(updated);
       setSelectedStaff(staffId);
-      alert("Staff assignment updated!");
+      notify.success("Staff Assigned", staffId ? "Staff member has been assigned to this order." : "Staff assignment removed.");
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to assign staff.");
+      notify.apiError(err, "Failed to assign staff.");
     }
   };
 
@@ -122,9 +123,10 @@ export function OrderDetail() {
     try {
       await addOrderNote(id, newNote);
       setNewNote("");
+      notify.success("Note Added", "Internal order note recorded.");
       fetchOrderDetails();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to add note.");
+      notify.apiError(err, "Failed to add internal note.");
     } finally {
       setSubmittingNote(false);
     }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
@@ -10,11 +10,14 @@ import { Plus, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { getBrands, deleteBrand } from '../../services/brand.service';
 import { PermissionGuard } from '../../components/layout/PermissionGuard';
 import { useAuth } from '../../context/AuthContext';
+import { ConfirmDialog } from '../../components/common/ConfirmDialog';
+import { notify } from '../../lib/notify';
 
 export function BrandList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
+  const [brandToDelete, setBrandToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ['brands'],
@@ -25,15 +28,17 @@ export function BrandList() {
     mutationFn: deleteBrand,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
+      notify.success('Brand Deleted', `"${brandToDelete?.name || 'Brand'}" was deleted.`);
+      setBrandToDelete(null);
     },
     onError: (err: any) => {
-      alert(err.response?.data?.error?.message || 'Failed to delete brand');
+      notify.apiError(err, 'Failed to delete brand.');
     }
   });
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this brand?')) {
-      deleteMutation.mutate(id);
+  const handleConfirmDelete = () => {
+    if (brandToDelete) {
+      deleteMutation.mutate(brandToDelete.id);
     }
   };
 
@@ -110,7 +115,7 @@ export function BrandList() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" aria-label={`Actions for ${brand.name}`}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -123,7 +128,7 @@ export function BrandList() {
                             )}
                             {hasDelete && (
                               <DropdownMenuItem 
-                                onClick={() => handleDelete(brand.id)}
+                                onClick={() => setBrandToDelete({ id: brand.id, name: brand.name })}
                                 className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -141,7 +146,23 @@ export function BrandList() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        isOpen={!!brandToDelete}
+        onOpenChange={(open) => !open && setBrandToDelete(null)}
+        title="Delete Brand"
+        description={
+          <>
+            Are you sure you want to delete brand <strong>{brandToDelete?.name}</strong>? Any associated product links will be unassigned.
+          </>
+        }
+        confirmText="Delete Brand"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
+
 
