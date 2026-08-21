@@ -264,11 +264,13 @@ export class AdminShipmentService {
             include: { customer: true, items: true }
           });
           
-          if (fullOrder && fullOrder.customer && fullOrder.customer.email) {
+          const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+          if (fullOrder && orderEmail) {
+            const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
             if (status === "SHIPPED") {
-              emailService.sendOrderShippedEmail(fullOrder.customer, updatedShipmentTransaction, fullOrder).catch(() => {});
+              emailService.sendOrderShippedEmail(emailRecipient, updatedShipmentTransaction, fullOrder).catch(() => {});
             } else if (status === "DELIVERED") {
-              emailService.sendOrderDeliveredEmail(fullOrder.customer, updatedShipmentTransaction, fullOrder).catch(() => {});
+              emailService.sendOrderDeliveredEmail(emailRecipient, updatedShipmentTransaction, fullOrder).catch(() => {});
             }
           }
         }

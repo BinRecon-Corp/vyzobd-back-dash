@@ -84,7 +84,7 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             
             <Route path="/" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-              <Route index element={<Dashboard />} />
+              <Route index element={<RoutePermissionGuard module="Dashboard" action="read"><Dashboard /></RoutePermissionGuard>} />
               
               <Route path="products" element={<RoutePermissionGuard module="Products" action="read"><Products /></RoutePermissionGuard>} />
               <Route path="products/new" element={<RoutePermissionGuard module="Products" action="write"><ProductCreate /></RoutePermissionGuard>} />
@@ -126,7 +126,7 @@ export default function App() {
               <Route path="admin/faqs" element={<RoutePermissionGuard module="FAQ" action="read"><FaqManagement /></RoutePermissionGuard>} />
               
               <Route path="analytics" element={<RoutePermissionGuard module="Analytics" action="read"><Analytics /></RoutePermissionGuard>} />
-              <Route path="analytics/ga4-example" element={<GA4Example />} />
+              <Route path="analytics/ga4-example" element={<RoutePermissionGuard module="Analytics" action="read"><GA4Example /></RoutePermissionGuard>} />
               
               <Route path="inventory" element={<RoutePermissionGuard module="Inventory" action="read"><Inventory /></RoutePermissionGuard>} />
               

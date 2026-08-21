@@ -15,6 +15,7 @@ import { swaggerSpec } from "./src/backend/config/swagger";
 import authRouter from "./src/backend/routes/auth.routes";
 import notificationRouter from "./src/backend/routes/notification.routes";
 import analyticsRouter from "./src/backend/routes/analytics.routes";
+import dashboardRouter from "./src/backend/routes/dashboard.routes";
 import productRouter from "./src/backend/routes/product.routes";
 import categoryRouter from "./src/backend/routes/category.routes";
 import brandRouter from "./src/backend/routes/brand.routes";
@@ -193,6 +194,7 @@ async function startServer() {
   
   // Mount routes
   apiRouter.use("/auth", authRouter);
+  apiRouter.use("/dashboard", dashboardRouter);
   apiRouter.use("/analytics", analyticsRouter);
   apiRouter.use("/notifications", notificationRouter);
   apiRouter.use("/products", productRouter);

@@ -71,8 +71,11 @@ export const updateSecuritySettingsSchema = z.object({
 });
 
 export const updateShippingSettingsSchema = z.object({
+  insideDhakaCharge: z.number().min(0).optional(),
+  outsideDhakaCharge: z.number().min(0).optional(),
   defaultShippingCost: z.number().min(0).optional(),
-  freeShippingThreshold: z.number().min(0).optional(),
+  freeShippingThreshold: z.number().min(0).nullable().optional(),
+  freeShippingEnabled: z.boolean().optional(),
   enableFreeShipping: z.boolean().optional(),
 });
 

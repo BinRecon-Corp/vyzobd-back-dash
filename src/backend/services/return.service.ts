@@ -1,4 +1,5 @@
 import { prisma } from "../config/db";
+import { emailService } from "./email.service";
 import { AppError } from "../utils/AppError";
 import { ReturnStatus, NotificationType, NotificationChannel } from "@prisma/client";
 
@@ -87,7 +88,7 @@ export class AdminReturnService {
     if (!returnReq) throw new AppError("Return not found", 404, "RETURN_NOT_FOUND");
     if (returnReq.status !== "REQUESTED") throw new AppError("Only REQUESTED returns can be approved", 400, "INVALID_STATUS");
 
-    return await prisma.$transaction(async (tx) => {
+    const updatedTransaction = await prisma.$transaction(async (tx) => {
       const updated = await tx.returnRequest.update({
         where: { id },
         data: { status: ReturnStatus.APPROVED, adminNotes }
@@ -110,8 +111,26 @@ export class AdminReturnService {
         }
       });
 
+      
       return updated;
     });
+
+    try {
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: returnReq.orderId },
+        include: { customer: true }
+      });
+      const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+      if (fullOrder && orderEmail) {
+        const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+        // Email sending requires determining status
+        if (updatedTransaction.status === "APPROVED") emailService.sendReturnApprovedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+        else if (updatedTransaction.status === "REJECTED") emailService.sendReturnRejectedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+        else if (updatedTransaction.status === "RECEIVED") emailService.sendReturnReceivedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+      }
+    } catch (e) {}
+
+    return updatedTransaction;
   }
 
   static async rejectReturn(id: string, adminNotes?: string) {
@@ -123,7 +142,7 @@ export class AdminReturnService {
     if (!returnReq) throw new AppError("Return not found", 404, "RETURN_NOT_FOUND");
     if (returnReq.status !== "REQUESTED") throw new AppError("Only REQUESTED returns can be rejected", 400, "INVALID_STATUS");
 
-    return await prisma.$transaction(async (tx) => {
+    const updatedTransaction = await prisma.$transaction(async (tx) => {
       const updated = await tx.returnRequest.update({
         where: { id },
         data: { status: ReturnStatus.REJECTED, adminNotes }
@@ -142,8 +161,26 @@ export class AdminReturnService {
         }
       });
 
+      
       return updated;
     });
+
+    try {
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: returnReq.orderId },
+        include: { customer: true }
+      });
+      const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+      if (fullOrder && orderEmail) {
+        const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+        // Email sending requires determining status
+        if (updatedTransaction.status === "APPROVED") emailService.sendReturnApprovedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+        else if (updatedTransaction.status === "REJECTED") emailService.sendReturnRejectedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+        else if (updatedTransaction.status === "RECEIVED") emailService.sendReturnReceivedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+      }
+    } catch (e) {}
+
+    return updatedTransaction;
   }
 
   static async receiveReturn(id: string, adminNotes?: string) {
@@ -155,7 +192,7 @@ export class AdminReturnService {
     if (!returnReq) throw new AppError("Return not found", 404, "RETURN_NOT_FOUND");
     if (returnReq.status !== "APPROVED") throw new AppError("Only APPROVED returns can be received", 400, "INVALID_STATUS");
 
-    return await prisma.$transaction(async (tx) => {
+    const updatedTransaction = await prisma.$transaction(async (tx) => {
       const updated = await tx.returnRequest.update({
         where: { id },
         data: { status: ReturnStatus.RECEIVED, adminNotes }
@@ -203,7 +240,25 @@ export class AdminReturnService {
         }
       });
 
+      
       return updated;
     });
+
+    try {
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: returnReq.orderId },
+        include: { customer: true }
+      });
+      const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+      if (fullOrder && orderEmail) {
+        const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+        // Email sending requires determining status
+        if (updatedTransaction.status === "APPROVED") emailService.sendReturnApprovedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+        else if (updatedTransaction.status === "REJECTED") emailService.sendReturnRejectedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+        else if (updatedTransaction.status === "RECEIVED") emailService.sendReturnReceivedEmail(emailRecipient, updatedTransaction, fullOrder).catch(()=>{});
+      }
+    } catch (e) {}
+
+    return updatedTransaction;
   }
 }

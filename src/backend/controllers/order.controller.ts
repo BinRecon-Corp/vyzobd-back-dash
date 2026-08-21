@@ -219,14 +219,16 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       req
     );
 
-    if (status && status !== existingOrder.status && updatedOrder.customer && updatedOrder.customer.email) {
+    const orderEmail = updatedOrder?.customer?.email || updatedOrder?.customerEmail;
+    if (status && status !== existingOrder.status && orderEmail) {
       try {
+        const emailRecipient = { email: orderEmail, firstName: updatedOrder.customer?.firstName || "Customer" };
         if (status === "Processing") {
-          emailService.sendOrderProcessingEmail(updatedOrder.customer, updatedOrder).catch(() => {});
+          emailService.sendOrderProcessingEmail(emailRecipient, updatedOrder).catch(() => {});
         } else if (status === "Confirmed") {
-          emailService.sendOrderConfirmedEmail(updatedOrder.customer, updatedOrder).catch(() => {});
+          emailService.sendOrderConfirmedEmail(emailRecipient, updatedOrder).catch(() => {});
         } else if (status === "Cancelled") {
-          emailService.sendOrderCancelledEmail(updatedOrder.customer, updatedOrder).catch(() => {});
+          emailService.sendOrderCancelledEmail(emailRecipient, updatedOrder).catch(() => {});
         }
       } catch (err) {
         console.error(`[Email Service] Failed to dispatch order status email for ${id}`);

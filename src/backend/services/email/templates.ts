@@ -262,3 +262,105 @@ export const getOrderDeliveredHtml = (displayName, shipment, order) => getBaseTe
     <p style="margin-top: 24px;">We hope you enjoy your purchase! If there are any issues with your order, please contact our support team.</p>
   `
 );
+
+
+export const getReturnRequestedHtml = (displayName, returnReq, order) => getBaseTemplate(
+  "Return Requested",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>We have received your return request for Order #${order.orderNumber}.</p>
+    <div style="margin-top: 24px; border: 1px solid #e4e4e7; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0;">Return Details</h3>
+      <p style="margin-bottom: 8px;"><strong>Return ID:</strong> ${returnReq.id.split('-')[0]}</p>
+      <p style="margin-bottom: 8px;"><strong>Status:</strong> Requested</p>
+      <p style="margin-bottom: 0;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+    </div>
+    <p style="margin-top: 24px;">Our team will review your request and get back to you shortly.</p>
+  `
+);
+
+export const getReturnApprovedHtml = (displayName, returnReq, order) => getBaseTemplate(
+  "Return Approved",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>Your return request for Order #${order.orderNumber} has been approved.</p>
+    <div style="margin-top: 24px; border: 1px solid #e4e4e7; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0;">Return Details</h3>
+      <p style="margin-bottom: 8px;"><strong>Return ID:</strong> ${returnReq.id.split('-')[0]}</p>
+      <p style="margin-bottom: 0;"><strong>Status:</strong> Approved</p>
+    </div>
+    <p style="margin-top: 24px;">Please follow the instructions provided by our support team to send the item(s) back.</p>
+  `
+);
+
+export const getReturnRejectedHtml = (displayName, returnReq, order) => getBaseTemplate(
+  "Return Rejected",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>We have reviewed your return request for Order #${order.orderNumber}, but unfortunately it has been rejected.</p>
+    <div style="margin-top: 24px; border: 1px solid #fee2e2; background-color: #fef2f2; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0; color: #b91c1c;">Return Details</h3>
+      <p style="margin-bottom: 8px; color: #991b1b;"><strong>Return ID:</strong> ${returnReq.id.split('-')[0]}</p>
+      <p style="margin-bottom: 0; color: #991b1b;"><strong>Status:</strong> Rejected</p>
+    </div>
+    ${returnReq.adminNotes ? `<p style="margin-top: 16px;"><strong>Reason:</strong> ${returnReq.adminNotes}</p>` : ''}
+    <p style="margin-top: 24px;">If you have any questions, please contact our support team.</p>
+  `
+);
+
+export const getReturnReceivedHtml = (displayName, returnReq, order) => getBaseTemplate(
+  "Return Received",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>We have successfully received the returned item(s) for Order #${order.orderNumber}.</p>
+    <div style="margin-top: 24px; border: 1px solid #e4e4e7; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0;">Return Details</h3>
+      <p style="margin-bottom: 8px;"><strong>Return ID:</strong> ${returnReq.id.split('-')[0]}</p>
+      <p style="margin-bottom: 0;"><strong>Status:</strong> Received</p>
+    </div>
+    <p style="margin-top: 24px;">We will process your refund or replacement as per our policy shortly.</p>
+  `
+);
+
+export const getRefundRequestedHtml = (displayName, refund, order) => getBaseTemplate(
+  "Refund Requested",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>We have received your refund request for Order #${order.orderNumber}.</p>
+    <div style="margin-top: 24px; border: 1px solid #e4e4e7; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0;">Refund Details</h3>
+      <p style="margin-bottom: 8px;"><strong>Amount:</strong> ${refund.currency} ${Number(refund.amount).toFixed(2)}</p>
+      <p style="margin-bottom: 8px;"><strong>Status:</strong> Pending Review</p>
+      <p style="margin-bottom: 0;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+    </div>
+    <p style="margin-top: 24px;">Our team will review your request and process it shortly.</p>
+  `
+);
+
+export const getRefundCompletedHtml = (displayName, refund, order) => getBaseTemplate(
+  "Refund Completed",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>Your refund for Order #${order.orderNumber} has been successfully processed.</p>
+    <div style="margin-top: 24px; border: 1px solid #e4e4e7; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0;">Refund Details</h3>
+      <p style="margin-bottom: 8px;"><strong>Amount:</strong> ${refund.currency} ${Number(refund.amount).toFixed(2)}</p>
+      <p style="margin-bottom: 0;"><strong>Status:</strong> Completed</p>
+    </div>
+    <p style="margin-top: 24px;">Please allow a few business days for the amount to reflect in your original payment method.</p>
+  `
+);
+
+export const getRefundRejectedHtml = (displayName, refund, order) => getBaseTemplate(
+  "Refund Rejected",
+  `
+    <h2>Hi ${displayName},</h2>
+    <p>We have reviewed your refund request for Order #${order.orderNumber}, but unfortunately it has been rejected.</p>
+    <div style="margin-top: 24px; border: 1px solid #fee2e2; background-color: #fef2f2; border-radius: 6px; padding: 16px;">
+      <h3 style="margin-top: 0; color: #b91c1c;">Refund Details</h3>
+      <p style="margin-bottom: 8px; color: #991b1b;"><strong>Amount:</strong> ${refund.currency} ${Number(refund.amount).toFixed(2)}</p>
+      <p style="margin-bottom: 0; color: #991b1b;"><strong>Status:</strong> Rejected</p>
+    </div>
+    <p style="margin-top: 24px;">If you have any questions, please contact our support team.</p>
+  `
+);

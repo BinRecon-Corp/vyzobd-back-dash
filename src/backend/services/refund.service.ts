@@ -1,4 +1,5 @@
 import { prisma } from "../config/db";
+import { emailService } from "./email.service";
 import { AppError } from "../utils/AppError";
 import { Prisma, RefundStatus } from "@prisma/client";
 import { MeasurementProtocolService } from "./measurement-protocol.service";
@@ -6,7 +7,7 @@ import { MeasurementProtocolService } from "./measurement-protocol.service";
 export class AdminRefundService {
   static async processRefund(refundId: string, approve: boolean, providerReference?: string) {
     if (!approve) {
-      return await prisma.$transaction(async (tx) => {
+      const rejectedTransaction = await prisma.$transaction(async (tx) => {
         const refund = await tx.refund.findUnique({ where: { id: refundId } });
         if (!refund) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
         if (refund.status !== RefundStatus.PENDING) {
@@ -26,12 +27,27 @@ export class AdminRefundService {
           },
         });
 
+        
         return rejectedRefund;
       });
+
+      try {
+        const fullOrder = await prisma.order.findUnique({
+          where: { id: rejectedTransaction.orderId },
+          include: { customer: true }
+        });
+        const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+        if (fullOrder && orderEmail) {
+          const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+          emailService.sendRefundRejectedEmail(emailRecipient, rejectedTransaction, fullOrder).catch(() => {});
+        }
+      } catch (e) {}
+      return rejectedTransaction;
+
     }
 
     // Process approval
-    return await prisma.$transaction(async (tx) => {
+    const completedTransaction = await prisma.$transaction(async (tx) => {
       const refund = await tx.refund.findUnique({ 
         where: { id: refundId },
         include: { payment: true, order: true },
@@ -99,8 +115,22 @@ export class AdminRefundService {
         });
       }
 
+      
       return completedRefund;
     });
+
+    try {
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: completedTransaction.orderId },
+        include: { customer: true }
+      });
+      const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+      if (fullOrder && orderEmail) {
+        const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+        emailService.sendRefundCompletedEmail(emailRecipient, completedTransaction, fullOrder).catch(() => {});
+      }
+    } catch (e) {}
+    return completedTransaction;
   }
 
   static async initiateAdminRefund(orderId: string, paymentId: string, amount: string | number | Prisma.Decimal, reason: string) {

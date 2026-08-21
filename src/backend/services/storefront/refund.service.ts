@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db";
+import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
 import { Prisma, RefundStatus } from "@prisma/client";
 import { mapRefundToStorefrontDTO } from "../../dtos/storefront/mappers";
@@ -51,7 +52,7 @@ export class StorefrontRefundService {
       throw new AppError("A refund request is already pending for this payment", 400, "REFUND_ALREADY_PENDING");
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const refundTransaction = await prisma.$transaction(async (tx) => {
       const refund = await tx.refund.create({
         data: {
           paymentId: payment.id,
@@ -80,8 +81,22 @@ export class StorefrontRefundService {
         },
       });
 
-      return mapRefundToStorefrontDTO(refund);
+      
+      return refund;
     });
+
+    try {
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: { customer: true }
+      });
+      const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+      if (fullOrder && orderEmail) {
+        const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+        emailService.sendRefundRequestedEmail(emailRecipient, refundTransaction, fullOrder).catch(() => {});
+      }
+    } catch (e) {}
+    return mapRefundToStorefrontDTO(refundTransaction);
   }
 
   static async getCustomerRefunds(customerId: string) {

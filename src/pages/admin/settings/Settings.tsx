@@ -485,29 +485,72 @@ export function Settings() {
 
                 {/* SHIPPING TAB */}
                 {activeTab === "Shipping" && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Default Shipping Cost ($)</label>
-                        <Input name="defaultShippingCost" type="number" step="0.01" value={formData.defaultShippingCost ?? 0} onChange={handleChange} />
+                        <label className="text-sm font-medium mb-1 block">Inside Dhaka Shipping Charge (BDT)</label>
+                        <Input
+                          name="insideDhakaCharge"
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={formData.insideDhakaCharge ?? 60}
+                          onChange={handleChange}
+                          placeholder="60"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Standard delivery charge for orders inside Dhaka city.</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium mb-1 block">Free Shipping Minimum Threshold ($)</label>
-                        <Input name="freeShippingThreshold" type="number" step="0.01" value={formData.freeShippingThreshold || ""} onChange={handleChange} placeholder="99.00" />
+                        <label className="text-sm font-medium mb-1 block">Outside Dhaka Shipping Charge (BDT)</label>
+                        <Input
+                          name="outsideDhakaCharge"
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={formData.outsideDhakaCharge ?? 120}
+                          onChange={handleChange}
+                          placeholder="120"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Standard delivery charge for orders outside Dhaka.</p>
                       </div>
                     </div>
 
-                    <div className="pt-2">
-                      <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
-                        <input
-                          type="checkbox"
-                          name="enableFreeShipping"
-                          checked={formData.enableFreeShipping ?? false}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Free Shipping Minimum Threshold (BDT)</label>
+                        <Input
+                          name="freeShippingThreshold"
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={formData.freeShippingThreshold ?? 2000}
                           onChange={handleChange}
-                          className="rounded border-input text-primary focus:ring-primary"
+                          placeholder="2000"
                         />
-                        Enable Free Shipping Rule Above Threshold
-                      </label>
+                        <p className="text-xs text-muted-foreground mt-1">Cart subtotal amount required to waive shipping charges.</p>
+                      </div>
+                      <div className="flex flex-col justify-end">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm font-medium p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-900">
+                          <input
+                            type="checkbox"
+                            name="freeShippingEnabled"
+                            checked={formData.freeShippingEnabled ?? formData.enableFreeShipping ?? true}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setFormData((prev: any) => ({
+                                ...prev,
+                                freeShippingEnabled: checked,
+                                enableFreeShipping: checked,
+                              }));
+                            }}
+                            className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                          />
+                          <div>
+                            <span className="block font-medium">Enable Free Shipping Rule</span>
+                            <span className="text-xs text-muted-foreground font-normal">Apply free shipping automatically when subtotal reaches the threshold</span>
+                          </div>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}

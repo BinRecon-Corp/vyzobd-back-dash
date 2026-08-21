@@ -454,6 +454,7 @@ model Order {
   orderNumber              String                  @unique
   customerId               String?
   customer                 Customer?                @relation(fields: [customerId], references: [id])
+  customerEmail            String?
   status                   String                  @default("Pending")
   paymentStatus            String                  @default("Unpaid")
   totalAmount              Decimal
@@ -1454,9 +1455,12 @@ model SecuritySetting {
 
 model ShippingSetting {
   id                    String   @id @default(uuid())
-  defaultShippingCost   Float    @default(0)
-  freeShippingThreshold Float?
-  enableFreeShipping    Boolean  @default(false)
+  insideDhakaCharge     Float    @default(60)
+  outsideDhakaCharge    Float    @default(120)
+  defaultShippingCost   Float    @default(60)
+  freeShippingThreshold Float?   @default(2000)
+  freeShippingEnabled   Boolean  @default(true)
+  enableFreeShipping    Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }

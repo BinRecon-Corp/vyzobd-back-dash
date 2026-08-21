@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db";
+import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
 import { ReturnStatus } from "@prisma/client";
 import { mapReturnRequestToStorefrontDTO } from "../../dtos/storefront/mappers";
@@ -38,7 +39,7 @@ export class StorefrontReturnService {
       }
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const returnRequestTransaction = await prisma.$transaction(async (tx) => {
       const returnRequest = await tx.returnRequest.create({
         data: {
           orderId,
@@ -61,8 +62,22 @@ export class StorefrontReturnService {
         data: { orderId, status: order.status, action: "RETURN_REQUESTED" }
       });
 
-      return mapReturnRequestToStorefrontDTO(returnRequest);
+      
+      return returnRequest;
     });
+
+    try {
+      const fullOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { customer: true }
+      });
+      const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+      if (fullOrder && orderEmail) {
+        const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
+        emailService.sendReturnRequestedEmail(emailRecipient, returnRequestTransaction, fullOrder).catch(() => {});
+      }
+    } catch (e) {}
+    return mapReturnRequestToStorefrontDTO(returnRequestTransaction);
   }
 
   static async getReturns(customerId: string) {

@@ -221,12 +221,14 @@ export class StorefrontPaymentService {
           where: { id: payment.orderId },
           include: { customer: true, items: true }
         });
-        if (fullOrder && fullOrder.customer && fullOrder.customer.email) {
+        const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+        if (fullOrder && orderEmail) {
+          const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
           if (isSuccess) {
-            emailService.sendPaymentSuccessEmail(fullOrder.customer, result, fullOrder).catch(() => {});
-            emailService.sendOrderProcessingEmail(fullOrder.customer, fullOrder).catch(() => {});
+            emailService.sendPaymentSuccessEmail(emailRecipient, result, fullOrder).catch(() => {});
+            emailService.sendOrderProcessingEmail(emailRecipient, fullOrder).catch(() => {});
           } else {
-            emailService.sendPaymentFailedEmail(fullOrder.customer, result, fullOrder).catch(() => {});
+            emailService.sendPaymentFailedEmail(emailRecipient, result, fullOrder).catch(() => {});
           }
         }
       } catch (err) {}
@@ -344,15 +346,17 @@ export class StorefrontPaymentService {
             include: { customer: true, items: true }
           });
           
-          if (fullOrder && fullOrder.customer && fullOrder.customer.email) {
+          const orderEmail = fullOrder?.customer?.email || fullOrder?.customerEmail;
+          if (fullOrder && orderEmail) {
+            const emailRecipient = { email: orderEmail, firstName: fullOrder.customer?.firstName || "Customer" };
             // Need to get the updated payment object to pass to email service
             const updatedPayment = await prisma.payment.findUnique({ where: { id: payment.id } });
             
             if (isSuccess) {
-              emailService.sendPaymentSuccessEmail(fullOrder.customer, updatedPayment, fullOrder).catch(() => {});
-              emailService.sendOrderProcessingEmail(fullOrder.customer, fullOrder).catch(() => {});
+              emailService.sendPaymentSuccessEmail(emailRecipient, updatedPayment, fullOrder).catch(() => {});
+              emailService.sendOrderProcessingEmail(emailRecipient, fullOrder).catch(() => {});
             } else {
-              emailService.sendPaymentFailedEmail(fullOrder.customer, updatedPayment, fullOrder).catch(() => {});
+              emailService.sendPaymentFailedEmail(emailRecipient, updatedPayment, fullOrder).catch(() => {});
             }
           }
         } catch (err) {}

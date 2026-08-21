@@ -28,7 +28,7 @@ export class StorefrontCheckoutService {
    * Retrieves or initializes the checkout session details and calculates all fees.
    * Never trusts the frontend, calculates everything dynamically.
    */
-  static async getCheckoutSession(identifier: CartIdentifier) {
+  static async getCheckoutSession(identifier: CartIdentifier, guestShippingAddress?: any) {
     const cart = await prisma.cart.findFirst({
       where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
       include: {
@@ -200,10 +200,10 @@ export class StorefrontCheckoutService {
     }
 
     // 3. Address validations
-    let shippingAddress = null;
+    let shippingAddress = guestShippingAddress || null;
     let billingAddress = null;
 
-    if (cart.shippingAddressId) {
+    if (!shippingAddress && cart.shippingAddressId) {
       shippingAddress = await prisma.customerAddress.findFirst({
         where: identifier.customerId ? { id: cart.shippingAddressId, customerId: identifier.customerId } : { id: cart.shippingAddressId },
       });
@@ -215,9 +215,30 @@ export class StorefrontCheckoutService {
       });
     }
 
-    // 4. Calculate Shipping Fees (flat shipping rate, free shipping if subtotal >= 150 or free_shipping coupon applied)
+    // 4. Calculate Shipping Fees using ShippingSetting as single source of truth
+    const shippingSetting = await prisma.shippingSetting.findFirst();
+    const insideDhakaCharge = shippingSetting?.insideDhakaCharge ?? 60;
+    const outsideDhakaCharge = shippingSetting?.outsideDhakaCharge ?? 120;
+    const freeShippingThreshold = shippingSetting?.freeShippingThreshold !== null && shippingSetting?.freeShippingThreshold !== undefined
+      ? Number(shippingSetting.freeShippingThreshold)
+      : 2000;
+    const freeShippingEnabled = Boolean(shippingSetting?.freeShippingEnabled ?? shippingSetting?.enableFreeShipping ?? true);
+
+    let baseShippingRate = insideDhakaCharge;
+    if (shippingAddress) {
+      const city = (shippingAddress.city || "").toLowerCase().trim();
+      const state = (shippingAddress.state || "").toLowerCase().trim();
+      const address1 = (shippingAddress.address1 || shippingAddress.address || "").toLowerCase().trim();
+      const isDhaka = city.includes("dhaka") || state.includes("dhaka") || address1.includes("dhaka");
+      if (city || state || address1) {
+        baseShippingRate = isDhaka ? insideDhakaCharge : outsideDhakaCharge;
+      }
+    }
+
     const isFreeShippingCoupon = cart.couponId && appliedCoupon?.discountType === "free_shipping";
-    const shipping = subtotal.gte(150) || isFreeShippingCoupon ? new Prisma.Decimal(0) : new Prisma.Decimal(15);
+    const qualifiesForFreeShipping = freeShippingEnabled && freeShippingThreshold !== null && subtotal.gte(new Prisma.Decimal(freeShippingThreshold));
+    const isFreeShipping = isFreeShippingCoupon || qualifiesForFreeShipping;
+    const shipping = isFreeShipping ? new Prisma.Decimal(0) : new Prisma.Decimal(baseShippingRate);
 
     // 5. Calculate Tax Rate (Flat 10% tax rate applied to net subtotal)
     const netSubtotal = Prisma.Decimal.max(0, subtotal.sub(discount));
@@ -308,7 +329,7 @@ export class StorefrontCheckoutService {
     }
 
     if (coupon.minOrderAmount !== null && cartSubtotal.lt(new Prisma.Decimal(coupon.minOrderAmount))) {
-      throw new AppError(`Minimum order amount of $${coupon.minOrderAmount} is required to apply this coupon`, 400, "MIN_AMOUNT_NOT_MET");
+      throw new AppError(`Minimum order amount of BDT ${coupon.minOrderAmount} is required to apply this coupon`, 400, "MIN_AMOUNT_NOT_MET");
     }
 
     // Update cart with applied coupon
@@ -383,7 +404,7 @@ export class StorefrontCheckoutService {
     }
 
     // 1. Load active checkout session (validates active products, variant statuses, and current stock)
-    const session = await this.getCheckoutSession(identifier);
+    const session = await this.getCheckoutSession(identifier, shippingAddressObj);
 
     let finalShippingAddress = shippingAddressObj || session.shippingAddress;
     let finalBillingAddress = (billingAddressObj && billingAddressObj.sameAsShipping === true)
@@ -537,6 +558,7 @@ export class StorefrontCheckoutService {
           status: "Pending",
           paymentStatus: "Unpaid",
           totalAmount: session.grandTotal,
+          customerEmail: (finalShippingAddress && finalShippingAddress.email) || (finalBillingAddress && finalBillingAddress.email) || null,
           subtotal: session.subtotal,
           taxAmount: session.tax,
           shippingFee: session.shipping,
@@ -622,23 +644,18 @@ export class StorefrontCheckoutService {
             });
           }
         }
-      } else if (order.shippingAddress) {
-         // Maybe guest email is inside shipping address JSON string? It might have email inside. 
-         // Let's parse it and if email exists, send to it.
+      } else if (order.customerEmail) {
          try {
-           const parsedAddress = JSON.parse(order.shippingAddress);
-           if (parsedAddress && parsedAddress.email) {
-              const fullOrder = await prisma.order.findUnique({
-                where: { id: order.id },
-                include: { items: true }
+            const fullOrder = await prisma.order.findUnique({
+              where: { id: order.id },
+              include: { items: true }
+            });
+            if (fullOrder) {
+              const guestCustomer = { email: order.customerEmail, firstName: "Guest" };
+              emailService.sendOrderConfirmationEmail(guestCustomer, fullOrder).catch((err) => {
+                console.error(`[Email Service] Failed to send order confirmation to guest email ${guestCustomer.email}`);
               });
-              if (fullOrder) {
-                const guestCustomer = { email: parsedAddress.email, firstName: parsedAddress.fullName || "Guest" };
-                emailService.sendOrderConfirmationEmail(guestCustomer, fullOrder).catch((err) => {
-                  console.error(`[Email Service] Failed to send order confirmation to guest email ${guestCustomer.email}`);
-                });
-              }
-           }
+            }
          } catch(e) { }
       }
     } catch (err) {

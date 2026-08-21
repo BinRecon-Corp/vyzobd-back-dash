@@ -89,10 +89,17 @@ export class SettingService {
   static async getSMTP() {
     let setting = await prisma.sMTPSetting.findFirst();
     if (!setting) setting = await prisma.sMTPSetting.create({ data: {} });
-    return setting;
+    const result = { ...setting };
+    if (result.password) {
+      result.password = "********";
+    }
+    return result;
   }
 
   static async updateSMTP(data: any, userId: string) {
+    if (data.password === "********") {
+      delete data.password;
+    }
     let setting = await prisma.sMTPSetting.findFirst();
     if (setting) {
       setting = await prisma.sMTPSetting.update({ where: { id: setting.id }, data });
@@ -193,17 +200,47 @@ export class SettingService {
 
   static async getShipping() {
     let setting = await prisma.shippingSetting.findFirst();
-    if (!setting) setting = await prisma.shippingSetting.create({ data: {} });
-    return setting;
+    if (!setting) {
+      setting = await prisma.shippingSetting.create({
+        data: {
+          insideDhakaCharge: 60,
+          outsideDhakaCharge: 120,
+          defaultShippingCost: 60,
+          freeShippingThreshold: 2000,
+          freeShippingEnabled: true,
+          enableFreeShipping: true,
+        },
+      });
+    }
+    return {
+      ...setting,
+      insideDhakaCharge: setting.insideDhakaCharge ?? 60,
+      outsideDhakaCharge: setting.outsideDhakaCharge ?? 120,
+      freeShippingThreshold: setting.freeShippingThreshold !== null ? setting.freeShippingThreshold : 2000,
+      freeShippingEnabled: setting.freeShippingEnabled ?? setting.enableFreeShipping ?? true,
+      enableFreeShipping: setting.freeShippingEnabled ?? setting.enableFreeShipping ?? true,
+    };
   }
 
   static async updateShipping(data: any, userId: string) {
     let setting = await prisma.shippingSetting.findFirst();
+
+    // Synchronize boolean and cost alias fields
+    if (data.freeShippingEnabled !== undefined && data.enableFreeShipping === undefined) {
+      data.enableFreeShipping = data.freeShippingEnabled;
+    } else if (data.enableFreeShipping !== undefined && data.freeShippingEnabled === undefined) {
+      data.freeShippingEnabled = data.enableFreeShipping;
+    }
+    if (data.insideDhakaCharge !== undefined && data.defaultShippingCost === undefined) {
+      data.defaultShippingCost = data.insideDhakaCharge;
+    }
+
     if (setting) {
       setting = await prisma.shippingSetting.update({ where: { id: setting.id }, data });
     } else {
       setting = await prisma.shippingSetting.create({ data });
     }
+    StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
         userId,

@@ -16,11 +16,12 @@ export class StorefrontSettingService {
       return cachedPublicSettings;
     }
 
-    const [branding, seo, analytics, store] = await Promise.all([
+    const [branding, seo, analytics, store, shipping] = await Promise.all([
       prisma.brandingSetting.findFirst(),
       prisma.sEOSetting.findFirst(),
       prisma.analyticsSetting.findFirst(),
-      prisma.storeSetting.findFirst()
+      prisma.storeSetting.findFirst(),
+      prisma.shippingSetting.findFirst()
     ]);
 
     const result = {
@@ -76,7 +77,20 @@ export class StorefrontSettingService {
       store: store ? {
         whatsappOrderNumber: store.whatsappOrderNumber,
         callOrderNumber: store.callOrderNumber
-      } : null
+      } : null,
+      shipping: shipping ? {
+        insideDhakaCharge: Number(shipping.insideDhakaCharge ?? 60),
+        outsideDhakaCharge: Number(shipping.outsideDhakaCharge ?? 120),
+        freeShippingThreshold: shipping.freeShippingThreshold !== null && shipping.freeShippingThreshold !== undefined ? Number(shipping.freeShippingThreshold) : 2000,
+        freeShippingEnabled: Boolean(shipping.freeShippingEnabled ?? shipping.enableFreeShipping ?? true),
+        currency: "BDT"
+      } : {
+        insideDhakaCharge: 60,
+        outsideDhakaCharge: 120,
+        freeShippingThreshold: 2000,
+        freeShippingEnabled: true,
+        currency: "BDT"
+      }
     };
 
     cachedPublicSettings = result;

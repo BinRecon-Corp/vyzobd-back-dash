@@ -13,7 +13,40 @@ async function main() {
     throw new Error('ADMIN_PASSWORD environment variable is required to seed the admin user.');
   }
 
-  const modules = ['Products', 'Categories', 'Brands', 'Inventory', 'Analytics', 'Attributes', 'Users', 'Roles', 'Permissions', 'Settings', 'Security', 'Orders', 'Customers', 'Coupons', 'Promotions', 'Marketing', 'Banners', 'Popups', 'Sessions', 'AuditLogs', 'Media', 'Blog', 'CMS'];
+  const modules = [
+    'Dashboard',
+    'Products',
+    'Categories',
+    'Brands',
+    'Inventory',
+    'Analytics',
+    'Attributes',
+    'Users',
+    'Roles',
+    'Permissions',
+    'Settings',
+    'Security',
+    'Orders',
+    'Customers',
+    'Coupons',
+    'Promotions',
+    'Marketing',
+    'Banners',
+    'Popups',
+    'Sessions',
+    'AuditLogs',
+    'Media',
+    'Blog',
+    'CMS',
+    'LandingPages',
+    'FAQ',
+    'SEO',
+    'Payments',
+    'Refunds',
+    'Returns',
+    'Shipments',
+    'Notifications'
+  ];
   const actions = ['read', 'write', 'delete'];
 
   console.log('Seeding Permissions...');
