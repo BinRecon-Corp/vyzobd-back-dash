@@ -35,7 +35,8 @@ export const getCheckoutSession = async (
 ) => {
   try {
     const identifier = resolveCartIdentifier(req, res);
-    const session = await StorefrontCheckoutService.getCheckoutSession(identifier);
+    const guestShippingAddress = req.body?.shippingAddress || (req.query?.city || req.query?.district ? req.query : undefined);
+    const session = await StorefrontCheckoutService.getCheckoutSession(identifier, guestShippingAddress);
 
     res.status(200).json({
       status: "success",

@@ -15,7 +15,15 @@ import {
 const router = express.Router();
 
 // Webhook endpoint (Public, provider verifies it)
-router.post("/webhook/:provider", express.json(), handleWebhook);
+router.post(
+  "/webhook/:provider",
+  express.json({
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+  handleWebhook
+);
 
 // Protected endpoints
 router.use(requireCustomerAuth);

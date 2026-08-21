@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AdminReturnService } from "../services/return.service";
+import { AppError } from "../utils/AppError";
 
 export const getReturns = async (req: any, res: Response, next: NextFunction) => {
   try {
@@ -39,7 +40,7 @@ export const updateReturnStatus = async (req: any, res: Response, next: NextFunc
     } else if (status === "RECEIVED") {
       returnReq = await AdminReturnService.receiveReturn(id, adminNotes);
     } else {
-      returnReq = await AdminReturnService.getReturnById(id);
+      throw new AppError(`Invalid return status: ${status}`, 400, "INVALID_STATUS");
     }
 
     res.status(200).json({ status: "success", data: { returnRequest: returnReq } });

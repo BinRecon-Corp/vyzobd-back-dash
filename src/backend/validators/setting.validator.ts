@@ -80,6 +80,8 @@ export const updateShippingSettingsSchema = z.object({
 });
 
 export const updateTaxSettingsSchema = z.object({
+  taxEnabled: z.boolean().optional(),
+  enableTax: z.boolean().optional(),
   defaultTaxRate: z.number().min(0).optional(),
   pricesIncludeTax: z.boolean().optional(),
 });

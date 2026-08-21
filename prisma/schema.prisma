@@ -160,14 +160,17 @@ model Vendor {
 }
 
 model Warehouse {
-  id          String      @id @default(uuid())
-  name        String
-  location    String?
-  isActive    Boolean     @default(true)
-  inventories Inventory[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  deletedAt   DateTime?
+  id            String         @id @default(uuid())
+  name          String
+  location      String?
+  isActive      Boolean        @default(true)
+  inventories   Inventory[]
+  orderItems    OrderItem[]
+  shipmentItems ShipmentItem[]
+  returnItems   ReturnItem[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
 }
 
 model Category {
@@ -506,6 +509,8 @@ model OrderItem {
   product          Product         @relation(fields: [productId], references: [id])
   productVariantId String?
   productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  warehouseId      String?
+  warehouse        Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   shipmentItems    ShipmentItem[]
   returnItems      ReturnItem[]
   quantity         Int
@@ -523,6 +528,7 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@index([productVariantId])
+  @@index([warehouseId])
 }
 
 model OrderTimeline {
@@ -1154,9 +1160,11 @@ model Shipment {
 }
 
 model ShipmentItem {
-  id          String @id @default(uuid())
+  id          String     @id @default(uuid())
   shipmentId  String
   orderItemId String
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   quantity    Int
 
   shipment       Shipment      @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
@@ -1166,6 +1174,7 @@ model ShipmentItem {
 
   @@index([shipmentId])
   @@index([orderItemId])
+  @@index([warehouseId])
   @@index([productImageId])
 }
 
@@ -1209,6 +1218,8 @@ model ReturnItem {
   id              String  @id @default(uuid())
   returnRequestId String
   orderItemId     String
+  warehouseId     String?
+  warehouse       Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   quantity        Int
   reason          String?
   condition       String? // e.g. "UNOPENED", "DEFECTIVE"
@@ -1220,6 +1231,7 @@ model ReturnItem {
 
   @@index([returnRequestId])
   @@index([orderItemId])
+  @@index([warehouseId])
   @@index([productImageId])
 }
 
@@ -1467,6 +1479,8 @@ model ShippingSetting {
 
 model TaxSetting {
   id               String   @id @default(uuid())
+  taxEnabled       Boolean  @default(true)
+  enableTax        Boolean  @default(true)
   defaultTaxRate   Float    @default(0)
   pricesIncludeTax Boolean  @default(false)
   createdAt        DateTime @default(now())

@@ -16,12 +16,13 @@ export class StorefrontSettingService {
       return cachedPublicSettings;
     }
 
-    const [branding, seo, analytics, store, shipping] = await Promise.all([
+    const [branding, seo, analytics, store, shipping, tax] = await Promise.all([
       prisma.brandingSetting.findFirst(),
       prisma.sEOSetting.findFirst(),
       prisma.analyticsSetting.findFirst(),
       prisma.storeSetting.findFirst(),
-      prisma.shippingSetting.findFirst()
+      prisma.shippingSetting.findFirst(),
+      prisma.taxSetting.findFirst()
     ]);
 
     const result = {
@@ -90,11 +91,29 @@ export class StorefrontSettingService {
         freeShippingThreshold: 2000,
         freeShippingEnabled: true,
         currency: "BDT"
+      },
+      tax: tax ? {
+        defaultTaxRate: Number(tax.defaultTaxRate ?? 0),
+        taxRate: Number(tax.defaultTaxRate ?? 0),
+        pricesIncludeTax: Boolean(tax.pricesIncludeTax ?? false),
+        taxEnabled: Boolean(tax.taxEnabled ?? tax.enableTax ?? true),
+        enableTax: Boolean(tax.taxEnabled ?? tax.enableTax ?? true)
+      } : {
+        defaultTaxRate: 0,
+        taxRate: 0,
+        pricesIncludeTax: false,
+        taxEnabled: true,
+        enableTax: true
       }
     };
 
     cachedPublicSettings = result;
     lastCacheTime = now;
     return result;
+  }
+
+  static async getShippingSettings() {
+    const publicSettings = await this.getPublicSettings();
+    return publicSettings.shipping;
   }
 }

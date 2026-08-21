@@ -84,9 +84,16 @@ export const handleWebhook = async (
   try {
     const provider = req.params.provider.toUpperCase();
     const payload = req.body;
-    const signature = req.headers["x-signature"] as string | undefined;
+    const rawBody = (req as any).rawBody || (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
+    const signature = (
+      req.headers["stripe-signature"] ||
+      req.headers["x-signature"] ||
+      req.headers["x-webhook-signature"] ||
+      req.body?.verify_sign ||
+      req.query?.verify_sign
+    ) as string | undefined;
 
-    const result = await StorefrontPaymentService.handleWebhook(provider, payload, signature);
+    const result = await StorefrontPaymentService.handleWebhook(provider, rawBody, payload, signature);
 
     res.status(200).json(result);
   } catch (error) {

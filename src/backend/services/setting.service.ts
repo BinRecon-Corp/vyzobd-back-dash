@@ -260,12 +260,19 @@ export class SettingService {
   }
 
   static async updateTax(data: any, userId: string) {
+    if (data.taxEnabled !== undefined && data.enableTax === undefined) {
+      data.enableTax = data.taxEnabled;
+    } else if (data.enableTax !== undefined && data.taxEnabled === undefined) {
+      data.taxEnabled = data.enableTax;
+    }
+
     let setting = await prisma.taxSetting.findFirst();
     if (setting) {
       setting = await prisma.taxSetting.update({ where: { id: setting.id }, data });
     } else {
       setting = await prisma.taxSetting.create({ data });
     }
+    StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
         userId,
@@ -290,6 +297,7 @@ export class SettingService {
       update: { value: item.value }
     }));
     await prisma.$transaction(txs);
+    StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
         userId,

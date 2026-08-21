@@ -5,41 +5,67 @@ import { ShipmentStatus, TrackingStatus, NotificationType, NotificationChannel }
 
 export class AdminShipmentService {
   static async createShipment(orderId: string, courierId: string | undefined, trackingNumber: string | undefined, items: { orderItemId: string, quantity: number }[]) {
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: { items: true, shipments: { include: { items: true } } }
-    });
-
-    if (!order) {
-      throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
-    }
-
-    if (order.status === "Cancelled") {
-      throw new AppError("Cannot create shipment for cancelled order", 400, "ORDER_CANCELLED");
-    }
-
-    // Validate quantities
-    const orderItemMap = new Map(order.items.map(i => [i.id, i.quantity]));
-    const shippedMap = new Map<string, number>();
-    
-    for (const shipment of order.shipments) {
-      for (const item of shipment.items) {
-        shippedMap.set(item.orderItemId, (shippedMap.get(item.orderItemId) || 0) + item.quantity);
-      }
-    }
-
-    for (const item of items) {
-      const orderedQty = orderItemMap.get(item.orderItemId);
-      if (!orderedQty) {
-        throw new AppError(`Item ${item.orderItemId} is not part of this order`, 400, "INVALID_ITEM");
-      }
-      const previouslyShipped = shippedMap.get(item.orderItemId) || 0;
-      if (previouslyShipped + item.quantity > orderedQty) {
-        throw new AppError(`Cannot ship ${item.quantity} of item ${item.orderItemId}. Only ${orderedQty - previouslyShipped} remaining.`, 400, "EXCEEDS_ORDERED_QUANTITY");
-      }
+    if (!items || items.length === 0) {
+      throw new AppError("At least one shipment item is required", 400, "INVALID_ITEMS");
     }
 
     return await prisma.$transaction(async (tx) => {
+      // 1. Lock Order row for transactional consistency
+      await tx.order.update({
+        where: { id: orderId },
+        data: { updatedAt: new Date() },
+      });
+
+      // 2. Re-read fresh state with items & shipments under lock
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { items: true, shipments: { include: { items: true } } },
+      });
+
+      if (!order) {
+        throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+      }
+
+      if (order.status === "Cancelled") {
+        throw new AppError("Cannot create shipment for cancelled order", 400, "ORDER_CANCELLED");
+      }
+
+      // 3. Validate quantities against authoritative order items and existing shipments
+      const orderItemMap = new Map(order.items.map(i => [i.id, i]));
+      const shippedMap = new Map<string, number>();
+      
+      for (const shipment of order.shipments) {
+        for (const item of shipment.items) {
+          shippedMap.set(item.orderItemId, (shippedMap.get(item.orderItemId) || 0) + item.quantity);
+        }
+      }
+
+      for (const item of items) {
+        if (!item.quantity || item.quantity <= 0) {
+          throw new AppError("Shipment item quantity must be greater than zero", 400, "INVALID_QUANTITY");
+        }
+
+        const orderItem = orderItemMap.get(item.orderItemId);
+        if (!orderItem) {
+          throw new AppError(`Item ${item.orderItemId} is not part of this order`, 400, "INVALID_ITEM");
+        }
+
+        const orderedQty = orderItem.quantity;
+        const previouslyShipped = shippedMap.get(item.orderItemId) || 0;
+        const remainingToShip = orderedQty - previouslyShipped;
+
+        if (item.quantity > remainingToShip) {
+          throw new AppError(
+            `Cannot ship ${item.quantity} of item ${item.orderItemId}. Only ${remainingToShip} remaining.`,
+            400,
+            "EXCEEDS_ORDERED_QUANTITY"
+          );
+        }
+
+        shippedMap.set(item.orderItemId, previouslyShipped + item.quantity);
+      }
+
+      // 4. Create Shipment with ShipmentItems strictly inheriting OrderItem.warehouseId
       const shipment = await tx.shipment.create({
         data: {
           orderId,
@@ -47,10 +73,14 @@ export class AdminShipmentService {
           trackingNumber,
           status: ShipmentStatus.PENDING,
           items: {
-            create: items.map(i => ({
-              orderItemId: i.orderItemId,
-              quantity: i.quantity
-            }))
+            create: items.map(i => {
+              const orderItem = orderItemMap.get(i.orderItemId)!;
+              return {
+                orderItemId: i.orderItemId,
+                warehouseId: orderItem.warehouseId || null,
+                quantity: i.quantity,
+              };
+            })
           },
           trackingEvents: {
             create: {

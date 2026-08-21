@@ -3,6 +3,9 @@ import { prisma } from "../../config/db";
 import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
 import { CartIdentifier, StorefrontCartService } from "./cart.service";
+import { calculateCouponDiscount } from "../../utils/couponCalculator";
+import { calculateShippingFee } from "../../utils/shippingCalculator";
+import { calculateTax } from "../../utils/taxCalculator";
 
 import { mapOrderToStorefrontDTO } from "../../dtos/storefront/mappers";
 
@@ -37,6 +40,7 @@ export class StorefrontCheckoutService {
             product: {
               include: {
                 inventory: true,
+                category: true,
               },
             },
             variant: {
@@ -108,6 +112,8 @@ export class StorefrontCheckoutService {
       validatedItems.push({
         id: item.id,
         productId: item.productId,
+        categoryId: product.categoryId,
+        brandId: product.brandId,
         productName: product.name,
         productSlug: product.slug,
         variantId: item.variantId,
@@ -118,7 +124,7 @@ export class StorefrontCheckoutService {
       });
     }
 
-    // 2. Validate and calculate Coupon Discount
+    // 2. Validate and calculate Coupon Discount using central coupon calculation engine
     let discount = new Prisma.Decimal(0);
     let appliedCoupon = null;
 
@@ -126,71 +132,46 @@ export class StorefrontCheckoutService {
       const coupon = await prisma.coupon.findFirst({
         where: {
           id: cart.couponId,
-          isActive: true,
           deletedAt: null,
         },
       });
 
       if (coupon) {
-        const now = new Date();
-        const validFrom = new Date(coupon.validFrom);
-        const validUntil = new Date(coupon.validUntil);
-
-        if (now >= validFrom && now <= validUntil) {
-          let isCouponValid = true;
-
-          // Usage limits
-          if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-            isCouponValid = false;
-          }
-
-          // Per-customer usage limit
-          if (isCouponValid && coupon.usagePerCustomer !== null) {
-            const customerOrdersWithCoupon = identifier.customerId ? await prisma.order.count({
+        let customerOrderCountWithCoupon = 0;
+        if (coupon.usagePerCustomer !== null) {
+          const targetEmail = (guestShippingAddress?.email || (cart as any).shippingAddress?.email || "").trim();
+          if (identifier.customerId || targetEmail) {
+            customerOrderCountWithCoupon = await prisma.order.count({
               where: {
-                customerId: identifier.customerId,
                 couponId: coupon.id,
+                status: { not: "Cancelled" },
+                OR: [
+                  ...(identifier.customerId ? [{ customerId: identifier.customerId }] : []),
+                  ...(targetEmail ? [{ customerEmail: { equals: targetEmail, mode: "insensitive" as const } }] : []),
+                ],
               },
-            }) : 0;
-            if (customerOrdersWithCoupon >= coupon.usagePerCustomer) {
-              isCouponValid = false;
-            }
-          }
-
-          // Min order amount check
-          if (isCouponValid && coupon.minOrderAmount !== null) {
-            if (subtotal.lt(new Prisma.Decimal(coupon.minOrderAmount))) {
-              isCouponValid = false;
-            }
-          }
-
-          if (isCouponValid) {
-            appliedCoupon = {
-              id: coupon.id,
-              code: coupon.code,
-              discountType: coupon.discountType,
-              discountValue: new Prisma.Decimal(coupon.discountValue),
-            };
-
-            if (coupon.discountType === "percentage") {
-              const calcDiscount = subtotal.mul(new Prisma.Decimal(coupon.discountValue)).div(100);
-              discount = coupon.maxDiscountAmount
-                ? Prisma.Decimal.min(calcDiscount, new Prisma.Decimal(coupon.maxDiscountAmount))
-                : calcDiscount;
-            } else if (coupon.discountType === "fixed") {
-              discount = Prisma.Decimal.min(new Prisma.Decimal(coupon.discountValue), subtotal);
-            } else if (coupon.discountType === "free_shipping") {
-              // Free shipping handled inside shipping block
-            }
-          } else {
-            // Remove invalid/expired coupon automatically from cart session
-            await prisma.cart.update({
-              where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
-              data: { couponId: null },
             });
           }
+        }
+
+        const calcResult = calculateCouponDiscount({
+          coupon,
+          items: validatedItems,
+          customerId: identifier.customerId,
+          customerOrderCountWithCoupon,
+        });
+
+        if (calcResult.isValid) {
+          discount = calcResult.discountAmount;
+          appliedCoupon = {
+            id: coupon.id,
+            code: coupon.code,
+            discountType: coupon.discountType,
+            discountValue: calcResult.discountValue,
+            isFreeShipping: calcResult.isFreeShipping,
+          };
         } else {
-          // Expirations expired or not started yet
+          // Remove invalid/expired coupon automatically from cart session
           await prisma.cart.update({
             where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
             data: { couponId: null },
@@ -215,37 +196,31 @@ export class StorefrontCheckoutService {
       });
     }
 
-    // 4. Calculate Shipping Fees using ShippingSetting as single source of truth
+    // 4. Calculate Shipping Fees using central server-authoritative Shipping Calculator
     const shippingSetting = await prisma.shippingSetting.findFirst();
-    const insideDhakaCharge = shippingSetting?.insideDhakaCharge ?? 60;
-    const outsideDhakaCharge = shippingSetting?.outsideDhakaCharge ?? 120;
-    const freeShippingThreshold = shippingSetting?.freeShippingThreshold !== null && shippingSetting?.freeShippingThreshold !== undefined
-      ? Number(shippingSetting.freeShippingThreshold)
-      : 2000;
-    const freeShippingEnabled = Boolean(shippingSetting?.freeShippingEnabled ?? shippingSetting?.enableFreeShipping ?? true);
+    const shippingCalcResult = calculateShippingFee({
+      subtotal,
+      shippingAddress,
+      appliedCoupon,
+      shippingSetting,
+    });
+    const shipping = shippingCalcResult.shippingFee;
 
-    let baseShippingRate = insideDhakaCharge;
-    if (shippingAddress) {
-      const city = (shippingAddress.city || "").toLowerCase().trim();
-      const state = (shippingAddress.state || "").toLowerCase().trim();
-      const address1 = (shippingAddress.address1 || shippingAddress.address || "").toLowerCase().trim();
-      const isDhaka = city.includes("dhaka") || state.includes("dhaka") || address1.includes("dhaka");
-      if (city || state || address1) {
-        baseShippingRate = isDhaka ? insideDhakaCharge : outsideDhakaCharge;
-      }
-    }
-
-    const isFreeShippingCoupon = cart.couponId && appliedCoupon?.discountType === "free_shipping";
-    const qualifiesForFreeShipping = freeShippingEnabled && freeShippingThreshold !== null && subtotal.gte(new Prisma.Decimal(freeShippingThreshold));
-    const isFreeShipping = isFreeShippingCoupon || qualifiesForFreeShipping;
-    const shipping = isFreeShipping ? new Prisma.Decimal(0) : new Prisma.Decimal(baseShippingRate);
-
-    // 5. Calculate Tax Rate (Flat 10% tax rate applied to net subtotal)
+    // 5. Calculate Tax using central server-authoritative Tax Calculator loading TaxSetting from DB
+    const taxSetting = await prisma.taxSetting.findFirst();
     const netSubtotal = Prisma.Decimal.max(0, subtotal.sub(discount));
-    const tax = netSubtotal.mul(0.1).toDecimalPlaces(2);
+    const taxCalcResult = calculateTax({
+      netSubtotal,
+      taxSetting,
+    });
+    const tax = taxCalcResult.taxAmount;
 
     // 6. Calculate Grand Total
-    const grandTotal = netSubtotal.add(shipping).add(tax);
+    // If prices include tax, tax is embedded in netSubtotal, so grandTotal = netSubtotal + shipping.
+    // If prices exclude tax, tax is added on top, so grandTotal = netSubtotal + shipping + tax.
+    const grandTotal = taxCalcResult.pricesIncludeTax
+      ? netSubtotal.add(shipping).toDecimalPlaces(2)
+      : netSubtotal.add(shipping).add(tax).toDecimalPlaces(2);
 
     return {
       cartId: cart.id,
@@ -260,7 +235,11 @@ export class StorefrontCheckoutService {
       shippingAddress,
       billingAddress,
       paymentMethod: cart.paymentMethod,
-      shippingMethod: shipping.equals(0) ? "free" : "standard",
+      shippingMethod: shippingCalcResult.isFreeShipping ? "free" : "standard",
+      deliveryZone: shippingCalcResult.deliveryZone,
+      isAddressComplete: shippingCalcResult.isAddressComplete,
+      pricesIncludeTax: taxCalcResult.pricesIncludeTax,
+      taxRate: taxCalcResult.taxRate,
     };
   }
 
@@ -268,10 +247,13 @@ export class StorefrontCheckoutService {
    * Applies a coupon code to the user checkout session
    */
   static async applyCoupon(identifier: CartIdentifier, couponCode: string) {
+    if (!couponCode || !couponCode.trim()) {
+      throw new AppError("Coupon code is required", 400, "BAD_REQUEST");
+    }
+
     const coupon = await prisma.coupon.findFirst({
       where: {
-        code: { equals: couponCode, mode: "insensitive" },
-        isActive: true,
+        code: { equals: couponCode.trim(), mode: "insensitive" },
         deletedAt: null,
       },
     });
@@ -280,39 +262,13 @@ export class StorefrontCheckoutService {
       throw new AppError("Coupon is invalid, inactive, or expired", 404, "INVALID_COUPON");
     }
 
-    const now = new Date();
-    const validFrom = new Date(coupon.validFrom);
-    const validUntil = new Date(coupon.validUntil);
-
-    if (now < validFrom || now > validUntil) {
-      throw new AppError("Coupon has expired or is not yet active", 400, "EXPIRED_COUPON");
-    }
-
-    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-      throw new AppError("Coupon usage limit has been reached", 400, "LIMIT_REACHED");
-    }
-
-    // Verify per customer limits
-    if (coupon.usagePerCustomer !== null) {
-      const customerOrdersWithCoupon = identifier.customerId ? await prisma.order.count({
-              where: {
-                customerId: identifier.customerId,
-                couponId: coupon.id,
-              },
-            }) : 0;
-      if (customerOrdersWithCoupon >= coupon.usagePerCustomer) {
-        throw new AppError("You have reached the maximum usage limit for this coupon", 400, "CUSTOMER_LIMIT_REACHED");
-      }
-    }
-
-    // Get cart to check minOrderAmount
     const cart = await prisma.cart.findFirst({
       where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
       include: {
         items: {
           include: {
-            product: { select: { price: true } },
-            variant: { select: { price: true } },
+            product: { select: { id: true, categoryId: true, brandId: true, price: true, isActive: true, status: true, deletedAt: true } },
+            variant: { select: { id: true, price: true, isActive: true, deletedAt: true } },
           },
         },
       },
@@ -322,14 +278,46 @@ export class StorefrontCheckoutService {
       throw new AppError("Cart is empty", 400, "EMPTY_CART");
     }
 
-    let cartSubtotal = new Prisma.Decimal(0);
-    for (const item of cart.items) {
-      const price = item.variant ? new Prisma.Decimal(item.variant.price) : new Prisma.Decimal(item.product.price || 0);
-      cartSubtotal = cartSubtotal.add(price.mul(item.quantity));
+    const couponItems = cart.items.map((item) => {
+      const unitPrice = item.variant
+        ? new Prisma.Decimal(item.variant.price)
+        : new Prisma.Decimal(item.product.price || 0);
+      return {
+        productId: item.productId,
+        categoryId: item.product.categoryId,
+        brandId: item.product.brandId,
+        quantity: item.quantity,
+        unitPrice,
+        subtotal: unitPrice.mul(item.quantity),
+      };
+    });
+
+    let customerOrderCountWithCoupon = 0;
+    if (coupon.usagePerCustomer !== null) {
+      const targetEmail = ((cart as any).shippingAddress?.email || "").trim();
+      if (identifier.customerId || targetEmail) {
+        customerOrderCountWithCoupon = await prisma.order.count({
+          where: {
+            couponId: coupon.id,
+            status: { not: "Cancelled" },
+            OR: [
+              ...(identifier.customerId ? [{ customerId: identifier.customerId }] : []),
+              ...(targetEmail ? [{ customerEmail: { equals: targetEmail, mode: "insensitive" as const } }] : []),
+            ],
+          },
+        });
+      }
     }
 
-    if (coupon.minOrderAmount !== null && cartSubtotal.lt(new Prisma.Decimal(coupon.minOrderAmount))) {
-      throw new AppError(`Minimum order amount of BDT ${coupon.minOrderAmount} is required to apply this coupon`, 400, "MIN_AMOUNT_NOT_MET");
+    const calcResult = calculateCouponDiscount({
+      coupon,
+      items: couponItems,
+      customerId: identifier.customerId,
+      customerOrderCountWithCoupon,
+    });
+
+    if (!calcResult.isValid) {
+      throw new AppError(calcResult.errorMessage || "Cannot apply coupon", 400, calcResult.errorCode || "INVALID_COUPON");
     }
 
     // Update cart with applied coupon
@@ -382,7 +370,9 @@ export class StorefrontCheckoutService {
   }
 
   /**
-   * Places the order, updates inventories, clears the cart inside a Prisma transaction
+   * Places the order, updates inventories, clears the cart inside a Prisma transaction.
+   * All financial calculations (subtotal, discount, shipping, tax, grandTotal) are computed
+   * strictly from authoritative database state inside the transaction block.
    */
   static async completeCheckout(
     identifier: CartIdentifier,
@@ -403,60 +393,101 @@ export class StorefrontCheckoutService {
       throw new AppError(`Invalid payment method: ${paymentMethod}`, 400, "INVALID_PAYMENT_METHOD");
     }
 
-    // 1. Load active checkout session (validates active products, variant statuses, and current stock)
-    const session = await this.getCheckoutSession(identifier, shippingAddressObj);
-
-    let finalShippingAddress = shippingAddressObj || session.shippingAddress;
-    let finalBillingAddress = (billingAddressObj && billingAddressObj.sameAsShipping === true)
-      ? finalShippingAddress
-      : (billingAddressObj || session.billingAddress || finalShippingAddress);
-
-    if (!finalShippingAddress) {
-      throw new AppError("Shipping address is required to complete checkout", 400, "MISSING_SHIPPING_ADDRESS");
-    }
-
-    // 2. Perform checkout completion within a strict database transaction
+    // Perform complete checkout execution within a strict database transaction
     const order = await prisma.$transaction(async (tx) => {
-      // Re-read stock/inventory levels inside the transaction block to prevent concurrent oversell
-      for (const item of session.items) {
+      // 1. Fetch current cart and items from database inside transaction
+      const cart = await tx.cart.findFirst({
+        where: identifier.customerId ? { customerId: identifier.customerId } : { sessionId: identifier.sessionId },
+        include: {
+          items: true,
+        },
+      });
+
+      if (!cart || cart.items.length === 0) {
+        throw new AppError("Cart is empty or already processed", 400, "EMPTY_CART");
+      }
+
+      // 2. Resolve final shipping and billing addresses
+      let finalShippingAddress = shippingAddressObj || null;
+      if (!finalShippingAddress && cart.shippingAddressId) {
+        finalShippingAddress = await tx.customerAddress.findFirst({
+          where: identifier.customerId ? { id: cart.shippingAddressId, customerId: identifier.customerId } : { id: cart.shippingAddressId },
+        });
+      }
+
+      let finalBillingAddress = null;
+      if (billingAddressObj && billingAddressObj.sameAsShipping === true) {
+        finalBillingAddress = finalShippingAddress;
+      } else if (billingAddressObj) {
+        finalBillingAddress = billingAddressObj;
+      } else if (cart.billingAddressId) {
+        finalBillingAddress = await tx.customerAddress.findFirst({
+          where: identifier.customerId ? { id: cart.billingAddressId, customerId: identifier.customerId } : { id: cart.billingAddressId },
+        });
+      }
+      if (!finalBillingAddress) {
+        finalBillingAddress = finalShippingAddress;
+      }
+
+      if (!finalShippingAddress) {
+        throw new AppError("Shipping address is required to complete checkout", 400, "MISSING_SHIPPING_ADDRESS");
+      }
+
+      // 3. Re-read fresh Product / Variant pricing and Inventory state inside transaction
+      const validatedItems = [];
+      let subtotal = new Prisma.Decimal(0);
+      const itemWarehouseMap = new Map<string, string | null>();
+
+      for (const item of cart.items) {
         const product = await tx.product.findUnique({
           where: { id: item.productId },
-          include: { inventory: true },
+          include: { inventory: true, category: true },
         });
 
         if (!product || !product.isActive || product.status !== "Active" || product.deletedAt) {
-          throw new AppError(`Product "${item.productName}" has become unavailable`, 404, "PRODUCT_UNAVAILABLE");
+          throw new AppError(`Product "${product?.name || "Unknown"}" has become unavailable`, 404, "PRODUCT_UNAVAILABLE");
         }
 
+        let variant: any = null;
+        if (item.variantId) {
+          variant = await tx.productVariant.findUnique({
+            where: { id: item.variantId },
+            include: { inventories: true },
+          });
+
+          if (!variant || !variant.isActive || variant.deletedAt) {
+            throw new AppError(`Selected variant for "${product.name}" has become unavailable`, 404, "VARIANT_UNAVAILABLE");
+          }
+        }
+
+        // Fresh price read from DB inside transaction
+        const unitPrice = variant
+          ? new Prisma.Decimal(variant.price)
+          : new Prisma.Decimal(product.price || 0);
+
+        const itemSubtotal = unitPrice.mul(item.quantity);
+        subtotal = subtotal.add(itemSubtotal);
+
+        // Re-check inventory levels & deduct stock
         if (product.trackInventory) {
-          if (item.variantId) {
-            const variant = await tx.productVariant.findUnique({
-              where: { id: item.variantId },
-              include: { inventories: true },
-            });
-
-            if (!variant || !variant.isActive || variant.deletedAt) {
-              throw new AppError(`Variant of "${item.productName}" has become unavailable`, 404, "VARIANT_UNAVAILABLE");
-            }
-
+          if (variant) {
             let availableStock = variant.inventories.reduce(
               (sum: number, inv: any) => sum + (inv.quantityAvailable - inv.quantityReserved),
               0
             );
-            
+
             const useFallback = availableStock === 0 && variant.inventories.length === 0 && product.inventory;
             if (useFallback) {
               availableStock = product.inventory.quantityAvailable - product.inventory.quantityReserved;
             }
 
             if (item.quantity > availableStock) {
-              throw new AppError(`Stock for "${item.productName}" variant changed. Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
+              throw new AppError(`Insufficient stock for "${product.name}". Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
             }
 
-            // Deduct inventory quantityAvailable inside transaction
             if (useFallback) {
               const updated = await tx.inventory.updateMany({
-                where: { 
+                where: {
                   id: product.inventory.id,
                   quantityAvailable: { gte: item.quantity + product.inventory.quantityReserved }
                 },
@@ -465,17 +496,17 @@ export class StorefrontCheckoutService {
                 },
               });
               if (updated.count === 0) {
-                throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
+                throw new AppError(`Insufficient stock for "${product.name}" during checkout.`, 409, "INSUFFICIENT_STOCK");
               }
+              itemWarehouseMap.set(item.id, product.inventory.warehouseId || null);
             } else {
-              // Variant inventories can be spread across warehouses, let's pick the first one with enough stock or standard warehouse
               const targetInventory = variant.inventories.find(
                 (inv: any) => (inv.quantityAvailable - inv.quantityReserved) >= item.quantity
               ) || variant.inventories[0];
 
               if (targetInventory) {
                 const updated = await tx.inventory.updateMany({
-                  where: { 
+                  where: {
                     id: targetInventory.id,
                     quantityAvailable: { gte: item.quantity + targetInventory.quantityReserved }
                   },
@@ -484,12 +515,12 @@ export class StorefrontCheckoutService {
                   },
                 });
                 if (updated.count === 0) {
-                  throw new AppError(`Insufficient stock for "${item.productName}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
+                  throw new AppError(`Insufficient stock for "${product.name}" during checkout.`, 409, "INSUFFICIENT_STOCK");
                 }
+                itemWarehouseMap.set(item.id, targetInventory.warehouseId || null);
               }
             }
           } else {
-            // Check direct product inventory
             if (!product.inventory) {
               throw new AppError(`Inventory tracking is enabled but no inventory record found for "${product.name}"`, 409, "INSUFFICIENT_STOCK");
             }
@@ -497,11 +528,11 @@ export class StorefrontCheckoutService {
             const availableStock = product.inventory.quantityAvailable - product.inventory.quantityReserved;
 
             if (item.quantity > availableStock) {
-              throw new AppError(`Stock for "${product.name}" changed. Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
+              throw new AppError(`Insufficient stock for "${product.name}". Available: ${availableStock}, Requested: ${item.quantity}`, 409, "INSUFFICIENT_STOCK");
             }
 
             const updated = await tx.inventory.updateMany({
-              where: { 
+              where: {
                 id: product.inventory.id,
                 quantityAvailable: { gte: item.quantity + product.inventory.quantityReserved }
               },
@@ -510,26 +541,88 @@ export class StorefrontCheckoutService {
               },
             });
             if (updated.count === 0) {
-              throw new AppError(`Insufficient stock for "${product.name}" during checkout. Please try again.`, 409, "INSUFFICIENT_STOCK");
+              throw new AppError(`Insufficient stock for "${product.name}" during checkout.`, 409, "INSUFFICIENT_STOCK");
             }
+            itemWarehouseMap.set(item.id, product.inventory.warehouseId || null);
           }
         }
+
+        validatedItems.push({
+          id: item.id,
+          productId: item.productId,
+          categoryId: product.categoryId,
+          brandId: product.brandId,
+          productName: product.name,
+          productSlug: product.slug,
+          variantId: item.variantId,
+          variantSku: variant?.sku || null,
+          quantity: item.quantity,
+          unitPrice,
+          subtotal: itemSubtotal,
+        });
       }
 
-      // If coupon used, validate and increment usedCount inside transaction
-      if (session.coupon) {
-        const coupon = await tx.coupon.findUnique({
-          where: { id: session.coupon.id },
+      // 4. Re-read Coupon & Usage Limits inside transaction
+      let discount = new Prisma.Decimal(0);
+      let coupon: any = null;
+
+      if (cart.couponId) {
+        // Lock row to prevent coupon usage race condition
+        await tx.$executeRaw`SELECT id FROM "Coupon" WHERE id = ${cart.couponId} FOR UPDATE`;
+
+        coupon = await tx.coupon.findFirst({
+          where: { id: cart.couponId, deletedAt: null },
         });
 
-        if (!coupon || !coupon.isActive || coupon.deletedAt) {
-          throw new AppError("Coupon is no longer available", 400, "COUPON_UNAVAILABLE");
+        if (!coupon || !coupon.isActive) {
+          throw new AppError("Coupon is no longer available or active", 400, "COUPON_UNAVAILABLE");
+        }
+
+        const now = new Date();
+        const validFrom = new Date(coupon.validFrom);
+        const validUntil = new Date(coupon.validUntil);
+        if (now < validFrom || now > validUntil) {
+          throw new AppError("Coupon code is expired or not yet valid", 400, "EXPIRED_COUPON");
         }
 
         if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
           throw new AppError("Coupon usage limit exceeded", 400, "COUPON_LIMIT_REACHED");
         }
 
+        const targetEmail = ((finalShippingAddress && finalShippingAddress.email) || (finalBillingAddress && finalBillingAddress.email) || "").trim();
+        if (coupon.usagePerCustomer !== null) {
+          if (identifier.customerId || targetEmail) {
+            const customerOrderCountWithCoupon = await tx.order.count({
+              where: {
+                couponId: coupon.id,
+                status: { not: "Cancelled" },
+                OR: [
+                  ...(identifier.customerId ? [{ customerId: identifier.customerId }] : []),
+                  ...(targetEmail ? [{ customerEmail: { equals: targetEmail, mode: "insensitive" as const } }] : []),
+                ],
+              },
+            });
+
+            if (customerOrderCountWithCoupon >= coupon.usagePerCustomer) {
+              throw new AppError("You have reached the maximum usage limit for this coupon", 400, "CUSTOMER_LIMIT_REACHED");
+            }
+          }
+        }
+
+        const calcResult = calculateCouponDiscount({
+          coupon,
+          items: validatedItems,
+          customerId: identifier.customerId,
+          customerOrderCountWithCoupon: 0,
+        });
+
+        if (!calcResult.isValid) {
+          throw new AppError(calcResult.errorMessage || "Coupon is invalid for this order", 400, calcResult.errorCode || "INVALID_COUPON");
+        }
+
+        discount = calcResult.discountAmount;
+
+        // Increment usedCount safely inside transaction
         if (coupon.usageLimit !== null) {
           const updated = await tx.coupon.updateMany({
             where: { id: coupon.id, usedCount: { lt: coupon.usageLimit } },
@@ -546,35 +639,59 @@ export class StorefrontCheckoutService {
         }
       }
 
-      // Generate secure unique Order Number
+      // 5. Re-read Shipping & Tax Settings inside transaction
+      const netSubtotal = Prisma.Decimal.max(0, subtotal.sub(discount));
+
+      const shippingSetting = await tx.shippingSetting.findFirst();
+      const shippingCalcResult = calculateShippingFee({
+        subtotal,
+        shippingAddress: finalShippingAddress,
+        appliedCoupon: coupon ? { discountType: coupon.discountType, isFreeShipping: coupon.isFreeShipping } : null,
+        shippingSetting,
+      });
+      const shippingFee = shippingCalcResult.shippingFee;
+
+      const taxSetting = await tx.taxSetting.findFirst();
+      const taxCalcResult = calculateTax({
+        netSubtotal,
+        taxSetting,
+      });
+      const taxAmount = taxCalcResult.taxAmount;
+
+      const grandTotal = taxCalcResult.pricesIncludeTax
+        ? netSubtotal.add(shippingFee).toDecimalPlaces(2)
+        : netSubtotal.add(shippingFee).add(taxAmount).toDecimalPlaces(2);
+
+      // 6. Generate secure Order Number
       const randomPart = Math.floor(100000 + Math.random() * 900000);
       const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${randomPart}`;
 
-      // Create Order
+      // 7. Create Order using exact authoritative calculated values
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
           customerId: identifier.customerId || null,
           status: "Pending",
           paymentStatus: "Unpaid",
-          totalAmount: session.grandTotal,
+          totalAmount: grandTotal,
           customerEmail: (finalShippingAddress && finalShippingAddress.email) || (finalBillingAddress && finalBillingAddress.email) || null,
-          subtotal: session.subtotal,
-          taxAmount: session.tax,
-          shippingFee: session.shipping,
-          discountAmount: session.discount,
+          subtotal: subtotal.toDecimalPlaces(2),
+          taxAmount: taxAmount.toDecimalPlaces(2),
+          shippingFee: shippingFee.toDecimalPlaces(2),
+          discountAmount: discount.toDecimalPlaces(2),
           shippingAddress: this.formatAddress(finalShippingAddress),
           billingAddress: this.formatAddress(finalBillingAddress),
           paymentMethod: normalizedPaymentMethod,
-          couponId: session.coupon?.id || null,
+          couponId: coupon?.id || null,
         },
       });
 
-      // Create Order Items
-      const orderItemPayloads = session.items.map((item) => ({
+      // 8. Create Order Items
+      const orderItemPayloads = validatedItems.map((item) => ({
         orderId: newOrder.id,
         productId: item.productId,
         productVariantId: item.variantId || null,
+        warehouseId: itemWarehouseMap.get(item.id) || null,
         quantity: item.quantity,
         price: item.unitPrice,
         productName: item.productName,
@@ -588,7 +705,7 @@ export class StorefrontCheckoutService {
         data: orderItemPayloads,
       });
 
-      // Log Order Timeline Event
+      // 9. Log Order Timeline Event
       await tx.orderTimeline.create({
         data: {
           orderId: newOrder.id,
@@ -597,25 +714,25 @@ export class StorefrontCheckoutService {
         },
       });
 
-      // Create Payment record
+      // 10. Create Payment record with EXACT same grandTotal amount
       await tx.payment.create({
         data: {
           orderId: newOrder.id,
           customerId: identifier.customerId || null,
           provider: normalizedPaymentMethod as any,
-          amount: session.grandTotal,
+          amount: grandTotal,
           currency: "BDT",
           status: "PENDING",
         }
       });
 
-      // Reset / Clear cart items and coupon/addresses in database
+      // 11. Clear Cart items and Cart session state
       await tx.cartItem.deleteMany({
-        where: { cartId: session.cartId },
+        where: { cartId: cart.id },
       });
 
       await tx.cart.update({
-        where: { id: session.cartId },
+        where: { id: cart.id },
         data: {
           couponId: null,
           shippingAddressId: null,

@@ -179,34 +179,108 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       updateData.internalNotes = internalNotes;
     }
 
-    if (status === "Cancelled" && existingOrder.status !== "Cancelled") {
-      // Restore inventory
-      const orderItems = await prisma.orderItem.findMany({ where: { orderId: id } });
-      for (const item of orderItems) {
-        if (item.productVariantId) {
-          const inv = await prisma.inventory.findFirst({ where: { variantId: item.productVariantId } });
-          if (inv) await prisma.inventory.update({ where: { id: inv.id }, data: { quantityAvailable: { increment: item.quantity } } });
-        } else {
-          const inv = await prisma.inventory.findFirst({ where: { productId: item.productId } });
-          if (inv) await prisma.inventory.update({ where: { id: inv.id }, data: { quantityAvailable: { increment: item.quantity } } });
-        }
-      }
+    if (Object.keys(updateData).length === 0 && timelineEntries.length === 0) {
+      return res.status(200).json({ status: "success", data: { order: existingOrder } });
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        ...updateData,
-        timeline: {
-          create: timelineEntries,
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Row lock Order
+      const currentOrder = await tx.order.update({
+        where: { id },
+        data: { updatedAt: new Date() }
+      });
+      if (!currentOrder || currentOrder.deletedAt) throw new AppError("Order not found", 404, "NOT_FOUND");
+
+      if (status === "Cancelled" && currentOrder.status !== "Cancelled") {
+        const lowerStatus = currentOrder.status.toLowerCase();
+        if (lowerStatus === "shipped" || lowerStatus === "delivered") {
+          throw new AppError(`Cannot cancel an order that is already ${currentOrder.status}`, 400, "INVALID_ORDER_STATE");
+        }
+
+        // Restore inventory
+        const orderItems = await tx.orderItem.findMany({ where: { orderId: id } });
+        for (const item of orderItems) {
+          if (item.warehouseId) {
+            let inv;
+            if (item.productVariantId) {
+              inv = await tx.inventory.findFirst({
+                where: { warehouseId: item.warehouseId, variantId: item.productVariantId }
+              });
+            } else {
+              inv = await tx.inventory.findFirst({
+                where: { warehouseId: item.warehouseId, productId: item.productId }
+              });
+            }
+
+            if (!inv) {
+              throw new AppError(`No inventory record found for warehouse ${item.warehouseId} to restock.`, 409, "INVENTORY_NOT_FOUND");
+            }
+
+            await tx.inventory.update({
+              where: { id: inv.id },
+              data: { quantityAvailable: { increment: item.quantity } }
+            });
+          } else {
+            // Historical order fallback with NULL warehouseId
+            let matchingInventories;
+            if (item.productVariantId) {
+              matchingInventories = await tx.inventory.findMany({
+                where: { variantId: item.productVariantId }
+              });
+            } else {
+              matchingInventories = await tx.inventory.findMany({
+                where: { productId: item.productId }
+              });
+            }
+
+            if (matchingInventories.length === 0) {
+              throw new AppError(`No inventory record found to restock.`, 409, "INVENTORY_NOT_FOUND");
+            } else if (matchingInventories.length === 1) {
+              await tx.inventory.update({
+                where: { id: matchingInventories[0].id },
+                data: { quantityAvailable: { increment: item.quantity } }
+              });
+            } else {
+              throw new AppError(
+                `INVENTORY_WAREHOUSE_ORIGIN_UNKNOWN: Cannot determine fulfillment warehouse for historical order with multiple warehouses.`,
+                409,
+                "INVENTORY_WAREHOUSE_ORIGIN_UNKNOWN"
+              );
+            }
+          }
+        }
+
+        // Restore coupon usage count if a coupon was used
+        if (currentOrder.couponId) {
+          await tx.coupon.updateMany({
+            where: { id: currentOrder.couponId, usedCount: { gt: 0 } },
+            data: { usedCount: { decrement: 1 } },
+          });
+        }
+      } else if (status === "Cancelled" && currentOrder.status === "Cancelled") {
+        // Remove status update from updateData if it's already cancelled
+        delete updateData.status;
+        const index = timelineEntries.findIndex(e => e.action.includes("changed from"));
+        if (index !== -1) timelineEntries.splice(index, 1);
+      }
+
+      return await tx.order.update({
+        where: { id },
+        data: {
+          ...updateData,
+          ...(timelineEntries.length > 0 && {
+            timeline: {
+              create: timelineEntries,
+            }
+          }),
         },
-      },
-      include: {
-        customer: true,
-        items: { include: { product: true } },
-        timeline: { orderBy: { createdAt: "asc" } },
-        orderNotes: { orderBy: { createdAt: "desc" } },
-      },
+        include: {
+          customer: true,
+          items: { include: { product: true } },
+          timeline: { orderBy: { createdAt: "asc" } },
+          orderNotes: { orderBy: { createdAt: "desc" } },
+        },
+      });
     });
 
     await AuditService.createLog(

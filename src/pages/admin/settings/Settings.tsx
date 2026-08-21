@@ -5,10 +5,11 @@ import { Card } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
-import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette, RefreshCw, Phone } from "lucide-react";
+import { Save, Eye, Globe, Image, Shield, Truck, Receipt, Mail, BarChart, Check, Palette, RefreshCw, Phone, AlertCircle } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { useBranding } from "../../../context/BrandingContext";
 import { MediaUploaderInput } from "../../../components/admin/MediaUploaderInput";
+import { notify } from "../../../lib/notify";
 
 import { PermissionGuard } from "../../../components/layout/PermissionGuard";
 
@@ -29,6 +30,7 @@ export function Settings() {
   const { branding, updateBrandingState, setPageTitle } = useBranding();
   const [formData, setFormData] = useState<any>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     setPageTitle("Settings - " + activeTab);
@@ -39,6 +41,7 @@ export function Settings() {
     queryFn: async () => {
       const data = await getSettings(activeTab.toLowerCase());
       setFormData(data || {});
+      setValidationError(null);
       return data;
     },
   });
@@ -47,16 +50,22 @@ export function Settings() {
     mutationFn: () => updateSettings(activeTab.toLowerCase(), formData),
     onSuccess: (updatedData) => {
       queryClient.invalidateQueries({ queryKey: ["settings", activeTab.toLowerCase()] });
+      queryClient.invalidateQueries({ queryKey: ["storefront-settings"] });
       if (activeTab === "Branding") {
         updateBrandingState(formData);
       }
       setSaveSuccess(true);
+      notify.success("Settings Saved", `${activeTab} settings updated successfully.`);
       setTimeout(() => setSaveSuccess(false), 3000);
+    },
+    onError: (err) => {
+      notify.apiError(err, `Failed to update ${activeTab} settings.`);
     }
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    setValidationError(null);
     if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData((prev: any) => ({ ...prev, [name]: checked }));
@@ -69,6 +78,45 @@ export function Settings() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+
+    // Validation for Shipping
+    if (activeTab === "Shipping") {
+      const inside = Number(formData.insideDhakaCharge ?? 60);
+      const outside = Number(formData.outsideDhakaCharge ?? 120);
+      const threshold = Number(formData.freeShippingThreshold ?? 2000);
+
+      if (isNaN(inside) || inside < 0) {
+        const msg = "Inside Dhaka charge must be a valid non-negative number.";
+        setValidationError(msg);
+        notify.error("Validation Error", msg);
+        return;
+      }
+      if (isNaN(outside) || outside < 0) {
+        const msg = "Outside Dhaka charge must be a valid non-negative number.";
+        setValidationError(msg);
+        notify.error("Validation Error", msg);
+        return;
+      }
+      if (isNaN(threshold) || threshold < 0) {
+        const msg = "Free shipping threshold must be a valid non-negative amount.";
+        setValidationError(msg);
+        notify.error("Validation Error", msg);
+        return;
+      }
+    }
+
+    // Validation for Tax
+    if (activeTab === "Tax") {
+      const rate = Number(formData.defaultTaxRate ?? 0);
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        const msg = "Default tax rate must be a valid percentage between 0% and 100%.";
+        setValidationError(msg);
+        notify.error("Validation Error", msg);
+        return;
+      }
+    }
+
     mutation.mutate();
   };
 
@@ -558,6 +606,29 @@ export function Settings() {
                 {/* TAX TAB */}
                 {activeTab === "Tax" && (
                   <div className="space-y-4">
+                    <div className="p-3 border rounded-md bg-muted/30">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                        <input
+                          type="checkbox"
+                          name="taxEnabled"
+                          checked={formData.taxEnabled ?? formData.enableTax ?? true}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setFormData((prev: any) => ({
+                              ...prev,
+                              taxEnabled: checked,
+                              enableTax: checked,
+                            }));
+                          }}
+                          className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                        />
+                        <div>
+                          <span className="block font-medium">Enable Sales Tax Calculation</span>
+                          <span className="text-xs text-muted-foreground font-normal">Automatically calculate and apply tax during checkout based on the configured rate</span>
+                        </div>
+                      </label>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium mb-1 block">Default Tax Rate (%)</label>
@@ -572,7 +643,7 @@ export function Settings() {
                           name="pricesIncludeTax"
                           checked={formData.pricesIncludeTax ?? false}
                           onChange={handleChange}
-                          className="rounded border-input text-primary focus:ring-primary"
+                          className="rounded border-input text-primary focus:ring-primary h-4 w-4"
                         />
                         Catalog Prices Already Include Sales Tax
                       </label>
@@ -596,6 +667,13 @@ export function Settings() {
                         <Input name="callOrderNumber" type="text" value={formData.callOrderNumber || ""} onChange={handleChange} placeholder="+8801812345678" />
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {validationError && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{validationError}</span>
                   </div>
                 )}
 
