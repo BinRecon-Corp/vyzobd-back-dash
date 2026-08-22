@@ -101,16 +101,26 @@ export function ProductView() {
               
               <div className="pt-4 border-t">
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Short Description</h3>
-                <p className="text-base whitespace-pre-wrap">
-                  {product.shortDescription || 'No short description provided.'}
-                </p>
+                {product.shortDescription ? (
+                  <div 
+                    className="prose prose-sm max-w-none text-foreground dark:prose-invert"
+                    dangerouslySetInnerHTML={{ __html: product.shortDescription }}
+                  />
+                ) : (
+                  <p className="text-base text-muted-foreground">No short description provided.</p>
+                )}
               </div>
 
               <div className="pt-4 border-t">
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
-                <p className="text-base text-muted-foreground whitespace-pre-wrap">
-                  {product.description || 'No description provided.'}
-                </p>
+                {product.description ? (
+                  <div 
+                    className="prose prose-sm max-w-none text-foreground dark:prose-invert"
+                    dangerouslySetInnerHTML={{ __html: product.description }}
+                  />
+                ) : (
+                  <p className="text-base text-muted-foreground">No description provided.</p>
+                )}
               </div>
             </CardContent>
           </Card>

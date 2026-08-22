@@ -44,7 +44,9 @@ import popupRouter from "./src/backend/routes/popup.routes";
 import pageRouter from "./src/backend/routes/page.routes";
 import landingPageRouter from "./src/backend/routes/landing-page.routes";
 import blogRouter from "./src/backend/routes/blog.routes";
-import mediaRouter from "./src/backend/routes/media.routes";
+import mediaRouter, { richTextUpload, richTextUploadMiddleware } from "./src/backend/routes/media.routes";
+import { MediaController } from "./src/backend/controllers/media.controller";
+import { requireAuth, requirePermission } from "./src/backend/middlewares/auth";
 import faqRouter from "./src/backend/routes/faq.routes";
 import settingRouter from "./src/backend/routes/setting.routes";
 import seoRouter from "./src/backend/routes/seo.routes";
@@ -232,6 +234,13 @@ async function startServer() {
   apiRouter.use("/landing-pages", landingPageRouter);
   apiRouter.use("/blog", blogRouter);
   apiRouter.use("/media", mediaRouter);
+  apiRouter.post(
+    "/uploads/rich-text-image",
+    requireAuth,
+    requirePermission("Media", "Write"),
+    richTextUploadMiddleware,
+    MediaController.uploadRichTextImage
+  );
   apiRouter.use("/faqs", faqRouter);
   apiRouter.use("/seo", seoRouter);
   apiRouter.use("/settings", settingRouter);

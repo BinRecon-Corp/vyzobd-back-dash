@@ -264,7 +264,7 @@ export function BlogManagement() {
                             <span className="line-clamp-1 text-foreground">{post.title}</span>
                             {post.excerpt && (
                               <span className="text-xs text-muted-foreground line-clamp-1 font-normal">
-                                {post.excerpt}
+                                {post.excerpt.replace(/<[^>]*>/g, '')}
                               </span>
                             )}
                           </div>

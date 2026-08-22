@@ -158,4 +158,35 @@ export class MediaController {
       next(error);
     }
   }
+
+  /**
+   * Upload image specifically for Rich Text Editor content
+   */
+  static async uploadRichTextImage(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        throw new AppError('No image file provided in request', 400, 'BAD_REQUEST');
+      }
+
+      const folder = (req.body?.folder as string) || 'rich-text';
+      const altText = (req.body?.altText as string) || req.file.originalname;
+
+      const result = await MediaService.uploadRichTextImage(req.file, {
+        folder,
+        altText,
+      });
+
+      res.status(201).json({
+        success: true,
+        status: 'success',
+        message: 'Rich text image uploaded successfully',
+        url: result.secureUrl || result.url,
+        secureUrl: result.secureUrl || result.url,
+        publicId: result.publicId || result.cloudinaryPublicId,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
