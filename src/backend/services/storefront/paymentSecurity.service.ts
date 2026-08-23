@@ -20,6 +20,7 @@ export interface VerificationResult {
   currency?: string;
   errorMessage?: string;
   rawPayload?: any;
+  eventId?: string;
 }
 
 // Security Configuration Helper for Payment Secrets
@@ -91,6 +92,7 @@ export class StripeSecurityAdapter {
     const currency = (dataObject.currency || "BDT").toUpperCase();
 
     const isSuccess = eventType === "payment_intent.succeeded" || eventType === "checkout.session.completed";
+    const eventId = payload.id || payload.eventId || (eventType && providerTransactionId ? `${eventType}_${providerTransactionId}` : (providerTransactionId || payload.id));
 
     return {
       verified: true,
@@ -101,6 +103,7 @@ export class StripeSecurityAdapter {
       amount,
       currency,
       rawPayload: payload,
+      eventId,
     };
   }
 }
@@ -135,6 +138,7 @@ export class BkashSecurityAdapter {
     const currency = (payload.currency || "BDT").toUpperCase();
 
     const isSuccess = transactionStatus === "Completed" || transactionStatus === "SUCCESS";
+    const eventId = payload.eventId || payload.header?.eventId || (transactionStatus && providerTransactionId ? `${transactionStatus}_${providerTransactionId}` : (providerTransactionId || payload.paymentID));
 
     return {
       verified: true,
@@ -145,6 +149,7 @@ export class BkashSecurityAdapter {
       amount,
       currency,
       rawPayload: payload,
+      eventId,
     };
   }
 }
@@ -179,6 +184,7 @@ export class NagadSecurityAdapter {
     const currency = (payload.currency || "BDT").toUpperCase();
 
     const isSuccess = status === "Success" || status === "SUCCESS" || status === "PAID";
+    const eventId = payload.eventId || (status && providerTransactionId ? `${status}_${providerTransactionId}` : (providerTransactionId || payload.payment_id));
 
     return {
       verified: true,
@@ -189,6 +195,7 @@ export class NagadSecurityAdapter {
       amount,
       currency,
       rawPayload: payload,
+      eventId,
     };
   }
 }
@@ -240,6 +247,7 @@ export class SSLCommerzSecurityAdapter {
     const currency = (payload.currency || "BDT").toUpperCase();
 
     const isSuccess = status === "VALID" || status === "VALIDATED" || status === "SUCCESS";
+    const eventId = payload.eventId || (status && providerTransactionId ? `${status}_${providerTransactionId}` : (providerTransactionId || payload.val_id));
 
     return {
       verified: true,
@@ -250,6 +258,7 @@ export class SSLCommerzSecurityAdapter {
       amount,
       currency,
       rawPayload: payload,
+      eventId,
     };
   }
 }
@@ -345,18 +354,65 @@ export class PaymentSecurityService {
       throw new AppError("Webhook payload is missing required paymentId", 400, "MISSING_PAYMENT_ID");
     }
 
+    const eventId = verification.eventId || null;
+
     // 2. Perform transaction-authoritative processing with Row Lock on Payment
     return await prisma.$transaction(async (tx) => {
-      // Log webhook for audit
-      const webhookLog = await tx.paymentWebhookLog.create({
-        data: {
-          provider,
-          payload: verification.rawPayload || {},
-          signature: signatureHeader || null,
-        },
-      });
+      // 2a. Fast application-level check for existing webhook event
+      if (eventId) {
+        const existingLog = await (tx.paymentWebhookLog as any).findFirst({
+          where: {
+            provider,
+            eventId,
+          },
+        });
 
-      // Lock Payment row first to guarantee serial execution across concurrent webhooks
+        if (existingLog) {
+          const currentPayment = await tx.payment.findUnique({
+            where: { id: paymentId },
+            include: { order: true },
+          });
+
+          return {
+            status: "ALREADY_PROCESSED",
+            message: `Webhook event ${eventId} for provider ${provider} was already processed`,
+            payment: currentPayment || null,
+          };
+        }
+      }
+
+      // 2b. Create webhook log with DB-level unique constraint protection against race conditions
+      let webhookLog;
+      try {
+        webhookLog = await (tx.paymentWebhookLog as any).create({
+          data: {
+            provider,
+            eventId,
+            payload: verification.rawPayload || {},
+            signature: signatureHeader || null,
+          },
+        });
+      } catch (err: any) {
+        if (
+          err?.code === "P2002" ||
+          (err?.message && (err.message.includes("Unique constraint") || err.message.includes("paymentWebhookLog")))
+        ) {
+          const currentPayment = await tx.payment.findUnique({
+            where: { id: paymentId },
+            include: { order: true },
+          });
+
+          return {
+            status: "ALREADY_PROCESSED",
+            message: `Webhook event ${eventId || "duplicate"} for provider ${provider} was already processed (DB unique constraint caught)`,
+            payment: currentPayment || null,
+          };
+        }
+        throw err;
+      }
+
+      // Lock Payment row first (FOR UPDATE) to guarantee serial execution across concurrent webhooks
+      await tx.$executeRaw`SELECT id FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
       await tx.payment.update({
         where: { id: paymentId },
         data: { updatedAt: new Date() },
@@ -381,8 +437,8 @@ export class PaymentSecurityService {
         );
       }
 
-      // Check Idempotency: if already PAID, return success without mutating state
-      if (payment.status === PaymentStatus.PAID) {
+      // Check Idempotency & Terminal State: if already PAID or REFUNDED, return without mutating state
+      if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.REFUNDED) {
         await tx.paymentWebhookLog.update({
           where: { id: webhookLog.id },
           data: { processed: true, processedAt: new Date() },
@@ -390,7 +446,10 @@ export class PaymentSecurityService {
 
         return {
           status: "ALREADY_PROCESSED",
-          message: "Payment is already marked as PAID",
+          message:
+            payment.status === PaymentStatus.REFUNDED
+              ? "Payment is already in terminal REFUNDED status"
+              : "Payment is already marked as PAID",
           payment,
         };
       }
@@ -510,34 +569,45 @@ export class PaymentSecurityService {
           where: { paymentId: payment.id },
         });
 
-        const totalPending = existingRefunds
-          .filter((r) => r.status === RefundStatus.PENDING)
-          .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
+        // Check if an active cancellation auto-refund already exists
+        const activeCancellationRefund = existingRefunds.find(
+          (r) =>
+            (r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING) &&
+            (r.reason === "Payment received via webhook for already cancelled order" ||
+              r.reason === "Order cancellation auto-refund request" ||
+              r.reason === "LATE_PAYMENT_WEBHOOK_ON_CANCELLED_ORDER")
+        );
 
-        const remainingRefundable = payment.amount
-          .sub(payment.refundedAmount)
-          .sub(totalPending);
+        if (!activeCancellationRefund) {
+          const totalReserved = existingRefunds
+            .filter((r) => r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING)
+            .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
 
-        if (remainingRefundable.gt(0)) {
-          const refund = await tx.refund.create({
-            data: {
-              paymentId: payment.id,
-              orderId: currentOrder.id,
-              customerId: currentOrder.customerId,
-              amount: remainingRefundable,
-              currency: payment.currency,
-              status: RefundStatus.PENDING,
-              reason: "Payment received via webhook for already cancelled order",
-            },
-          });
+          const remainingRefundable = payment.amount
+            .sub(payment.refundedAmount)
+            .sub(totalReserved);
 
-          await tx.refundTransaction.create({
-            data: {
-              refundId: refund.id,
-              status: RefundStatus.PENDING,
-              requestPayload: { reason: "LATE_PAYMENT_WEBHOOK_ON_CANCELLED_ORDER", amount: remainingRefundable.toString() },
-            },
-          });
+          if (remainingRefundable.gt(0)) {
+            const refund = await tx.refund.create({
+              data: {
+                paymentId: payment.id,
+                orderId: currentOrder.id,
+                customerId: currentOrder.customerId,
+                amount: remainingRefundable,
+                currency: payment.currency,
+                status: RefundStatus.PENDING,
+                reason: "Payment received via webhook for already cancelled order",
+              },
+            });
+
+            await tx.refundTransaction.create({
+              data: {
+                refundId: refund.id,
+                status: RefundStatus.PENDING,
+                requestPayload: { reason: "LATE_PAYMENT_WEBHOOK_ON_CANCELLED_ORDER", amount: remainingRefundable.toString() },
+              },
+            });
+          }
         }
       }
 

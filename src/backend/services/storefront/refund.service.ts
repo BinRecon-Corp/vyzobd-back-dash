@@ -40,7 +40,8 @@ export class StorefrontRefundService {
 
       const payment = order.payments[0];
 
-      // 2. Lock the authoritative Payment row
+      // 2. Lock the authoritative Payment row (FOR UPDATE)
+      await tx.$executeRaw`SELECT id FROM "Payment" WHERE id = ${payment.id} FOR UPDATE`;
       await tx.payment.update({
         where: { id: payment.id },
         data: { updatedAt: new Date() },
@@ -55,15 +56,18 @@ export class StorefrontRefundService {
         throw new AppError("Payment is not eligible for refund", 400, "INVALID_PAYMENT_STATUS");
       }
 
-      // 4. Calculate total pending refunds under lock
-      const pendingRefunds = await tx.refund.aggregate({
-        where: { paymentId: currentPayment.id, status: RefundStatus.PENDING },
+      // 4. Calculate total reserved refunds under lock
+      const reservedRefunds = await tx.refund.aggregate({
+        where: {
+          paymentId: currentPayment.id,
+          status: { in: [RefundStatus.PENDING, RefundStatus.PROCESSING] },
+        },
         _sum: { amount: true },
       });
-      const totalPending = pendingRefunds._sum.amount || new Prisma.Decimal(0);
-      const currentlyRefundable = currentPayment.amount.sub(currentPayment.refundedAmount).sub(totalPending);
+      const totalReserved = reservedRefunds._sum.amount || new Prisma.Decimal(0);
+      const currentlyRefundable = currentPayment.amount.sub(currentPayment.refundedAmount).sub(totalReserved);
 
-      if (totalPending.gt(0)) {
+      if (totalReserved.gt(0)) {
         throw new AppError("A refund request is already pending for this payment", 400, "REFUND_ALREADY_PENDING");
       }
 

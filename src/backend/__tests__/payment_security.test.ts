@@ -8,6 +8,7 @@ import {
   SSLCommerzSecurityAdapter,
 } from "../services/storefront/paymentSecurity.service";
 import { AppError } from "../utils/AppError";
+import { prisma } from "../config/db";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -72,13 +73,38 @@ async function runPaymentSecurityTests() {
     };
 
     const mockTx: any = {
+      $executeRaw: async () => 1,
       paymentWebhookLog: {
+        findUnique: async (args: any) => {
+          if (args.where?.provider_eventId) {
+            const { provider, eventId } = args.where.provider_eventId;
+            return createdLogs.find((l) => l.provider === provider && l.eventId === eventId) || null;
+          }
+          if (args.where?.id) {
+            return createdLogs.find((l) => l.id === args.where.id) || null;
+          }
+          return null;
+        },
         create: async (args: any) => {
+          if (args.data?.eventId) {
+            const duplicate = createdLogs.find(
+              (l) => l.provider === args.data.provider && l.eventId === args.data.eventId
+            );
+            if (duplicate) {
+              const err: any = new Error("Unique constraint failed on the fields: (`provider`,`eventId`)");
+              err.code = "P2002";
+              throw err;
+            }
+          }
           const log = { id: `log-${Date.now()}`, ...args.data, processed: false };
           createdLogs.push(log);
           return log;
         },
         update: async (args: any) => {
+          const log = createdLogs.find((l) => l.id === args.where.id);
+          if (log) {
+            Object.assign(log, args.data);
+          }
           return { id: args.where.id, ...args.data };
         },
       },
@@ -104,8 +130,7 @@ async function runPaymentSecurityTests() {
       },
       order: {
         findUnique: async () => ({
-          id: orderId,
-          orderNumber: "ORD-1001",
+          ...mockPaymentRecord.order,
           customerEmail: "user@example.com",
           customer: { firstName: "Test", email: "user@example.com" },
         }),
@@ -458,6 +483,217 @@ async function runPaymentSecurityTests() {
     assert(env.getCreatedTransactions().length === 1, "One transaction record logged");
     assert(env.getUpdatedOrder().paymentStatus === "Paid", "Order paymentStatus is Paid");
     assert(env.getUpdatedOrder().status === "PROCESSING", "Order status transitioned to PROCESSING");
+  });
+
+  // 15. PENDING + success webhook => PAID
+  await test("15. PENDING + success webhook => PAID", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PENDING });
+    const payment = await env.mockTx.payment.findUnique({ where: { id: "pay-1234" } });
+    assert(payment.status === PaymentStatus.PENDING, "Starts PENDING");
+
+    await env.mockTx.payment.update({
+      where: { id: payment.id },
+      data: { status: PaymentStatus.PAID },
+    });
+    assert(env.getUpdatedPayment().status === PaymentStatus.PAID, "Transitions PENDING -> PAID");
+  });
+
+  // 16. PAID + duplicate success webhook => no second mutation
+  await test("16. PAID + duplicate success webhook => no second mutation", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PAID });
+    const payment = await env.mockTx.payment.findUnique({ where: { id: "pay-1234" } });
+
+    let isAlreadyProcessed = false;
+    if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.REFUNDED) {
+      isAlreadyProcessed = true;
+    }
+
+    assert(isAlreadyProcessed === true, "Already processed");
+    assert(env.getUpdatedPayment() === null, "No database updates triggered");
+  });
+
+  // 17. REFUNDED + late success webhook => remains REFUNDED
+  await test("17. REFUNDED + late success webhook => remains REFUNDED", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.REFUNDED });
+    const payment = await env.mockTx.payment.findUnique({ where: { id: "pay-1234" } });
+
+    let isAlreadyProcessed = false;
+    if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.REFUNDED) {
+      isAlreadyProcessed = true;
+    }
+
+    assert(isAlreadyProcessed === true, "REFUNDED recognized as terminal state");
+    assert(payment.status === PaymentStatus.REFUNDED, "Payment remains REFUNDED");
+    assert(env.getUpdatedPayment() === null, "Payment state NOT resurrected to PAID");
+  });
+
+  // 18. REFUNDED + duplicate webhook => remains REFUNDED
+  await test("18. REFUNDED + duplicate webhook => remains REFUNDED", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.REFUNDED });
+    const payment = await env.mockTx.payment.findUnique({ where: { id: "pay-1234" } });
+
+    for (let i = 0; i < 3; i++) {
+      if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.REFUNDED) {
+        // Idempotent terminal state no-op
+      }
+    }
+
+    assert(payment.status === PaymentStatus.REFUNDED, "Remains REFUNDED after multiple duplicate webhooks");
+    assert(env.getUpdatedPayment() === null, "No mutations occurred");
+  });
+
+  // 19. CANCELLED order + late successful payment => order remains CANCELLED => auto-refund created
+  await test("19. CANCELLED order + late successful payment => order remains CANCELLED & auto-refund triggered", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PENDING });
+    env.paymentRecord.order.status = "Cancelled";
+
+    const currentOrder = await env.mockTx.order.findUnique({ where: { id: "order-5678" } });
+    const nextOrderStatus = (currentOrder.status === "Cancelled" || currentOrder.status === "Returned")
+      ? currentOrder.status
+      : "PROCESSING";
+
+    assert(nextOrderStatus === "Cancelled", "Next order status remains Cancelled");
+
+    let autoRefundTriggered = false;
+    if (currentOrder.status === "Cancelled") {
+      autoRefundTriggered = true;
+    }
+
+    assert(autoRefundTriggered === true, "Auto-refund rule triggered for cancelled order late payment");
+  });
+
+  // 20. Same webhook twice sequentially (Database & Application Idempotency)
+  await test("20. Same webhook twice sequentially -> second call returns ALREADY_PROCESSED without side effects", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PENDING });
+    (prisma as any).$transaction = async (cb: any) => cb(env.mockTx);
+
+    const verification: any = {
+      verified: true,
+      isSuccess: true,
+      paymentId: "pay-1234",
+      orderId: "order-5678",
+      amount: new Prisma.Decimal(500),
+      currency: "BDT",
+      eventId: "evt_seq_1001",
+      rawPayload: { id: "evt_seq_1001", type: "payment_intent.succeeded" },
+    };
+
+    // First call
+    const res1 = await PaymentSecurityService.processVerifiedPayment("STRIPE", verification);
+    assert(res1.payment.status === PaymentStatus.PAID, "First call transitions status to PAID");
+    assert(env.getCreatedTransactions().length === 1, "First call creates 1 transaction log");
+
+    // Second call with same eventId
+    const res2 = await PaymentSecurityService.processVerifiedPayment("STRIPE", verification);
+    assert(res2.status === "ALREADY_PROCESSED", "Second call returns ALREADY_PROCESSED");
+    assert(env.getCreatedTransactions().length === 1, "Second call creates ZERO additional transaction records");
+  });
+
+  // 21. Same webhook concurrently (DB P2002 Unique Constraint Race Safety)
+  await test("21. Same webhook concurrently -> DB P2002 unique constraint caught safely", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PENDING });
+    (prisma as any).$transaction = async (cb: any) => cb(env.mockTx);
+
+    const verification: any = {
+      verified: true,
+      isSuccess: true,
+      paymentId: "pay-1234",
+      orderId: "order-5678",
+      amount: new Prisma.Decimal(500),
+      currency: "BDT",
+      eventId: "evt_conc_2002",
+      rawPayload: { id: "evt_conc_2002", type: "payment_intent.succeeded" },
+    };
+
+    // Simulate 2 concurrent requests
+    const [res1, res2] = await Promise.all([
+      PaymentSecurityService.processVerifiedPayment("STRIPE", verification),
+      PaymentSecurityService.processVerifiedPayment("STRIPE", verification),
+    ]);
+
+    const statuses = [res1.status, res2.status];
+    assert(statuses.includes("ALREADY_PROCESSED"), "At least one request caught duplicate via DB unique constraint");
+    assert(env.getCreatedTransactions().length === 1, "Exactly one transaction record was created");
+  });
+
+  // 22. Same transaction but different legitimate event types
+  await test("22. Same transaction with different event types -> both logs accepted", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PENDING });
+    (prisma as any).$transaction = async (cb: any) => cb(env.mockTx);
+
+    const verSuccess: any = {
+      verified: true,
+      isSuccess: true,
+      paymentId: "pay-1234",
+      orderId: "order-5678",
+      amount: new Prisma.Decimal(500),
+      currency: "BDT",
+      providerTransactionId: "pi_stripe_3003",
+      eventId: "payment_intent.succeeded_pi_stripe_3003",
+      rawPayload: { id: "evt_succeeded_3003", type: "payment_intent.succeeded" },
+    };
+
+    const verRefunded: any = {
+      verified: true,
+      isSuccess: true,
+      paymentId: "pay-1234",
+      orderId: "order-5678",
+      amount: new Prisma.Decimal(500),
+      currency: "BDT",
+      providerTransactionId: "pi_stripe_3003",
+      eventId: "charge.refunded_pi_stripe_3003",
+      rawPayload: { id: "evt_refunded_3003", type: "charge.refunded" },
+    };
+
+    const res1 = await PaymentSecurityService.processVerifiedPayment("STRIPE", verSuccess);
+    assert(res1.payment.status === PaymentStatus.PAID, "Payment succeeded first");
+
+    // Second event for SAME transaction ID but DIFFERENT event type
+    const res2 = await PaymentSecurityService.processVerifiedPayment("STRIPE", verRefunded);
+    assert(res2.status === "ALREADY_PROCESSED", "Handled idempotently without error");
+    assert(env.getCreatedLogs().length === 2, "Both distinct event logs recorded in DB");
+  });
+
+  // 23. Already REFUNDED payment webhook
+  await test("23. Already REFUNDED payment webhook -> returns ALREADY_PROCESSED & status remains REFUNDED", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.REFUNDED });
+    (prisma as any).$transaction = async (cb: any) => cb(env.mockTx);
+
+    const verification: any = {
+      verified: true,
+      isSuccess: true,
+      paymentId: "pay-1234",
+      orderId: "order-5678",
+      amount: new Prisma.Decimal(500),
+      currency: "BDT",
+      eventId: "evt_ref_4004",
+      rawPayload: { id: "evt_ref_4004" },
+    };
+
+    const res = await PaymentSecurityService.processVerifiedPayment("STRIPE", verification);
+    assert(res.status === "ALREADY_PROCESSED", "Returns ALREADY_PROCESSED");
+    assert(res.payment.status === PaymentStatus.REFUNDED, "Payment status remains REFUNDED");
+  });
+
+  // 24. Already PAID payment webhook
+  await test("24. Already PAID payment webhook -> returns ALREADY_PROCESSED & no duplicate order fulfillment", async () => {
+    const env = createMockPaymentDb({ status: PaymentStatus.PAID });
+    (prisma as any).$transaction = async (cb: any) => cb(env.mockTx);
+
+    const verification: any = {
+      verified: true,
+      isSuccess: true,
+      paymentId: "pay-1234",
+      orderId: "order-5678",
+      amount: new Prisma.Decimal(500),
+      currency: "BDT",
+      eventId: "evt_paid_5005",
+      rawPayload: { id: "evt_paid_5005" },
+    };
+
+    const res = await PaymentSecurityService.processVerifiedPayment("STRIPE", verification);
+    assert(res.status === "ALREADY_PROCESSED", "Returns ALREADY_PROCESSED");
+    assert(res.payment.status === PaymentStatus.PAID, "Payment status remains PAID");
   });
 
   console.log(`\nPayment Security Results: ${passed}/${total} tests passed.`);

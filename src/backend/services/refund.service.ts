@@ -118,31 +118,48 @@ export class AdminRefundService {
 
   /**
    * Process (approve or reject) a pending refund request
-   * Locking order:
-   * 1. Lock authoritative Refund row
-   * 2. Lock authoritative Payment row
+   * Canonical locking order:
+   * 1. Lock authoritative Payment row FIRST (FOR UPDATE)
+   * 2. Lock authoritative Refund row SECOND (FOR UPDATE)
    * 3. Re-read fresh state under locks
    * 4. Validate refundable balance & eligibility
    * 5. Mutate state atomically (Refund, Payment, Order, Timeline)
    * 6. Commit and trigger side effects
    */
   static async processRefund(refundId: string, approve: boolean, providerReference?: string) {
+    const targetRefund = await prisma.refund.findUnique({
+      where: { id: refundId },
+      select: { id: true, paymentId: true },
+    });
+    if (!targetRefund) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
+
     if (!approve) {
       const rejectedTransaction = await prisma.$transaction(async (tx) => {
-        // 1. Lock authoritative Refund row
+        // 1. Lock authoritative Payment row FIRST
+        await tx.$executeRaw`SELECT id FROM "Payment" WHERE id = ${targetRefund.paymentId} FOR UPDATE`;
+        await tx.payment.update({
+          where: { id: targetRefund.paymentId },
+          data: { updatedAt: new Date() },
+        });
+
+        // 2. Lock authoritative Refund row SECOND
+        await tx.$executeRaw`SELECT id FROM "Refund" WHERE id = ${refundId} FOR UPDATE`;
         await tx.refund.update({
           where: { id: refundId },
           data: { updatedAt: new Date() },
         });
 
-        // 2. Re-read fresh state under lock
+        // 3. Re-read fresh state under lock
         const refund = await tx.refund.findUnique({
           where: { id: refundId },
           include: { payment: true, order: true },
         });
 
         if (!refund) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
-        if (refund.status !== RefundStatus.PENDING) {
+        if (refund.paymentId !== targetRefund.paymentId) {
+          throw new AppError("Payment ID mismatch for refund", 400, "PAYMENT_MISMATCH");
+        }
+        if (refund.status !== RefundStatus.PENDING && refund.status !== RefundStatus.PROCESSING) {
           throw new AppError(`Refund cannot be processed from status ${refund.status}`, 400, "INVALID_STATUS");
         }
 
@@ -191,21 +208,23 @@ export class AdminRefundService {
 
     // Process approval
     const completedTransaction = await prisma.$transaction(async (tx) => {
-      // 1. Lock authoritative Refund row first
+      // 1. Lock authoritative Payment row FIRST
+      await tx.$executeRaw`SELECT id FROM "Payment" WHERE id = ${targetRefund.paymentId} FOR UPDATE`;
+      const lockedPaymentRow = await tx.payment.update({
+        where: { id: targetRefund.paymentId },
+        data: { updatedAt: new Date() },
+      });
+
+      if (!lockedPaymentRow) throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
+
+      // 2. Lock authoritative Refund row SECOND
+      await tx.$executeRaw`SELECT id FROM "Refund" WHERE id = ${refundId} FOR UPDATE`;
       const lockedRefundRow = await tx.refund.update({
         where: { id: refundId },
         data: { updatedAt: new Date() },
       });
 
       if (!lockedRefundRow) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
-
-      // 2. Lock authoritative Payment row
-      const lockedPaymentRow = await tx.payment.update({
-        where: { id: lockedRefundRow.paymentId },
-        data: { updatedAt: new Date() },
-      });
-
-      if (!lockedPaymentRow) throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
 
       // 3. Re-read fresh state under row locks
       const refund = await tx.refund.findUnique({
@@ -214,7 +233,10 @@ export class AdminRefundService {
       });
 
       if (!refund) throw new AppError("Refund not found", 404, "REFUND_NOT_FOUND");
-      if (refund.status !== RefundStatus.PENDING) {
+      if (refund.paymentId !== targetRefund.paymentId) {
+        throw new AppError("Payment ID mismatch for refund", 400, "PAYMENT_MISMATCH");
+      }
+      if (refund.status !== RefundStatus.PENDING && refund.status !== RefundStatus.PROCESSING) {
         throw new AppError(`Refund cannot be processed from status ${refund.status}`, 400, "INVALID_STATUS");
       }
 
@@ -331,7 +353,8 @@ export class AdminRefundService {
     }
 
     const completedRefund = await prisma.$transaction(async (tx) => {
-      // 1. Lock authoritative Payment row first
+      // 1. Lock authoritative Payment row first (FOR UPDATE)
+      await tx.$executeRaw`SELECT id FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
       const lockedPayment = await tx.payment.update({
         where: { id: paymentId },
         data: { updatedAt: new Date() },
@@ -358,12 +381,15 @@ export class AdminRefundService {
       }
 
       // 3. Compute remaining refundable amount under row lock
-      const pendingRefunds = await tx.refund.aggregate({
-        where: { paymentId: currentPayment.id, status: RefundStatus.PENDING },
+      const reservedRefunds = await tx.refund.aggregate({
+        where: {
+          paymentId: currentPayment.id,
+          status: { in: [RefundStatus.PENDING, RefundStatus.PROCESSING] },
+        },
         _sum: { amount: true },
       });
-      const totalPending = pendingRefunds._sum.amount || new Prisma.Decimal(0);
-      const currentlyRefundable = currentPayment.amount.sub(currentPayment.refundedAmount).sub(totalPending);
+      const totalReserved = reservedRefunds._sum.amount || new Prisma.Decimal(0);
+      const currentlyRefundable = currentPayment.amount.sub(currentPayment.refundedAmount).sub(totalReserved);
 
       if (requestedAmount.gt(currentlyRefundable)) {
         throw new AppError(

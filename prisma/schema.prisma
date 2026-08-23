@@ -1037,11 +1037,15 @@ model PaymentTransaction {
 model PaymentWebhookLog {
   id          String    @id @default(uuid())
   provider    String
+  eventId     String?
   payload     Json
   signature   String?
   processed   Boolean   @default(false)
   processedAt DateTime?
   createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, eventId])
 }
 
 enum RefundStatus {

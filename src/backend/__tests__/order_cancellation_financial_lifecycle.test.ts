@@ -182,31 +182,39 @@ class MockFinancialStore {
           });
         } else if (payment.status === PaymentStatus.PAID) {
           const existingRefunds = this.refunds.filter((r) => r.paymentId === payment.id);
-          const totalPending = existingRefunds
-            .filter((r) => r.status === RefundStatus.PENDING)
-            .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
+          const activeCancellationRefund = existingRefunds.find(
+            (r) =>
+              (r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING) &&
+              (r.reason === "Order cancellation auto-refund request" || r.reason === "ORDER_CANCELLED")
+          );
 
-          const remainingRefundable = payment.amount
-            .sub(payment.refundedAmount)
-            .sub(totalPending);
+          if (!activeCancellationRefund) {
+            const totalReserved = existingRefunds
+              .filter((r) => r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING)
+              .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
 
-          if (remainingRefundable.gt(0)) {
-            const ref = {
-              id: `ref-${Date.now()}-${Math.random()}`,
-              paymentId: payment.id,
-              orderId: order.id,
-              customerId: order.customerId,
-              amount: remainingRefundable,
-              currency: payment.currency,
-              status: RefundStatus.PENDING,
-              reason: "Order cancellation auto-refund request",
-            };
-            this.refunds.push(ref);
-            this.refundTransactions.push({
-              id: `rtx-${Date.now()}`,
-              refundId: ref.id,
-              status: RefundStatus.PENDING,
-            });
+            const remainingRefundable = payment.amount
+              .sub(payment.refundedAmount)
+              .sub(totalReserved);
+
+            if (remainingRefundable.gt(0)) {
+              const ref = {
+                id: `ref-${Date.now()}-${Math.random()}`,
+                paymentId: payment.id,
+                orderId: order.id,
+                customerId: order.customerId,
+                amount: remainingRefundable,
+                currency: payment.currency,
+                status: RefundStatus.PENDING,
+                reason: "Order cancellation auto-refund request",
+              };
+              this.refunds.push(ref);
+              this.refundTransactions.push({
+                id: `rtx-${Date.now()}`,
+                refundId: ref.id,
+                status: RefundStatus.PENDING,
+              });
+            }
           }
         }
       }
@@ -267,26 +275,36 @@ class MockFinancialStore {
 
     if (isCancelled) {
       const existingRefunds = this.refunds.filter((r) => r.paymentId === payment.id);
-      const totalPending = existingRefunds
-        .filter((r) => r.status === RefundStatus.PENDING)
-        .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
+      const activeCancellationRefund = existingRefunds.find(
+        (r) =>
+          (r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING) &&
+          (r.reason === "Late payment received for cancelled order" ||
+            r.reason === "Order cancellation auto-refund request" ||
+            r.reason === "LATE_PAYMENT_WEBHOOK_ON_CANCELLED_ORDER")
+      );
 
-      const remainingRefundable = payment.amount
-        .sub(payment.refundedAmount)
-        .sub(totalPending);
+      if (!activeCancellationRefund) {
+        const totalReserved = existingRefunds
+          .filter((r) => r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING)
+          .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
 
-      if (remainingRefundable.gt(0)) {
-        const ref = {
-          id: `ref-late-${Date.now()}`,
-          paymentId: payment.id,
-          orderId: order.id,
-          customerId: order.customerId,
-          amount: remainingRefundable,
-          currency: payment.currency,
-          status: RefundStatus.PENDING,
-          reason: "Late payment received for cancelled order",
-        };
-        this.refunds.push(ref);
+        const remainingRefundable = payment.amount
+          .sub(payment.refundedAmount)
+          .sub(totalReserved);
+
+        if (remainingRefundable.gt(0)) {
+          const ref = {
+            id: `ref-late-${Date.now()}`,
+            paymentId: payment.id,
+            orderId: order.id,
+            customerId: order.customerId,
+            amount: remainingRefundable,
+            currency: payment.currency,
+            status: RefundStatus.PENDING,
+            reason: "Late payment received for cancelled order",
+          };
+          this.refunds.push(ref);
+        }
       }
     }
 

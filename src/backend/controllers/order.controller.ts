@@ -218,54 +218,72 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
         const payments = await tx.payment.findMany({ where: { orderId: id } });
         if (payments.length > 0) {
           for (const payment of payments) {
-            if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+            // Lock authoritative Payment row FIRST before checking or mutating financial status / refunds
+            await tx.$executeRaw`SELECT id FROM "Payment" WHERE id = ${payment.id} FOR UPDATE`;
+            await tx.payment.update({
+              where: { id: payment.id },
+              data: { updatedAt: new Date() },
+            });
+            const lockedPayment = await tx.payment.findUnique({ where: { id: payment.id } });
+            if (!lockedPayment) continue;
+
+            if (lockedPayment.status === PaymentStatus.PENDING || lockedPayment.status === PaymentStatus.PROCESSING) {
               await tx.payment.update({
-                where: { id: payment.id },
+                where: { id: lockedPayment.id },
                 data: { status: PaymentStatus.CANCELLED },
               });
 
               await tx.paymentTransaction.create({
                 data: {
-                  paymentId: payment.id,
+                  paymentId: lockedPayment.id,
                   status: PaymentStatus.CANCELLED,
                   responsePayload: { reason: "ORDER_CANCELLED" },
                 },
               });
 
               updateData.paymentStatus = "Cancelled";
-            } else if (payment.status === PaymentStatus.PAID) {
+            } else if (lockedPayment.status === PaymentStatus.PAID) {
               const existingRefunds = await tx.refund.findMany({
-                where: { paymentId: payment.id },
+                where: { paymentId: lockedPayment.id },
               });
 
-              const totalPending = existingRefunds
-                .filter((r) => r.status === RefundStatus.PENDING)
-                .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
+              // Check if an active cancellation auto-refund already exists
+              const activeCancellationRefund = existingRefunds.find(
+                (r) =>
+                  (r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING) &&
+                  (r.reason === "Order cancellation auto-refund request" || r.reason === "ORDER_CANCELLED")
+              );
 
-              const remainingRefundable = payment.amount
-                .sub(payment.refundedAmount)
-                .sub(totalPending);
+              if (!activeCancellationRefund) {
+                const totalReserved = existingRefunds
+                  .filter((r) => r.status === RefundStatus.PENDING || r.status === RefundStatus.PROCESSING)
+                  .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
 
-              if (remainingRefundable.gt(0)) {
-                const refund = await tx.refund.create({
-                  data: {
-                    paymentId: payment.id,
-                    orderId: currentOrder.id,
-                    customerId: currentOrder.customerId,
-                    amount: remainingRefundable,
-                    currency: payment.currency,
-                    status: RefundStatus.PENDING,
-                    reason: "Order cancellation auto-refund request",
-                  },
-                });
+                const remainingRefundable = lockedPayment.amount
+                  .sub(lockedPayment.refundedAmount)
+                  .sub(totalReserved);
 
-                await tx.refundTransaction.create({
-                  data: {
-                    refundId: refund.id,
-                    status: RefundStatus.PENDING,
-                    requestPayload: { reason: "ORDER_CANCELLED", amount: remainingRefundable.toString() },
-                  },
-                });
+                if (remainingRefundable.gt(0)) {
+                  const refund = await tx.refund.create({
+                    data: {
+                      paymentId: lockedPayment.id,
+                      orderId: currentOrder.id,
+                      customerId: currentOrder.customerId,
+                      amount: remainingRefundable,
+                      currency: lockedPayment.currency,
+                      status: RefundStatus.PENDING,
+                      reason: "Order cancellation auto-refund request",
+                    },
+                  });
+
+                  await tx.refundTransaction.create({
+                    data: {
+                      refundId: refund.id,
+                      status: RefundStatus.PENDING,
+                      requestPayload: { reason: "ORDER_CANCELLED", amount: remainingRefundable.toString() },
+                    },
+                  });
+                }
               }
             }
           }

@@ -162,8 +162,8 @@ export class StorefrontPaymentService {
       throw new AppError("Payment not found or unauthorized", 404, "PAYMENT_NOT_FOUND");
     }
 
-    if (payment.status === PaymentStatus.PAID) {
-      return payment; // Already paid
+    if (payment.status === PaymentStatus.PAID || payment.status === PaymentStatus.REFUNDED) {
+      return payment; // Already paid or terminal refunded
     }
 
     // Direct manual verification must perform full security check
