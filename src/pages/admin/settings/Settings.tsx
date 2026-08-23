@@ -255,6 +255,17 @@ export function Settings() {
                         <label className="text-sm font-medium mb-1 block">Site Tagline</label>
                         <Input name="siteTagline" value={formData.siteTagline || ""} onChange={handleChange} placeholder="Enterprise Management Suite" />
                       </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-sm font-medium mb-1 block">Site Description</label>
+                        <textarea
+                          name="siteDescription"
+                          rows={2}
+                          value={formData.siteDescription || ""}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                          placeholder="Shop high quality equipment and accessories."
+                        />
+                      </div>
                       <MediaUploaderInput
                         label="Company Logo (Light Theme)"
                         value={formData.logoUrl || ""}
@@ -331,6 +342,10 @@ export function Settings() {
                     <div>
                       <label className="text-sm font-medium mb-1 block">Meta Keywords</label>
                       <Input name="metaKeywords" value={formData.metaKeywords || ""} onChange={handleChange} placeholder="ecommerce, store, online shopping" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Canonical Base URL</label>
+                      <Input name="canonicalUrl" value={formData.canonicalUrl || ""} onChange={handleChange} placeholder="https://mystore.com" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -655,16 +670,70 @@ export function Settings() {
                 {/* STORE CONTACT TAB */}
                 {activeTab === "Store" && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Support Email Address</label>
+                        <Input name="supportEmail" type="email" value={formData.supportEmail || ""} onChange={handleChange} placeholder="support@mystore.com" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Support Phone Number</label>
+                        <Input name="supportPhone" type="text" value={formData.supportPhone || ""} onChange={handleChange} placeholder="+8801812345678" />
+                      </div>
                       <div>
                         <label className="text-sm font-medium mb-1 block">WhatsApp Order Number</label>
-                        <p className="text-xs text-muted-foreground mb-2">Phone number customers can use to place orders through WhatsApp.</p>
                         <Input name="whatsappOrderNumber" type="text" value={formData.whatsappOrderNumber || ""} onChange={handleChange} placeholder="+8801712345678" />
                       </div>
                       <div>
                         <label className="text-sm font-medium mb-1 block">Call For Order Number</label>
-                        <p className="text-xs text-muted-foreground mb-2">Phone number customers can call to place an order.</p>
                         <Input name="callOrderNumber" type="text" value={formData.callOrderNumber || ""} onChange={handleChange} placeholder="+8801812345678" />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Merchant Address & Location</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
+                        <div className="sm:col-span-3">
+                          <label className="text-sm font-medium mb-1 block">Street Address</label>
+                          <Input name="address" type="text" value={formData.address || ""} onChange={handleChange} placeholder="House 12, Road 5, Block B, Banani" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">City</label>
+                          <Input name="city" type="text" value={formData.city || ""} onChange={handleChange} placeholder="Dhaka" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Country</label>
+                          <Input name="country" type="text" value={formData.country || ""} onChange={handleChange} placeholder="Bangladesh" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Google Maps Location URL</label>
+                          <Input name="location" type="url" value={formData.location || ""} onChange={handleChange} placeholder="https://maps.google.com/..." />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Social Media Profiles</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Facebook Page URL</label>
+                          <Input name="facebookUrl" type="url" value={formData.facebookUrl || ""} onChange={handleChange} placeholder="https://facebook.com/mystore" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Instagram Profile URL</label>
+                          <Input name="instagramUrl" type="url" value={formData.instagramUrl || ""} onChange={handleChange} placeholder="https://instagram.com/mystore" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">YouTube Channel URL</label>
+                          <Input name="youtubeUrl" type="url" value={formData.youtubeUrl || ""} onChange={handleChange} placeholder="https://youtube.com/@mystore" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">TikTok Profile URL</label>
+                          <Input name="tiktokUrl" type="url" value={formData.tiktokUrl || ""} onChange={handleChange} placeholder="https://tiktok.com/@mystore" />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-sm font-medium mb-1 block">LinkedIn Page URL</label>
+                          <Input name="linkedinUrl" type="url" value={formData.linkedinUrl || ""} onChange={handleChange} placeholder="https://linkedin.com/company/mystore" />
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -94,7 +94,9 @@ let mockActivityLogs: any[] = [];
 };
 
 (prisma as any).sEOSetting = {
-  findFirst: async () => null,
+  findFirst: async () => ({
+    robotsTxt: "User-agent: *\nDisallow: /admin/",
+  }),
 };
 
 (prisma as any).analyticsSetting = {
@@ -192,6 +194,22 @@ async function runStorefrontSettingsVerification() {
     assert.strictEqual(res.body.data.shipping.freeShippingThreshold, 2000);
     assert.strictEqual(res.body.data.shipping.freeShippingEnabled, true);
     assert.strictEqual(res.body.data.shipping.currency, "BDT");
+
+    // Audit branding completeness
+    assert(res.body.data.branding, "branding must be present");
+    assert(res.body.data.branding.siteName, "siteName must not be empty or null");
+    assert(res.body.data.branding.siteTitle, "siteTitle must not be empty or null");
+    assert(res.body.data.branding.siteDescription, "siteDescription must not be empty or null");
+
+    // Audit SEO completeness
+    assert(res.body.data.seo, "seo must be present");
+    assert(res.body.data.seo.metaTitle, "metaTitle must not be empty or null");
+    assert(res.body.data.seo.metaDescription, "metaDescription must not be empty or null");
+    assert(res.body.data.seo.robotsTxt, "robotsTxt must not be empty or null");
+
+    // Audit Store contact completeness
+    assert(res.body.data.store, "store contact must be present");
+    assert.strictEqual(res.body.data.store.whatsappOrderNumber, "+8801700000000");
   });
 
   await test("1.4 HTTP GET /api/storefront/v1/settings/shipping returns 200 OK with granular shipping payload", async () => {

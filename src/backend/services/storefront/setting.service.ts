@@ -26,32 +26,36 @@ export class StorefrontSettingService {
     ]);
 
     const result = {
-      branding: branding ? {
-        siteName: branding.siteName,
-        siteTitle: branding.siteTitle,
-        siteTagline: branding.siteTagline,
-        logoUrl: branding.logoUrl,
-        faviconUrl: branding.faviconUrl,
-        adminPanelName: branding.adminPanelName,
-        adminPanelLogo: branding.adminPanelLogo,
-        primaryColor: (branding as any).primaryColor,
-        footerText: (branding as any).footerText,
-        defaultLanguage: branding.defaultLanguage,
-        defaultCurrency: branding.defaultCurrency,
-        defaultTimezone: branding.defaultTimezone
-      } : null,
-      seo: seo ? {
-        metaTitle: seo.metaTitle,
-        metaDescription: seo.metaDescription,
-        metaKeywords: seo.metaKeywords,
-        ogTitle: seo.ogTitle,
-        ogDescription: seo.ogDescription,
-        ogImage: seo.ogImage,
-        twitterTitle: seo.twitterTitle,
-        twitterDescription: seo.twitterDescription,
-        twitterImage: seo.twitterImage,
-        customHeadCode: seo.customHeadCode
-      } : null,
+      branding: {
+        siteName: branding?.siteName || "Enterprise Store",
+        siteTitle: branding?.siteTitle || branding?.siteName || "Enterprise E-Commerce Platform",
+        siteTagline: branding?.siteTagline || "High Performance Modular E-Commerce",
+        siteDescription: branding?.siteDescription || "Shop top quality modular equipment and accessories.",
+        logoUrl: branding?.logoUrl || null,
+        darkLogoUrl: branding?.darkLogoUrl || null,
+        faviconUrl: branding?.faviconUrl || null,
+        adminPanelName: branding?.adminPanelName || "Admin Portal",
+        adminPanelLogo: branding?.adminPanelLogo || null,
+        primaryColor: branding?.primaryColor || "#0f172a",
+        footerText: branding?.footerText || "© 2026 Enterprise Store. All rights reserved.",
+        defaultLanguage: branding?.defaultLanguage || "en",
+        defaultCurrency: branding?.defaultCurrency || "BDT",
+        defaultTimezone: branding?.defaultTimezone || "UTC"
+      },
+      seo: {
+        metaTitle: seo?.metaTitle || branding?.siteTitle || "Enterprise E-Commerce",
+        metaDescription: seo?.metaDescription || branding?.siteDescription || "Shop top quality modular equipment and accessories.",
+        metaKeywords: seo?.metaKeywords || null,
+        canonicalUrl: seo?.canonicalUrl || null,
+        ogTitle: seo?.ogTitle || seo?.metaTitle || branding?.siteTitle || null,
+        ogDescription: seo?.ogDescription || seo?.metaDescription || branding?.siteDescription || null,
+        ogImage: seo?.ogImage || null,
+        twitterTitle: seo?.twitterTitle || seo?.metaTitle || null,
+        twitterDescription: seo?.twitterDescription || seo?.metaDescription || null,
+        twitterImage: seo?.twitterImage || seo?.ogImage || null,
+        robotsTxt: seo?.robotsTxt || "User-agent: *\nAllow: /",
+        customHeadCode: seo?.customHeadCode || null
+      },
       analytics: analytics ? {
         googleAnalyticsId: analytics.googleAnalyticsId,
         ga4MeasurementId: analytics.googleAnalyticsId,
@@ -75,10 +79,21 @@ export class StorefrontSettingService {
         hotjarId: null,
         enableAnalytics: false
       },
-      store: store ? {
-        whatsappOrderNumber: store.whatsappOrderNumber,
-        callOrderNumber: store.callOrderNumber
-      } : null,
+      store: {
+        whatsappOrderNumber: store?.whatsappOrderNumber || null,
+        callOrderNumber: store?.callOrderNumber || null,
+        supportEmail: store?.supportEmail || null,
+        supportPhone: store?.supportPhone || store?.callOrderNumber || null,
+        address: store?.address || null,
+        city: store?.city || null,
+        country: store?.country || null,
+        location: store?.location || null,
+        facebookUrl: store?.facebookUrl || null,
+        instagramUrl: store?.instagramUrl || null,
+        youtubeUrl: store?.youtubeUrl || null,
+        tiktokUrl: store?.tiktokUrl || null,
+        linkedinUrl: store?.linkedinUrl || null,
+      },
       shipping: shipping ? {
         insideDhakaCharge: Number(shipping.insideDhakaCharge ?? 60),
         outsideDhakaCharge: Number(shipping.outsideDhakaCharge ?? 120),

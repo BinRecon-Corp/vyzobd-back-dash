@@ -1396,6 +1396,7 @@ model BrandingSetting {
   siteName        String?
   siteTitle       String?
   siteTagline     String?
+  siteDescription String?
   logoUrl         String?
   darkLogoUrl     String?
   faviconUrl      String?
@@ -1417,6 +1418,7 @@ model SEOSetting {
   metaTitle          String?
   metaDescription    String?
   metaKeywords       String?
+  canonicalUrl       String?
   ogTitle            String?
   ogDescription      String?
   ogImage            String?
@@ -1495,6 +1497,17 @@ model StoreSetting {
   id                  String   @id @default(uuid())
   whatsappOrderNumber String?
   callOrderNumber     String?
+  supportEmail        String?
+  supportPhone        String?
+  address             String?
+  city                String?
+  country             String?
+  location            String?
+  facebookUrl         String?
+  instagramUrl        String?
+  youtubeUrl          String?
+  tiktokUrl           String?
+  linkedinUrl         String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

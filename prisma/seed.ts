@@ -331,6 +331,94 @@ async function main() {
       }
     }
   }
+
+  console.log('Seeding Default Site Settings...');
+
+  let brandingSetting = await prisma.brandingSetting.findFirst();
+  if (!brandingSetting) {
+    await prisma.brandingSetting.create({
+      data: {
+        siteName: 'Enterprise Store',
+        siteTitle: 'Enterprise E-Commerce Store',
+        siteTagline: 'High Performance Modular E-Commerce Platform',
+        siteDescription: 'Shop high quality equipment and accessories.',
+        primaryColor: '#0f172a',
+        footerText: '© 2026 Enterprise Store. All rights reserved.',
+        defaultLanguage: 'en',
+        defaultCurrency: 'BDT',
+        defaultTimezone: 'UTC',
+      },
+    });
+  }
+
+  let seoSetting = await prisma.sEOSetting.findFirst();
+  if (!seoSetting) {
+    await prisma.sEOSetting.create({
+      data: {
+        metaTitle: 'Enterprise E-Commerce Store',
+        metaDescription: 'Shop high quality equipment and accessories with fast delivery.',
+        metaKeywords: 'ecommerce, shop, online store, modular gear',
+        canonicalUrl: 'https://mystore.com',
+        robotsTxt: 'User-agent: *\nDisallow: /admin/\nDisallow: /checkout/',
+      },
+    });
+  }
+
+  let globalSeo = await prisma.globalSeoSettings.findFirst();
+  if (!globalSeo) {
+    await prisma.globalSeoSettings.create({
+      data: {
+        siteTitle: 'Enterprise E-Commerce Store',
+        siteDescription: 'Shop high quality equipment and accessories with fast delivery.',
+        metaKeywords: 'ecommerce, shop, online store, modular gear',
+        robotsConfig: 'User-agent: *\nDisallow: /admin/\nDisallow: /checkout/',
+      },
+    });
+  }
+
+  let storeSetting = await prisma.storeSetting.findFirst();
+  if (!storeSetting) {
+    await prisma.storeSetting.create({
+      data: {
+        whatsappOrderNumber: '+8801712345678',
+        callOrderNumber: '+8801812345678',
+        supportEmail: 'support@mystore.com',
+        supportPhone: '+8801812345678',
+        address: 'House 12, Road 5, Block B, Banani',
+        city: 'Dhaka',
+        country: 'Bangladesh',
+        location: '23.7937, 90.4066',
+        facebookUrl: 'https://facebook.com/mystore',
+        instagramUrl: 'https://instagram.com/mystore',
+      },
+    });
+  }
+
+  let shippingSetting = await prisma.shippingSetting.findFirst();
+  if (!shippingSetting) {
+    await prisma.shippingSetting.create({
+      data: {
+        insideDhakaCharge: 60,
+        outsideDhakaCharge: 120,
+        defaultShippingCost: 60,
+        freeShippingThreshold: 2000,
+        freeShippingEnabled: true,
+        enableFreeShipping: true,
+      },
+    });
+  }
+
+  let taxSetting = await prisma.taxSetting.findFirst();
+  if (!taxSetting) {
+    await prisma.taxSetting.create({
+      data: {
+        defaultTaxRate: 0,
+        pricesIncludeTax: false,
+        taxEnabled: true,
+        enableTax: true,
+      },
+    });
+  }
 }
 
 main()

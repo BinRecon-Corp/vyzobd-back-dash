@@ -13,14 +13,31 @@ export class SettingService {
 
   static async updateStore(data: any, userId: string) {
     const payload = {
-      whatsappOrderNumber: data.whatsappOrderNumber?.trim() || null,
-      callOrderNumber: data.callOrderNumber?.trim() || null,
+      whatsappOrderNumber: data.whatsappOrderNumber !== undefined ? (data.whatsappOrderNumber?.trim() || null) : undefined,
+      callOrderNumber: data.callOrderNumber !== undefined ? (data.callOrderNumber?.trim() || null) : undefined,
+      supportEmail: data.supportEmail !== undefined ? (data.supportEmail?.trim() || null) : undefined,
+      supportPhone: data.supportPhone !== undefined ? (data.supportPhone?.trim() || null) : undefined,
+      address: data.address !== undefined ? (data.address?.trim() || null) : undefined,
+      city: data.city !== undefined ? (data.city?.trim() || null) : undefined,
+      country: data.country !== undefined ? (data.country?.trim() || null) : undefined,
+      location: data.location !== undefined ? (data.location?.trim() || null) : undefined,
+      facebookUrl: data.facebookUrl !== undefined ? (data.facebookUrl?.trim() || null) : undefined,
+      instagramUrl: data.instagramUrl !== undefined ? (data.instagramUrl?.trim() || null) : undefined,
+      youtubeUrl: data.youtubeUrl !== undefined ? (data.youtubeUrl?.trim() || null) : undefined,
+      tiktokUrl: data.tiktokUrl !== undefined ? (data.tiktokUrl?.trim() || null) : undefined,
+      linkedinUrl: data.linkedinUrl !== undefined ? (data.linkedinUrl?.trim() || null) : undefined,
     };
+
+    // Filter out undefined values
+    const cleanPayload = Object.fromEntries(
+      Object.entries(payload).filter(([_, v]) => v !== undefined)
+    );
+
     let setting = await prisma.storeSetting.findFirst();
     if (setting) {
-      setting = await prisma.storeSetting.update({ where: { id: setting.id }, data: payload });
+      setting = await prisma.storeSetting.update({ where: { id: setting.id }, data: cleanPayload });
     } else {
-      setting = await prisma.storeSetting.create({ data: payload });
+      setting = await prisma.storeSetting.create({ data: cleanPayload });
     }
     StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
@@ -29,11 +46,12 @@ export class SettingService {
         action: "UPDATE_STORE",
         entityType: "Settings",
         entityId: setting.id,
-        details: JSON.stringify(payload)
+        details: JSON.stringify(cleanPayload)
       }
     });
     return setting;
   }
+
   static async getBranding() {
     let setting = await prisma.brandingSetting.findFirst();
     if (!setting) setting = await prisma.brandingSetting.create({ data: {} });
@@ -41,11 +59,14 @@ export class SettingService {
   }
 
   static async updateBranding(data: any, userId: string) {
+    const cleanData = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]).filter(([_, v]) => v !== undefined)
+    );
     let setting = await prisma.brandingSetting.findFirst();
     if (setting) {
-      setting = await prisma.brandingSetting.update({ where: { id: setting.id }, data });
+      setting = await prisma.brandingSetting.update({ where: { id: setting.id }, data: cleanData as any });
     } else {
-      setting = await prisma.brandingSetting.create({ data });
+      setting = await prisma.brandingSetting.create({ data: cleanData as any });
     }
     StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
@@ -54,7 +75,7 @@ export class SettingService {
         action: "UPDATE_BRANDING",
         entityType: "Settings",
         entityId: setting.id,
-        details: JSON.stringify(data)
+        details: JSON.stringify(cleanData)
       }
     });
     return setting;
@@ -67,12 +88,16 @@ export class SettingService {
   }
 
   static async updateSEO(data: any, userId: string) {
+    const cleanData = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]).filter(([_, v]) => v !== undefined)
+    );
     let setting = await prisma.sEOSetting.findFirst();
     if (setting) {
-      setting = await prisma.sEOSetting.update({ where: { id: setting.id }, data });
+      setting = await prisma.sEOSetting.update({ where: { id: setting.id }, data: cleanData as any });
     } else {
-      setting = await prisma.sEOSetting.create({ data });
+      setting = await prisma.sEOSetting.create({ data: cleanData as any });
     }
+
     StorefrontSettingService.clearCache();
     await prisma.activityLog.create({
       data: {
@@ -80,7 +105,7 @@ export class SettingService {
         action: "UPDATE_SEO",
         entityType: "Settings",
         entityId: setting.id,
-        details: JSON.stringify(data)
+        details: JSON.stringify(cleanData)
       }
     });
     return setting;

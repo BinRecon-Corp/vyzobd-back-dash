@@ -10,7 +10,9 @@ export const updateBrandingSettingsSchema = z.object({
   siteName: z.string().optional(),
   siteTitle: z.string().optional(),
   siteTagline: z.string().optional(),
+  siteDescription: z.string().optional(),
   logoUrl: z.string().optional(),
+  darkLogoUrl: z.string().optional(),
   faviconUrl: z.string().optional(),
   adminPanelName: z.string().optional(),
   adminPanelLogo: z.string().optional(),
@@ -26,6 +28,7 @@ export const updateSEOSettingsSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   metaKeywords: z.string().optional(),
+  canonicalUrl: z.string().optional(),
   ogTitle: z.string().optional(),
   ogDescription: z.string().optional(),
   ogImage: z.string().optional(),
@@ -84,4 +87,20 @@ export const updateTaxSettingsSchema = z.object({
   enableTax: z.boolean().optional(),
   defaultTaxRate: z.number().min(0).optional(),
   pricesIncludeTax: z.boolean().optional(),
+});
+
+export const updateStoreSettingsSchema = z.object({
+  whatsappOrderNumber: z.string().optional().nullable(),
+  callOrderNumber: z.string().optional().nullable(),
+  supportEmail: z.string().email("Invalid email format").optional().nullable().or(z.literal("")),
+  supportPhone: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+  location: z.string().url("Must be a valid Google Maps URL").optional().nullable().or(z.literal("")),
+  facebookUrl: z.string().url("Invalid Facebook URL").optional().nullable().or(z.literal("")),
+  instagramUrl: z.string().url("Invalid Instagram URL").optional().nullable().or(z.literal("")),
+  youtubeUrl: z.string().url("Invalid YouTube URL").optional().nullable().or(z.literal("")),
+  tiktokUrl: z.string().url("Invalid TikTok URL").optional().nullable().or(z.literal("")),
+  linkedinUrl: z.string().url("Invalid LinkedIn URL").optional().nullable().or(z.literal("")),
 });
