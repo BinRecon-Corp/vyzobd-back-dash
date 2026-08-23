@@ -355,4 +355,50 @@ export class AdminReturnService {
 
     return updatedTransaction;
   }
+
+  static async closeReturn(id: string, adminNotes?: string) {
+    const updatedTransaction = await prisma.$transaction(async (tx) => {
+      // 1. Row lock returnRequest
+      const lockedReq = await tx.returnRequest.update({
+        where: { id },
+        data: { updatedAt: new Date() },
+      });
+
+      if (!lockedReq) throw new AppError("Return request not found", 404, "RETURN_NOT_FOUND");
+
+      // 2. Re-read fresh state under lock
+      const returnReq = await tx.returnRequest.findUnique({
+        where: { id },
+        include: { order: true },
+      });
+
+      if (!returnReq) throw new AppError("Return request not found", 404, "RETURN_NOT_FOUND");
+
+      if (returnReq.status !== ReturnStatus.RECEIVED && returnReq.status !== ReturnStatus.REFUNDED) {
+        throw new AppError(
+          `Cannot close return from status ${returnReq.status}. Only RECEIVED or REFUNDED returns can be closed.`,
+          400,
+          "INVALID_STATUS"
+        );
+      }
+
+      const updated = await tx.returnRequest.update({
+        where: { id },
+        data: { status: ReturnStatus.CLOSED, adminNotes: adminNotes || returnReq.adminNotes },
+        include: { order: true, customer: true },
+      });
+
+      await tx.orderTimeline.create({
+        data: {
+          orderId: returnReq.orderId,
+          status: returnReq.order.status,
+          action: "RETURN_CLOSED",
+        },
+      });
+
+      return updated;
+    });
+
+    return updatedTransaction;
+  }
 }

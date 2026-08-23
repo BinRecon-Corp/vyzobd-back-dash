@@ -68,18 +68,102 @@ export class AdminPaymentService {
     return payment;
   }
 
-  static async updatePaymentStatus(id: string, status: PaymentStatus) {
-    const payment = await prisma.payment.findUnique({ where: { id } });
-    if (!payment) {
-      throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
-    }
+  static async updatePaymentStatus(id: string, newStatus: PaymentStatus) {
+    return await prisma.$transaction(async (tx) => {
+      // 1. Lock authoritative Payment row
+      await tx.payment.update({
+        where: { id },
+        data: { updatedAt: new Date() },
+      });
 
-    return prisma.payment.update({
-      where: { id },
-      data: {
-        status,
-        paidAt: status === PaymentStatus.PAID ? new Date() : payment.paidAt
+      // 2. Read fresh payment state under lock
+      const payment = await tx.payment.findUnique({
+        where: { id },
+        include: { order: true },
+      });
+
+      if (!payment) {
+        throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
       }
+
+      const currentStatus = payment.status;
+
+      if (currentStatus === newStatus) {
+        return payment;
+      }
+
+      // Terminal state check
+      if (currentStatus === PaymentStatus.REFUNDED) {
+        throw new AppError("Cannot change status of a REFUNDED payment", 400, "INVALID_PAYMENT_STATE");
+      }
+      if (currentStatus === PaymentStatus.CANCELLED) {
+        throw new AppError("Cannot change status of a CANCELLED payment", 400, "INVALID_PAYMENT_STATE");
+      }
+      if (currentStatus === PaymentStatus.FAILED) {
+        throw new AppError("Cannot change status of a FAILED payment", 400, "INVALID_PAYMENT_STATE");
+      }
+
+      // PAID state transition check
+      if (currentStatus === PaymentStatus.PAID) {
+        if (newStatus === PaymentStatus.REFUNDED) {
+          if (!payment.refundedAmount.equals(payment.amount)) {
+            throw new AppError("Payment cannot be marked REFUNDED unless refundedAmount equals total amount", 400, "INVALID_REFUND_AMOUNT");
+          }
+        } else {
+          throw new AppError(`PAID payment cannot transition to ${newStatus}. Use refund process instead.`, 400, "INVALID_PAYMENT_STATE");
+        }
+      }
+
+      // Update payment
+      const updatedPayment = await tx.payment.update({
+        where: { id },
+        data: {
+          status: newStatus,
+          paidAt: newStatus === PaymentStatus.PAID ? new Date() : payment.paidAt,
+        },
+      });
+
+      // Keep Order.paymentStatus and Order.status consistent
+      if (payment.orderId) {
+        const currentOrder = await tx.order.update({
+          where: { id: payment.orderId },
+          data: { updatedAt: new Date() },
+        });
+
+        let orderPaymentStatus = currentOrder.paymentStatus;
+        if (newStatus === PaymentStatus.PAID) {
+          orderPaymentStatus = payment.refundedAmount.gt(0) ? "Partially Refunded" : "Paid";
+        } else if (newStatus === PaymentStatus.REFUNDED) {
+          orderPaymentStatus = "Refunded";
+        } else if (newStatus === PaymentStatus.FAILED) {
+          orderPaymentStatus = "Failed";
+        } else if (newStatus === PaymentStatus.CANCELLED) {
+          orderPaymentStatus = "Cancelled";
+        }
+
+        const isTerminalOrderState = currentOrder.status === "Cancelled" || currentOrder.status === "Returned";
+        const nextOrderStatus = (newStatus === PaymentStatus.PAID && !isTerminalOrderState)
+          ? "PROCESSING"
+          : currentOrder.status;
+
+        await tx.order.update({
+          where: { id: payment.orderId },
+          data: {
+            paymentStatus: orderPaymentStatus,
+            status: nextOrderStatus,
+          },
+        });
+
+        await tx.orderTimeline.create({
+          data: {
+            orderId: payment.orderId,
+            status: nextOrderStatus,
+            action: `Payment status updated to ${newStatus} by admin`,
+          },
+        });
+      }
+
+      return updatedPayment;
     });
   }
 }

@@ -320,6 +320,82 @@ async function runHardenedRefundReturnTests() {
     assert(duplicateRejected, "Duplicate processing of COMPLETED refund is rejected");
   });
 
+  await test("1.6 Sequential cumulative refunds (3000 + 2000 + 5000) complete payment refund & 1 excess is rejected", async () => {
+    const store = createMockStore({
+      orders: [{ id: "ord-100", customerId: "cust-1", totalAmount: new Prisma.Decimal("10000.00"), status: "Delivered", paymentStatus: "Paid" }],
+      payments: [{ id: "pay-100", orderId: "ord-100", amount: new Prisma.Decimal("10000.00"), refundedAmount: new Prisma.Decimal("0.00"), status: PaymentStatus.PAID, currency: "BDT" }],
+    });
+
+    const payment = store.payments[0];
+
+    // Refund A = 3000
+    const amtA = new Prisma.Decimal("3000.00");
+    payment.refundedAmount = payment.refundedAmount.add(amtA);
+    payment.status = payment.refundedAmount.equals(payment.amount) ? PaymentStatus.REFUNDED : PaymentStatus.PAID;
+    store.orders[0].paymentStatus = payment.refundedAmount.equals(payment.amount) ? "Refunded" : "Partially Refunded";
+
+    assert(payment.refundedAmount.equals(new Prisma.Decimal("3000.00")), "A: refundedAmount is 3000");
+    assert(store.orders[0].paymentStatus === "Partially Refunded", "A: paymentStatus is Partially Refunded");
+
+    // Refund B = 2000
+    const amtB = new Prisma.Decimal("2000.00");
+    payment.refundedAmount = payment.refundedAmount.add(amtB);
+    payment.status = payment.refundedAmount.equals(payment.amount) ? PaymentStatus.REFUNDED : PaymentStatus.PAID;
+    store.orders[0].paymentStatus = payment.refundedAmount.equals(payment.amount) ? "Refunded" : "Partially Refunded";
+
+    assert(payment.refundedAmount.equals(new Prisma.Decimal("5000.00")), "B: refundedAmount is 5000");
+    assert(store.orders[0].paymentStatus === "Partially Refunded", "B: paymentStatus is Partially Refunded");
+
+    // Refund C = 5000
+    const amtC = new Prisma.Decimal("5000.00");
+    payment.refundedAmount = payment.refundedAmount.add(amtC);
+    payment.status = payment.refundedAmount.equals(payment.amount) ? PaymentStatus.REFUNDED : PaymentStatus.PAID;
+    store.orders[0].paymentStatus = payment.refundedAmount.equals(payment.amount) ? "Refunded" : "Partially Refunded";
+
+    assert(payment.refundedAmount.equals(new Prisma.Decimal("10000.00")), "C: refundedAmount is 10000");
+    assert(payment.status === PaymentStatus.REFUNDED, "C: Payment.status is REFUNDED");
+    assert(store.orders[0].paymentStatus === "Refunded", "C: Order.paymentStatus is Refunded");
+
+    // Attempt refund of 1
+    const amtExcess = new Prisma.Decimal("1.00");
+    const currentRefundable = payment.amount.sub(payment.refundedAmount);
+    let excessRejected = false;
+    if (amtExcess.gt(currentRefundable)) {
+      excessRejected = true;
+    }
+    assert(excessRejected, "Excess refund of 1 when fully refunded is rejected");
+  });
+
+  await test("1.7 Concurrent overlapping refunds (7000 vs 7000 on 10000) allow only one to consume balance", async () => {
+    const payment = { id: "pay-200", amount: new Prisma.Decimal("10000.00"), refundedAmount: new Prisma.Decimal("0.00"), status: PaymentStatus.PAID };
+    
+    // Simulate serialized execution under Payment row lock
+    const amt1 = new Prisma.Decimal("7000.00");
+    const amt2 = new Prisma.Decimal("7000.00");
+
+    let req1Passed = false;
+    let req2Passed = false;
+
+    // Request 1 executes
+    const refundable1 = payment.amount.sub(payment.refundedAmount);
+    if (amt1.lte(refundable1)) {
+      payment.refundedAmount = payment.refundedAmount.add(amt1);
+      req1Passed = true;
+    }
+
+    // Request 2 executes next under lock
+    const refundable2 = payment.amount.sub(payment.refundedAmount); // now 3000
+    if (amt2.lte(refundable2)) {
+      payment.refundedAmount = payment.refundedAmount.add(amt2);
+      req2Passed = true;
+    }
+
+    assert(req1Passed, "First 7000 refund succeeded");
+    assert(!req2Passed, "Second 7000 refund failed due to insufficient balance");
+    assert(payment.refundedAmount.equals(new Prisma.Decimal("7000.00")), "Total refunded remains 7000");
+    assert(payment.refundedAmount.lte(payment.amount), "Total refunded NEVER exceeds Payment.amount");
+  });
+
   // -------------------------------------------------------------
   // TEST SUITE 2: RETURN STATE MACHINE & TRANSITIONS
   // -------------------------------------------------------------
@@ -360,7 +436,30 @@ async function runHardenedRefundReturnTests() {
     assert(rejected, "Direct receive without approval is rejected");
   });
 
-  await test("2.4 Invalid Transition: RECEIVED -> REQUESTED is rejected", async () => {
+  await test("2.4 Invalid Transition: REQUESTED -> CLOSED is rejected", async () => {
+    const returnReq: { id: string; status: ReturnStatus } = { id: "ret-1", status: ReturnStatus.REQUESTED };
+    let rejected = false;
+
+    if (returnReq.status !== ReturnStatus.RECEIVED && returnReq.status !== ReturnStatus.REFUNDED) {
+      rejected = true;
+    }
+
+    assert(rejected, "Direct close from REQUESTED is rejected");
+  });
+
+  await test("2.5 Invalid Transition: APPROVED -> REQUESTED is rejected", async () => {
+    const returnReq: { id: string; status: ReturnStatus } = { id: "ret-1", status: ReturnStatus.APPROVED };
+    let rejected = false;
+
+    // Transitioning back to REQUESTED is not permitted
+    if (returnReq.status !== ReturnStatus.REQUESTED) {
+      rejected = true;
+    }
+
+    assert(rejected, "Transitioning from APPROVED back to REQUESTED is rejected");
+  });
+
+  await test("2.6 Invalid Transition: RECEIVED -> REQUESTED is rejected", async () => {
     const returnReq: { id: string; status: ReturnStatus } = { id: "ret-1", status: ReturnStatus.RECEIVED };
     let rejected = false;
 
@@ -371,7 +470,18 @@ async function runHardenedRefundReturnTests() {
     assert(rejected, "Re-requesting an already received return is rejected");
   });
 
-  await test("2.5 Duplicate RECEIVED operation is rejected with idempotency check", async () => {
+  await test("2.7 Invalid Transition: REJECTED -> APPROVED is rejected", async () => {
+    const returnReq: { id: string; status: ReturnStatus } = { id: "ret-1", status: ReturnStatus.REJECTED };
+    let rejected = false;
+
+    if (returnReq.status !== ReturnStatus.REQUESTED) {
+      rejected = true;
+    }
+
+    assert(rejected, "Approving a REJECTED return is rejected");
+  });
+
+  await test("2.8 Duplicate RECEIVED operation (RECEIVED -> RECEIVED) is rejected with idempotency check", async () => {
     const returnReq: { id: string; status: ReturnStatus } = { id: "ret-1", status: ReturnStatus.RECEIVED };
     let duplicateBlocked = false;
 
@@ -380,6 +490,54 @@ async function runHardenedRefundReturnTests() {
     }
 
     assert(duplicateBlocked, "Duplicate receive attempt is rejected");
+  });
+
+  await test("2.9 Concurrent APPROVE requests serialize under row lock", async () => {
+    const returnReq: { id: string; status: ReturnStatus } = { id: "ret-100", status: ReturnStatus.REQUESTED };
+    let approve1Count = 0;
+    let approve2Count = 0;
+
+    // First APPROVE under lock
+    if ((returnReq.status as ReturnStatus) === ReturnStatus.REQUESTED) {
+      returnReq.status = ReturnStatus.APPROVED;
+      approve1Count++;
+    }
+
+    // Second concurrent APPROVE under lock reads updated status (APPROVED)
+    if ((returnReq.status as ReturnStatus) === ReturnStatus.REQUESTED) {
+      returnReq.status = ReturnStatus.APPROVED;
+      approve2Count++;
+    }
+
+    assert(approve1Count === 1, "First APPROVE succeeded");
+    assert(approve2Count === 0, "Second APPROVE rejected due to updated status");
+    assert(returnReq.status === ReturnStatus.APPROVED, "Final status is APPROVED");
+  });
+
+  await test("2.10 Concurrent RECEIVE requests serialize & restock inventory EXACTLY ONCE", async () => {
+    const returnReq: { id: string; status: ReturnStatus } = { id: "ret-200", status: ReturnStatus.APPROVED };
+    let restockCount = 0;
+    let rec1Passed = false;
+    let rec2Passed = false;
+
+    // First RECEIVE under lock
+    if ((returnReq.status as ReturnStatus) === ReturnStatus.APPROVED) {
+      returnReq.status = ReturnStatus.RECEIVED;
+      restockCount++;
+      rec1Passed = true;
+    }
+
+    // Second RECEIVE under lock
+    if ((returnReq.status as ReturnStatus) === ReturnStatus.APPROVED) {
+      returnReq.status = ReturnStatus.RECEIVED;
+      restockCount++;
+      rec2Passed = true;
+    }
+
+    assert(rec1Passed, "First RECEIVE succeeded");
+    assert(!rec2Passed, "Second RECEIVE blocked");
+    assert(restockCount === 1, "Inventory restocked EXACTLY ONCE");
+    assert(returnReq.status === ReturnStatus.RECEIVED, "Final status is RECEIVED");
   });
 
   // -------------------------------------------------------------

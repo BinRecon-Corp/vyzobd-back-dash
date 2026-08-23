@@ -1,6 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
-import { Prisma, PaymentStatus, PaymentProvider } from "@prisma/client";
+import { Prisma, PaymentStatus, PaymentProvider, RefundStatus } from "@prisma/client";
 import { prisma } from "../../config/db";
 import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
@@ -356,7 +356,13 @@ export class PaymentSecurityService {
         },
       });
 
-      // Find payment record
+      // Lock Payment row first to guarantee serial execution across concurrent webhooks
+      await tx.payment.update({
+        where: { id: paymentId },
+        data: { updatedAt: new Date() },
+      });
+
+      // Find payment record under lock
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
         include: { order: true },
@@ -488,20 +494,69 @@ export class PaymentSecurityService {
         },
       });
 
-      // Update Order Status to PROCESSING and paymentStatus to Paid
+      // Fetch fresh order under lock and preserve terminal states
+      const currentOrder = await tx.order.update({
+        where: { id: payment.orderId },
+        data: { updatedAt: new Date() }
+      });
+
+      const nextOrderStatus = (currentOrder.status === "Cancelled" || currentOrder.status === "Returned")
+        ? currentOrder.status
+        : "PROCESSING";
+
+      // If order is cancelled, flag funds for auto-refund
+      if (currentOrder.status === "Cancelled") {
+        const existingRefunds = await tx.refund.findMany({
+          where: { paymentId: payment.id },
+        });
+
+        const totalPending = existingRefunds
+          .filter((r) => r.status === RefundStatus.PENDING)
+          .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
+
+        const remainingRefundable = payment.amount
+          .sub(payment.refundedAmount)
+          .sub(totalPending);
+
+        if (remainingRefundable.gt(0)) {
+          const refund = await tx.refund.create({
+            data: {
+              paymentId: payment.id,
+              orderId: currentOrder.id,
+              customerId: currentOrder.customerId,
+              amount: remainingRefundable,
+              currency: payment.currency,
+              status: RefundStatus.PENDING,
+              reason: "Payment received via webhook for already cancelled order",
+            },
+          });
+
+          await tx.refundTransaction.create({
+            data: {
+              refundId: refund.id,
+              status: RefundStatus.PENDING,
+              requestPayload: { reason: "LATE_PAYMENT_WEBHOOK_ON_CANCELLED_ORDER", amount: remainingRefundable.toString() },
+            },
+          });
+        }
+      }
+
+      // Update Order paymentStatus to Paid and status to PROCESSING (if not terminal)
       await tx.order.update({
         where: { id: payment.orderId },
         data: {
           paymentStatus: "Paid",
-          status: "PROCESSING",
+          status: nextOrderStatus,
         },
       });
 
       await tx.orderTimeline.create({
         data: {
           orderId: payment.orderId,
-          status: "PROCESSING",
-          action: `Payment successfully verified via ${provider}`,
+          status: nextOrderStatus,
+          action: currentOrder.status === "Cancelled"
+            ? `Payment verified via ${provider} for CANCELLED order (Flagged for refund)`
+            : `Payment successfully verified via ${provider}`,
         },
       });
 

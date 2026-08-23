@@ -1,4 +1,5 @@
 import { Response, NextFunction } from "express";
+import { Prisma, PaymentStatus, RefundStatus } from "@prisma/client";
 import { prisma } from "../config/db";
 import { AuthRequest } from "../middlewares/auth";
 import { AppError } from "../utils/AppError";
@@ -191,10 +192,85 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response, next: N
       });
       if (!currentOrder || currentOrder.deletedAt) throw new AppError("Order not found", 404, "NOT_FOUND");
 
+      // State machine transition validation
+      if (status && status !== currentOrder.status) {
+        if (currentOrder.status === "Cancelled") {
+          throw new AppError("Cannot change status of a Cancelled order", 400, "INVALID_ORDER_STATE");
+        }
+        if (currentOrder.status === "Returned") {
+          throw new AppError("Cannot change status of a Returned order", 400, "INVALID_ORDER_STATE");
+        }
+        if (currentOrder.status === "Shipped" && status !== "Delivered") {
+          throw new AppError(`Cannot transition order from Shipped to ${status}`, 400, "INVALID_ORDER_STATE");
+        }
+        if (currentOrder.status === "Delivered" && status !== "Returned") {
+          throw new AppError(`Cannot transition order from Delivered to ${status}`, 400, "INVALID_ORDER_STATE");
+        }
+      }
+
       if (status === "Cancelled" && currentOrder.status !== "Cancelled") {
         const lowerStatus = currentOrder.status.toLowerCase();
         if (lowerStatus === "shipped" || lowerStatus === "delivered") {
           throw new AppError(`Cannot cancel an order that is already ${currentOrder.status}`, 400, "INVALID_ORDER_STATE");
+        }
+
+        // Financial lifecycle state management on cancellation
+        const payments = await tx.payment.findMany({ where: { orderId: id } });
+        if (payments.length > 0) {
+          for (const payment of payments) {
+            if (payment.status === PaymentStatus.PENDING || payment.status === PaymentStatus.PROCESSING) {
+              await tx.payment.update({
+                where: { id: payment.id },
+                data: { status: PaymentStatus.CANCELLED },
+              });
+
+              await tx.paymentTransaction.create({
+                data: {
+                  paymentId: payment.id,
+                  status: PaymentStatus.CANCELLED,
+                  responsePayload: { reason: "ORDER_CANCELLED" },
+                },
+              });
+
+              updateData.paymentStatus = "Cancelled";
+            } else if (payment.status === PaymentStatus.PAID) {
+              const existingRefunds = await tx.refund.findMany({
+                where: { paymentId: payment.id },
+              });
+
+              const totalPending = existingRefunds
+                .filter((r) => r.status === RefundStatus.PENDING)
+                .reduce((sum, r) => sum.add(r.amount), new Prisma.Decimal(0));
+
+              const remainingRefundable = payment.amount
+                .sub(payment.refundedAmount)
+                .sub(totalPending);
+
+              if (remainingRefundable.gt(0)) {
+                const refund = await tx.refund.create({
+                  data: {
+                    paymentId: payment.id,
+                    orderId: currentOrder.id,
+                    customerId: currentOrder.customerId,
+                    amount: remainingRefundable,
+                    currency: payment.currency,
+                    status: RefundStatus.PENDING,
+                    reason: "Order cancellation auto-refund request",
+                  },
+                });
+
+                await tx.refundTransaction.create({
+                  data: {
+                    refundId: refund.id,
+                    status: RefundStatus.PENDING,
+                    requestPayload: { reason: "ORDER_CANCELLED", amount: remainingRefundable.toString() },
+                  },
+                });
+              }
+            }
+          }
+        } else {
+          updateData.paymentStatus = "Cancelled";
         }
 
         // Restore inventory

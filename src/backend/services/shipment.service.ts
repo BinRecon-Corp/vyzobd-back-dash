@@ -196,7 +196,26 @@ export class AdminShipmentService {
       throw new AppError("Shipment not found", 404, "SHIPMENT_NOT_FOUND");
     }
 
-    const updatedShipmentTransaction = await prisma.$transaction(async (tx) => {   let resolvedCourierId = courierId || shipment.courierId;
+    const updatedShipmentTransaction = await prisma.$transaction(async (tx) => {
+      // 1. Lock and re-verify fresh Order state FIRST before any shipment modifications
+      const currentOrder = await tx.order.update({
+        where: { id: shipment.orderId },
+        data: { updatedAt: new Date() }
+      });
+
+      if (!currentOrder || currentOrder.deletedAt) {
+        throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+      }
+
+      if (currentOrder.status === "Cancelled") {
+        throw new AppError("Cannot update shipment for a cancelled order", 400, "ORDER_CANCELLED");
+      }
+
+      if (currentOrder.status === "Returned") {
+        throw new AppError("Cannot update shipment for a returned order", 400, "ORDER_RETURNED");
+      }
+
+      let resolvedCourierId = courierId || shipment.courierId;
 
       if (!resolvedCourierId && courierName) {
         let courierRecord = await tx.courier.findFirst({

@@ -39,6 +39,8 @@ export const updateReturnStatus = async (req: any, res: Response, next: NextFunc
       returnReq = await AdminReturnService.rejectReturn(id, adminNotes);
     } else if (status === "RECEIVED") {
       returnReq = await AdminReturnService.receiveReturn(id, adminNotes);
+    } else if (status === "CLOSED") {
+      returnReq = await AdminReturnService.closeReturn(id, adminNotes);
     } else {
       throw new AppError(`Invalid return status: ${status}`, 400, "INVALID_STATUS");
     }
