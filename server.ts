@@ -59,6 +59,8 @@ import storefrontMerchantRouter from "./src/backend/routes/storefront/merchant.r
 import storefrontSettingRouter from "./src/backend/routes/storefront/setting.routes";
 import storefrontAnalyticsRouter from "./src/backend/routes/storefront/analytics.routes";
 import storefrontSeoRouter from "./src/backend/routes/storefront/seo.routes";
+import storefrontReviewRouter from "./src/backend/routes/storefront/review.routes";
+import reviewRouter from "./src/backend/routes/review.routes";
 import { getSitemap, getRobotsTxt } from "./src/backend/controllers/storefront/sitemap.controller";
 import storefrontPageRouter from "./src/backend/routes/storefront/page.routes";
 import storefrontBlogRouter from "./src/backend/routes/storefront/blog.routes";
@@ -243,6 +245,7 @@ async function startServer() {
   );
   apiRouter.use("/faqs", faqRouter);
   apiRouter.use("/seo", seoRouter);
+  apiRouter.use("/reviews", reviewRouter);
   apiRouter.use("/settings", settingRouter);
   apiRouter.use("/storefront/v1/settings", storefrontSettingRouter);
   
@@ -269,6 +272,7 @@ storefrontRouter.use("/banners", storefrontBannerRouter);
   storefrontRouter.use("/search", storefrontSearchRouter);
   storefrontRouter.use("/merchant", storefrontMerchantRouter);
   storefrontRouter.use("/seo", storefrontSeoRouter);
+  storefrontRouter.use("/reviews", storefrontReviewRouter);
   storefrontRouter.use("/settings", storefrontSettingRouter);
   storefrontRouter.use("/analytics", storefrontAnalyticsRouter);
   storefrontRouter.use("/pages", storefrontPageRouter);

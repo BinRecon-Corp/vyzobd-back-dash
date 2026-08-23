@@ -95,19 +95,19 @@ model Customer {
   orders          Order[]
   reviews         Review[]
 
-  passwordHash         String?
-  avatarUrl            String?
-  emailVerified        Boolean   @default(false)
-  provider             AuthProvider @default(LOCAL)
-  providerId           String?
-  verificationToken    String?
-  verificationExpires  DateTime?
-  resetPasswordToken   String?
-  resetPasswordExpires DateTime?
-  pendingEmail                 String?
-  pendingEmailVerificationToken String?
+  passwordHash                    String?
+  avatarUrl                       String?
+  emailVerified                   Boolean      @default(false)
+  provider                        AuthProvider @default(LOCAL)
+  providerId                      String?
+  verificationToken               String?
+  verificationExpires             DateTime?
+  resetPasswordToken              String?
+  resetPasswordExpires            DateTime?
+  pendingEmail                    String?
+  pendingEmailVerificationToken   String?
   pendingEmailVerificationExpires DateTime?
-  lastLoginAt          DateTime?
+  lastLoginAt                     DateTime?
 
   addresses              CustomerAddress[]
   sessions               CustomerSession[]
@@ -132,12 +132,12 @@ model Customer {
 }
 
 model CustomerNote {
-  id         String   @id @default(uuid())
-  customerId               String?
-  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   note       String
   author     String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([customerId])
 }
@@ -174,13 +174,13 @@ model Warehouse {
 }
 
 model Category {
-  id             String          @id @default(uuid())
-  name           String
-  slug           String          @unique
-  description    String?
-  image          String?
-  icon           String?
-  images         CategoryImage[]
+  id          String          @id @default(uuid())
+  name        String
+  slug        String          @unique
+  description String?
+  image       String?
+  icon        String?
+  images      CategoryImage[]
 
   metaTitle       String?
   metaDescription String?
@@ -190,15 +190,15 @@ model Category {
   ogDescription   String?
   ogImage         String?
   robots          String?
-  sortOrder      Int             @default(0)
-  parentId       String?
-  parent         Category?       @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children       Category[]      @relation("CategoryHierarchy")
-  products       Product[]
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  deletedAt      DateTime?
+  sortOrder       Int        @default(0)
+  parentId        String?
+  parent          Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryHierarchy")
+  products        Product[]
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
 }
 
 model CategoryImage {
@@ -309,7 +309,6 @@ model Product {
   slug             String   @unique
   description      String?
   shortDescription String?
-
 
   metaTitle       String?
   metaDescription String?
@@ -456,7 +455,7 @@ model Order {
   id                       String                  @id @default(uuid())
   orderNumber              String                  @unique
   customerId               String?
-  customer                 Customer?                @relation(fields: [customerId], references: [id])
+  customer                 Customer?               @relation(fields: [customerId], references: [id])
   customerEmail            String?
   status                   String                  @default("Pending")
   paymentStatus            String                  @default("Unpaid")
@@ -513,6 +512,7 @@ model OrderItem {
   warehouse        Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   shipmentItems    ShipmentItem[]
   returnItems      ReturnItem[]
+  review           Review?
   quantity         Int
   price            Decimal
   productName      String?
@@ -649,20 +649,46 @@ model Popup {
 }
 
 model Review {
-  id         String    @id @default(uuid())
-  productId  String
-  product    Product   @relation(fields: [productId], references: [id])
-  customerId               String?
-  customer                 Customer?                @relation(fields: [customerId], references: [id])
-  rating     Int       @default(5)
-  comment    String?
-  isApproved Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  id                 String        @id @default(uuid())
+  productId          String
+  product            Product       @relation(fields: [productId], references: [id])
+  orderItemId        String?       @unique
+  orderItem          OrderItem?    @relation(fields: [orderItemId], references: [id])
+  customerId         String?
+  customer           Customer?     @relation(fields: [customerId], references: [id])
+  customerName       String?
+  customerMobile     String?
+  customerEmail      String?
+  rating             Int           @default(5)
+  headline           String?
+  comment            String?       @db.VarChar(1000)
+  status             ReviewStatus  @default(PENDING)
+  isApproved         Boolean       @default(false)
+  isVerifiedPurchase Boolean       @default(false)
+  images             ReviewImage[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  deletedAt          DateTime?
 
   @@index([productId])
   @@index([customerId])
+  @@index([customerMobile])
+}
+
+model ReviewImage {
+  id                 String   @id @default(uuid())
+  reviewId           String
+  review             Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  url                String
+  cloudinaryPublicId String?
+  createdAt          DateTime @default(now())
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
 }
 
 model ActivityLog {
@@ -867,9 +893,9 @@ model FAQ {
 }
 
 model CustomerAddress {
-  id         String   @id @default(uuid())
-  customerId               String?
-  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   label      String?
   fullName   String
   phone      String?
@@ -879,17 +905,17 @@ model CustomerAddress {
   state      String
   postalCode String
   country    String
-  isDefault  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  isDefault  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([customerId])
 }
 
 model CustomerRefreshToken {
   id         String    @id @default(uuid())
-  customerId               String?
-  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   tokenHash  String    @unique
   expiresAt  DateTime
   ipAddress  String?
@@ -902,15 +928,15 @@ model CustomerRefreshToken {
 }
 
 model CustomerSession {
-  id           String   @id @default(uuid())
-  customerId               String?
-  customer                 Customer?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  token        String   @unique
-  expiresAt    DateTime
-  ipAddress    String?
-  userAgent    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String    @id @default(uuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  token      String    @unique
+  expiresAt  DateTime
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([customerId])
   @@index([token])
@@ -919,7 +945,7 @@ model CustomerSession {
 model Wishlist {
   id         String         @id @default(uuid())
   customerId String         @unique
-  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer   Customer?      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items      WishlistItem[]
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
@@ -1075,7 +1101,7 @@ model Refund {
 
   payment      Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer     Customer?           @relation(fields: [customerId], references: [id], onDelete: Cascade)
   transactions RefundTransaction[]
 
   @@index([paymentId])
@@ -1211,7 +1237,7 @@ model ReturnRequest {
   updatedAt  DateTime     @updatedAt
 
   order    Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer?    @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items    ReturnItem[]
 
   @@index([orderId])
@@ -1219,11 +1245,11 @@ model ReturnRequest {
 }
 
 model ReturnItem {
-  id              String  @id @default(uuid())
+  id              String     @id @default(uuid())
   returnRequestId String
   orderItemId     String
   warehouseId     String?
-  warehouse       Warehouse?    @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouse       Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   quantity        Int
   reason          String?
   condition       String? // e.g. "UNOPENED", "DEFECTIVE"
@@ -1304,8 +1330,8 @@ model Notification {
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
 
-  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  Order    Order?   @relation(fields: [orderId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  Order    Order?    @relation(fields: [orderId], references: [id])
   orderId  String?
 
   @@index([customerId])
@@ -1322,7 +1348,7 @@ model NotificationPreference {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   Order    Order[]
 }
 
@@ -1336,8 +1362,8 @@ model CustomerActivity {
   userAgent   String?
   createdAt   DateTime     @default(now())
 
-  customer             Customer?            @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  Order    Order?   @relation(fields: [orderId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  Order    Order?    @relation(fields: [orderId], references: [id])
   orderId  String?
 
   @@index([customerId])

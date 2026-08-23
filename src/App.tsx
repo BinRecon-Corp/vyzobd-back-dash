@@ -58,6 +58,8 @@ import { PaymentDetails } from './pages/admin/payments/PaymentDetails';
 import { RefundsList } from './pages/admin/refunds/RefundsList';
 import { RefundDetails } from './pages/admin/refunds/RefundDetails';
 import { ReturnsList } from './pages/admin/returns/ReturnsList';
+import { ReviewsList } from './pages/admin/reviews/ReviewsList';
+import { ReviewDetails } from './pages/admin/reviews/ReviewDetails';
 import { ReturnDetails } from './pages/admin/returns/ReturnDetails';
 import { ShipmentsList } from './pages/admin/shipments/ShipmentsList';
 import { ShipmentDetails } from './pages/admin/shipments/ShipmentDetails';
@@ -156,6 +158,8 @@ export default function App() {
                   <Route path="admin/refunds" element={<RoutePermissionGuard module="Refunds" action="read"><RefundsList /></RoutePermissionGuard>} />
                   <Route path="admin/refunds/:id" element={<RoutePermissionGuard module="Refunds" action="read"><RefundDetails /></RoutePermissionGuard>} />
                   
+                  <Route path="admin/reviews" element={<RoutePermissionGuard module="Products" action="read"><ReviewsList /></RoutePermissionGuard>} />
+                  <Route path="admin/reviews/:id" element={<RoutePermissionGuard module="Products" action="read"><ReviewDetails /></RoutePermissionGuard>} />
                   <Route path="admin/returns" element={<RoutePermissionGuard module="Returns" action="read"><ReturnsList /></RoutePermissionGuard>} />
                   <Route path="admin/returns/:id" element={<RoutePermissionGuard module="Returns" action="read"><ReturnDetails /></RoutePermissionGuard>} />
                   

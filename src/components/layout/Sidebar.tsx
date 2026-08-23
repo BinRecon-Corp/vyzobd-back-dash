@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
+  Star,
   LayoutDashboard, 
   Package, 
   ShoppingCart, 
@@ -167,6 +168,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           { label: 'Categories', href: '/categories', module: 'Categories', requiredPermission: 'Categories.read', icon: FolderTree },
           { label: 'Brands', href: '/brands', module: 'Brands', requiredPermission: 'Brands.read', icon: Tag },
           { label: 'Products', href: '/products', module: 'Products', requiredPermission: 'Products.read', icon: Package },
+          { label: 'Reviews', href: '/admin/reviews', module: 'Products', requiredPermission: 'Products.read', icon: Star },
           { label: 'Variants', href: '/products', module: 'Products', requiredPermission: 'Products.read', icon: Layers },
           { label: 'Inventory', href: '/inventory', module: 'Inventory', requiredPermission: 'Inventory.read', icon: Boxes }
         ]
