@@ -78,6 +78,17 @@ export function sanitizeRichText(html: string | null | undefined, _options?: Ric
       },
     },
     transformTags: {
+      '*': (tagName, attribs) => {
+        if (attribs.class) {
+          attribs.class = attribs.class.replace(/\b(text-gray-\d+|text-muted-foreground|text-foreground|text-slate-\d+|text-zinc-\d+|text-neutral-\d+)\b/g, '').replace(/\s+/g, ' ').trim();
+          if (!attribs.class) delete attribs.class;
+        }
+        if (attribs.style) {
+          attribs.style = attribs.style.replace(/color:\s*(?:rgb|rgba|hsl|hsla|var|gray|transparent)[^;]*(;|$)/gi, '').replace(/\s+/g, ' ').trim();
+          if (!attribs.style) delete attribs.style;
+        }
+        return { tagName, attribs };
+      },
       a: (tagName, attribs) => {
         if (attribs.target === '_blank') {
           attribs.rel = 'noopener noreferrer';
