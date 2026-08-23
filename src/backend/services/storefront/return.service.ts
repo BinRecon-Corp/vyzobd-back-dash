@@ -50,7 +50,7 @@ export class StorefrontReturnService {
       const returnedMap = new Map<string, number>();
 
       for (const returnReq of order.returnRequests) {
-        if (returnReq.status !== ReturnStatus.REJECTED && returnReq.status !== ReturnStatus.CLOSED) {
+        if (returnReq.status !== ReturnStatus.REJECTED) {
           for (const item of returnReq.items) {
             returnedMap.set(item.orderItemId, (returnedMap.get(item.orderItemId) || 0) + item.quantity);
           }
