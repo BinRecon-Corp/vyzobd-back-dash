@@ -89,6 +89,7 @@ import { responseFormatter } from "./src/backend/middlewares/storefront/response
 import { globalLimiter } from "./src/backend/middlewares/rateLimiter";
 import { sanitizeMiddleware } from "./src/backend/middlewares/validation";
 import { startRefreshTokenCleanupJob } from "./src/backend/controllers/auth.controller";
+import { UploadCleanupService } from "./src/backend/services/upload-cleanup.service";
 
 import { ProductMediaService } from "./src/backend/services/product-media.service";
 
@@ -101,6 +102,7 @@ async function startServer() {
 
   // Start automatic refresh token cleanup job (Part 7)
   startRefreshTokenCleanupJob();
+  UploadCleanupService.startCleanupJob();
 
   // Part 1 & 10 - Enterprise-grade Helmet security headers config
   app.use(helmet({

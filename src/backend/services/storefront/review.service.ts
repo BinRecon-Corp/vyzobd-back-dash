@@ -51,13 +51,28 @@ export class StorefrontReviewService {
       const qualifyingItem = eligibleOrderItems[0];
 
       
-      // Map images to their publicIds
-      const imageTrackerRecords = await tx.uploadTracker.findMany({
-        where: {
-          url: { in: payload.images || [] },
-          status: "PENDING"
+      // Atomic locking of UploadTrackers to prevent reuse across concurrent requests
+      let imageTrackerRecords = [];
+      if (payload.images && payload.images.length > 0) {
+        const lockResult = await tx.uploadTracker.updateMany({
+          where: {
+            url: { in: payload.images },
+            status: "PENDING"
+          },
+          data: { status: "ATTACHED" }
+        });
+        
+        if (lockResult.count !== payload.images.length) {
+          throw new AppError("One or more images are invalid or have already been attached", 400, "INVALID_IMAGES");
         }
-      });
+        
+        imageTrackerRecords = await tx.uploadTracker.findMany({
+          where: {
+            url: { in: payload.images },
+            status: "ATTACHED"
+          }
+        });
+      }
       const imagesWithPublicIds = imageTrackerRecords.map(tracker => ({ url: tracker.url, cloudinaryPublicId: tracker.publicId }));
 
       try {
@@ -82,12 +97,7 @@ export class StorefrontReviewService {
           },
         });
         
-        if (imageTrackerRecords.length > 0) {
-          await tx.uploadTracker.updateMany({
-            where: { id: { in: imageTrackerRecords.map(t => t.id) } },
-            data: { status: "ATTACHED" }
-          });
-        }
+        
 
         return review;
       } catch (e: any) {
@@ -143,13 +153,28 @@ export class StorefrontReviewService {
       const qualifyingItem = eligibleOrderItems[0];
 
       
-      // Map images to their publicIds
-      const imageTrackerRecords = await tx.uploadTracker.findMany({
-        where: {
-          url: { in: payload.images || [] },
-          status: "PENDING"
+      // Atomic locking of UploadTrackers to prevent reuse across concurrent requests
+      let imageTrackerRecords = [];
+      if (payload.images && payload.images.length > 0) {
+        const lockResult = await tx.uploadTracker.updateMany({
+          where: {
+            url: { in: payload.images },
+            status: "PENDING"
+          },
+          data: { status: "ATTACHED" }
+        });
+        
+        if (lockResult.count !== payload.images.length) {
+          throw new AppError("One or more images are invalid or have already been attached", 400, "INVALID_IMAGES");
         }
-      });
+        
+        imageTrackerRecords = await tx.uploadTracker.findMany({
+          where: {
+            url: { in: payload.images },
+            status: "ATTACHED"
+          }
+        });
+      }
       const imagesWithPublicIds = imageTrackerRecords.map(tracker => ({ url: tracker.url, cloudinaryPublicId: tracker.publicId }));
 
       try {
@@ -174,12 +199,7 @@ export class StorefrontReviewService {
           },
         });
         
-        if (imageTrackerRecords.length > 0) {
-          await tx.uploadTracker.updateMany({
-            where: { id: { in: imageTrackerRecords.map(t => t.id) } },
-            data: { status: "ATTACHED" }
-          });
-        }
+        
 
         return review;
       } catch (e: any) {

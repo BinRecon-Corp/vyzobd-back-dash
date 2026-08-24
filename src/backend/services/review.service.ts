@@ -119,11 +119,16 @@ export class AdminReviewService {
        throw new AppError(`Cannot transition from ${existing.status} to ${status}`, 400, "INVALID_TRANSITION");
     }
 
-    const review = await prisma.review.update({
-      where: { id },
+    const reviewUpdate = await prisma.review.updateMany({
+      where: { id, status: existing.status },
       data: { status }
     });
-    return review;
+    
+    if (reviewUpdate.count === 0) {
+      throw new AppError("Review status was modified concurrently", 409, "CONCURRENCY_ERROR");
+    }
+    
+    return await prisma.review.findUnique({ where: { id } });
   }
 
   static async updateAdminResponse(id: string, adminResponse: string | null) {
@@ -148,9 +153,17 @@ export class AdminReviewService {
     }
 
     // 2. Delete DB Record
-    await prisma.review.delete({
-      where: { id }
-    });
+    try {
+      await prisma.review.delete({
+        where: { id }
+      });
+    } catch (e: any) {
+      if (e.code === 'P2025') {
+        // Already deleted concurrently
+        return { success: true };
+      }
+      throw e;
+    }
 
     // 3. Attempt Cloudinary cleanup safely outside transaction
     if (isCloudinaryConfigured()) {
