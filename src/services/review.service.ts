@@ -24,3 +24,8 @@ export const deleteReview = async (id: string) => {
   const { data } = await api.delete(`/reviews/${id}`);
   return data.data;
 };
+
+export const updateAdminResponse = async (id: string, response: string) => {
+  const { data } = await api.put(`/reviews/${id}/response`, { response });
+  return data.data;
+};

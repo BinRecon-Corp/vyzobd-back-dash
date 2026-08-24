@@ -4,9 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getReviewById,
   updateReviewStatus,
+  updateAdminResponse,
 } from "../../../services/review.service";
 import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
+
 import { LoadingSpinner } from "../../../components/ui/LoadingSpinner";
 import { ConfirmDialog } from "../../../components/common/ConfirmDialog";
 import { notify } from "../../../lib/notify";
@@ -22,31 +24,51 @@ import {
   ShoppingBag,
   User,
   Star,
-  Image as ImageIcon
+  Image as ImageIcon, MessageSquare, Save
 } from "lucide-react";
 
 export function ReviewDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [adminResponse, setAdminResponse] = useState<string>("");
   const { can, user } = useAuth();
   
   const canWrite = can("Products", "write") || user?.role?.name === "Super Admin";
 
+  
   const { data: review, isLoading } = useQuery({
     queryKey: ["admin-review", id],
     queryFn: () => getReviewById(id as string),
     enabled: !!id,
   });
 
+  React.useEffect(() => {
+    if (review && review.adminResponse !== undefined) {
+      setAdminResponse(review.adminResponse || "");
+    }
+  }, [review]);
+
+  
+  const updateResponseMutation = useMutation({
+    mutationFn: (response: string) => updateAdminResponse(id as string, response),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-review", id] });
+      notify.success("Admin response updated successfully");
+    },
+    onError: (err: any) => {
+      notify.error(err.message || "Failed to update response");
+    },
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: (status: "APPROVED" | "REJECTED" | "HIDDEN") => updateReviewStatus(id as string, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-review", id] });
-      notify("Review status updated successfully", "success");
+      notify.success("Review status updated successfully");
     },
     onError: (err: any) => {
-      notify(err.message || "Failed to update status", "error");
+      notify.error(err.message || "Failed to update status");
     },
   });
 
@@ -234,6 +256,45 @@ export function ReviewDetails() {
 
               <div className="pt-6 border-t flex items-center text-sm text-gray-500">
                 <Clock className="w-4 h-4 mr-2" /> Submitted on {new Date(review.createdAt).toLocaleString()}
+              </div>
+
+            
+              {/* Admin Response */}
+              <div className="pt-6 border-t mt-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-4 flex items-center">
+                  <MessageSquare className="w-4 h-4 mr-2 text-gray-500" /> Admin Response
+                </h4>
+                {canWrite ? (
+                  <div className="space-y-4">
+                    <textarea 
+                      value={adminResponse}
+                      onChange={(e) => setAdminResponse(e.target.value)}
+                      placeholder="Write a public response to this review..."
+                      className="min-h-[120px] resize-none"
+                      maxLength={1000}
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {adminResponse.length}/1000 characters
+                      </span>
+                      <Button 
+                        onClick={() => updateResponseMutation.mutate(adminResponse)}
+                        disabled={updateResponseMutation.isPending || adminResponse === (review.adminResponse || "")}
+                        size="sm"
+                      >
+                        {updateResponseMutation.isPending ? "Saving..." : <><Save className="w-4 h-4 mr-2"/> Save Response</>}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-muted p-4 rounded-md">
+                    {review.adminResponse ? (
+                      <p className="text-sm whitespace-pre-wrap">{review.adminResponse}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No response provided.</p>
+                    )}
+                  </div>
+                )}
               </div>
 
             </CardContent>

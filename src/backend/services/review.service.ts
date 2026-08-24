@@ -12,12 +12,24 @@ export class AdminReviewService {
       prisma.review.count({ where: { status: 'HIDDEN' } }),
       prisma.review.count({ where: { isVerifiedPurchase: true } }),
     ]);
-    return { total, pending, approved, rejected, hidden, verified };
+    
+    const ratingStats = await prisma.review.aggregate({
+      _avg: { rating: true }, where: { status: "APPROVED" }
+    });
+    return { 
+      total, pending, approved, rejected, hidden, verified, 
+      averageRating: ratingStats._avg.rating ? ratingStats._avg.rating.toFixed(1) : 0 
+    };
+  
   }
 
   static async listReviews(query: any) {
-    const { page = 1, limit = 20, status, productId, rating, keyword, isVerifiedPurchase, startDate, endDate } = query;
-    const skip = (Number(page) - 1) * Number(limit);
+    let { page = 1, limit = 20, status, productId, rating, keyword, isVerifiedPurchase, startDate, endDate } = query;
+    page = Number(page); limit = Number(limit);
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(limit) || limit < 1) limit = 20;
+    if (limit > 100) limit = 100;
+    const skip = (page - 1) * limit;
 
     const where: any = {};
     if (status) where.status = status;
@@ -83,11 +95,45 @@ export class AdminReviewService {
   }
 
   static async updateStatus(id: string, status: "APPROVED" | "REJECTED" | "HIDDEN") {
+    const existing = await prisma.review.findUnique({ where: { id } });
+    if (!existing) throw new AppError("Review not found", 404, "NOT_FOUND");
+    
+    // Status transition rules (P1 rules)
+    // A status update must never accidentally expose a non-approved review through the public API.
+    // PENDING -> APPROVED
+    // PENDING -> REJECTED
+    // APPROVED -> HIDDEN
+    // APPROVED -> REJECTED
+    // REJECTED -> APPROVED 
+    // HIDDEN -> APPROVED
+    
+    // Enforcing basic transition rules
+    const validTransitions = {
+      "PENDING": ["APPROVED", "REJECTED"],
+      "APPROVED": ["HIDDEN", "REJECTED"],
+      "REJECTED": ["APPROVED"],
+      "HIDDEN": ["APPROVED"]
+    };
+
+    if (!validTransitions[existing.status].includes(status)) {
+       throw new AppError(`Cannot transition from ${existing.status} to ${status}`, 400, "INVALID_TRANSITION");
+    }
+
     const review = await prisma.review.update({
       where: { id },
       data: { status }
     });
     return review;
+  }
+
+  static async updateAdminResponse(id: string, adminResponse: string | null) {
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) throw new AppError("Review not found", 404, "NOT_FOUND");
+
+    return await prisma.review.update({
+      where: { id },
+      data: { adminResponse }
+    });
   }
 
   static async deleteReview(id: string) {

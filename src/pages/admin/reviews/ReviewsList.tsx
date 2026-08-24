@@ -79,7 +79,7 @@ export function ReviewsList() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => updateReviewStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: "APPROVED" | "REJECTED" | "HIDDEN" }) => updateReviewStatus(id, status),
     onSuccess: () => {
       notify.success("Review status updated");
       queryClient.invalidateQueries({ queryKey: ["admin-reviews"] });
@@ -394,12 +394,12 @@ export function ReviewsList() {
 
       <ConfirmDialog
         isOpen={!!deleteConfirm}
-        onClose={() => setDeleteConfirm(null)}
+        onOpenChange={() => setDeleteConfirm(null)}
         onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm)}
         title="Delete Review"
         description="Are you sure you want to delete this review? This action cannot be undone."
         confirmText="Delete Review"
-        confirmVariant="destructive"
+        variant="destructive"
       />
     </div>
   );

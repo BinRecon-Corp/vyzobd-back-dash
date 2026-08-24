@@ -1,12 +1,10 @@
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 import { normalizePhone } from "../../utils/phone";
+import { cloudinary, isCloudinaryConfigured } from "../../config/cloudinary";
 
 export class StorefrontReviewService {
-  /**
-   * Verify purchase eligibility and submit the review atomically.
-   */
-  static async submitReview(payload: {
+  static async submitGuestReview(payload: {
     productId: string;
     name: string;
     mobile: string;
@@ -15,19 +13,13 @@ export class StorefrontReviewService {
     reviewHeadline?: string | null;
     reviewComment: string;
     images?: string[];
-  }, customerId?: string) {
+  }) {
     const normalizedMobile = normalizePhone(payload.mobile);
     if (!normalizedMobile) {
       throw new AppError("Invalid mobile number", 400, "INVALID_MOBILE");
     }
 
-    // Wrap in a transaction for concurrency safety
     return await prisma.$transaction(async (tx) => {
-      // 1. Find all eligible order items for this mobile number and product.
-      // Criteria:
-      // - Order status is "Delivered"
-      // - Product matches
-      // - Mobile matches either customer.phone or shippingAddress text
       const eligibleOrderItems = await tx.orderItem.findMany({
         where: {
           productId: payload.productId,
@@ -38,11 +30,8 @@ export class StorefrontReviewService {
               { shippingAddress: { contains: normalizedMobile } }
             ]
           },
-          // Find ones that DO NOT have a review associated yet.
           review: null
         },
-        // We lock these rows (if supported by prisma natively, but Prisma doesn't support SELECT FOR UPDATE well here without raw query.
-        // Wait, since we are doing a unique check, we can rely on orderItemId uniqueness constraint and the fact that we pick one that has review: null).
         orderBy: {
           order: {
             createdAt: 'asc'
@@ -61,14 +50,23 @@ export class StorefrontReviewService {
 
       const qualifyingItem = eligibleOrderItems[0];
 
-      // 2. Create the review
-      // The schema has @unique on orderItemId, so if two concurrent transactions try to use the same orderItemId, the second will fail with a unique constraint violation.
+      
+      // Map images to their publicIds
+      const imageTrackerRecords = await tx.uploadTracker.findMany({
+        where: {
+          url: { in: payload.images || [] },
+          status: "PENDING"
+        }
+      });
+      const imagesWithPublicIds = imageTrackerRecords.map(tracker => ({ url: tracker.url, cloudinaryPublicId: tracker.publicId }));
+
       try {
         const review = await tx.review.create({
+
           data: {
             productId: payload.productId,
             orderItemId: qualifyingItem.id,
-            customerId: customerId || null,
+            customerId: null,
             customerName: payload.name,
             customerMobile: normalizedMobile,
             customerEmail: payload.email || null,
@@ -76,15 +74,112 @@ export class StorefrontReviewService {
             headline: payload.reviewHeadline || null,
             comment: payload.reviewComment,
             isVerifiedPurchase: true,
-            status: "PENDING", // Wait for approval
+            status: "PENDING",
+            
             images: {
-              create: (payload.images || []).map((url) => ({
-                url,
-                // optional: parse cloudinary public id if needed
-              })),
+              create: imagesWithPublicIds,
             },
           },
         });
+        
+        if (imageTrackerRecords.length > 0) {
+          await tx.uploadTracker.updateMany({
+            where: { id: { in: imageTrackerRecords.map(t => t.id) } },
+            data: { status: "ATTACHED" }
+          });
+        }
+
+        return review;
+      } catch (e: any) {
+        if (e.code === 'P2002' && e.meta?.target?.includes('orderItemId')) {
+          throw new AppError("This purchase has already been reviewed", 409, "ALREADY_REVIEWED");
+        }
+        throw e;
+      }
+    });
+  }
+
+  static async submitAuthenticatedReview(payload: {
+    productId: string;
+    rating: number;
+    reviewHeadline?: string | null;
+    reviewComment: string;
+    images?: string[];
+  }, customerId: string) {
+    
+    return await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId }
+      });
+      if (!customer) {
+        throw new AppError("Customer not found", 404, "NOT_FOUND");
+      }
+
+      const eligibleOrderItems = await tx.orderItem.findMany({
+        where: {
+          productId: payload.productId,
+          order: {
+            customerId: customerId,
+            status: "Delivered"
+          },
+          review: null
+        },
+        orderBy: {
+          order: {
+            createdAt: 'asc'
+          }
+        },
+        take: 1
+      });
+
+      if (eligibleOrderItems.length === 0) {
+        throw new AppError(
+          "Please purchase this product before submitting a review, or you have reached your review limit.",
+          403,
+          "PURCHASE_REQUIRED"
+        );
+      }
+
+      const qualifyingItem = eligibleOrderItems[0];
+
+      
+      // Map images to their publicIds
+      const imageTrackerRecords = await tx.uploadTracker.findMany({
+        where: {
+          url: { in: payload.images || [] },
+          status: "PENDING"
+        }
+      });
+      const imagesWithPublicIds = imageTrackerRecords.map(tracker => ({ url: tracker.url, cloudinaryPublicId: tracker.publicId }));
+
+      try {
+        const review = await tx.review.create({
+
+          data: {
+            productId: payload.productId,
+            orderItemId: qualifyingItem.id,
+            customerId: customerId,
+            customerName: `${customer.firstName} ${customer.lastName || ''}`.trim(),
+            customerMobile: customer.phone,
+            customerEmail: customer.email,
+            rating: payload.rating,
+            headline: payload.reviewHeadline || null,
+            comment: payload.reviewComment,
+            isVerifiedPurchase: true,
+            status: "PENDING",
+            
+            images: {
+              create: imagesWithPublicIds,
+            },
+          },
+        });
+        
+        if (imageTrackerRecords.length > 0) {
+          await tx.uploadTracker.updateMany({
+            where: { id: { in: imageTrackerRecords.map(t => t.id) } },
+            data: { status: "ATTACHED" }
+          });
+        }
 
         return review;
       } catch (e: any) {
@@ -98,7 +193,7 @@ export class StorefrontReviewService {
 
   static async getProductReviews(productId: string, page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
-
+    
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
         where: { productId, status: "APPROVED" },
@@ -110,7 +205,6 @@ export class StorefrontReviewService {
       prisma.review.count({ where: { productId, status: "APPROVED" } }),
     ]);
 
-    // Aggregate rating
     const aggregates = await prisma.review.groupBy({
       by: ['rating'],
       where: { productId, status: "APPROVED" },
@@ -122,7 +216,6 @@ export class StorefrontReviewService {
     let totalRating = 0;
     let count = 0;
     const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
     aggregates.forEach(agg => {
       distribution[agg.rating] = agg._count.id;
       totalRating += (agg.rating * agg._count.id);
@@ -132,7 +225,17 @@ export class StorefrontReviewService {
     const averageRating = count > 0 ? (totalRating / count).toFixed(1) : 0;
 
     return {
-      reviews,
+      reviews: reviews.map(r => ({
+        id: r.id,
+        customerName: r.customerName || "Anonymous",
+        rating: r.rating,
+        headline: r.headline,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        isVerifiedPurchase: r.isVerifiedPurchase,
+        adminResponse: r.adminResponse,
+        images: r.images.map(img => img.url)
+      })),
       pagination: {
         page,
         limit,
@@ -146,16 +249,13 @@ export class StorefrontReviewService {
       }
     };
   }
-
   
-
   static async getFeaturedReviews(limit: number = 5) {
     const maxLimit = Math.min(limit, 10);
     
-    // Fetch minimal info for all eligible reviews
     const eligibleReviews = await prisma.review.findMany({
       where: { 
-        status: "APPROVED",
+         status: "APPROVED",
         product: {
           isActive: true,
           status: "Active",
@@ -172,20 +272,17 @@ export class StorefrontReviewService {
       return [];
     }
 
-    // Group by product to ensure diversity
     const byProduct: Record<string, string[]> = {};
     for (const r of eligibleReviews) {
       if (!byProduct[r.productId]) byProduct[r.productId] = [];
       byProduct[r.productId].push(r.id);
     }
 
-    // Shuffle arrays
     const shuffle = (array: any[]) => array.sort(() => 0.5 - Math.random());
     for (const productId in byProduct) {
       shuffle(byProduct[productId]);
     }
 
-    // Pick up to maxLimit reviews, prioritizing different products
     const selectedIds: string[] = [];
     const productIds = Object.keys(byProduct);
     shuffle(productIds);
@@ -200,11 +297,10 @@ export class StorefrontReviewService {
           addedInRound = true;
         }
       }
-      if (!addedInRound) break; // Exhausted all reviews
+      if (!addedInRound) break; 
       round++;
     }
 
-    // Fetch full details for selected IDs
     const reviews = await prisma.review.findMany({
       where: { id: { in: selectedIds } },
       include: {
@@ -230,7 +326,8 @@ export class StorefrontReviewService {
       comment: r.comment,
       createdAt: r.createdAt,
       isVerifiedPurchase: r.isVerifiedPurchase,
-      images: r.images.map(img => img.url),
+        adminResponse: r.adminResponse,
+        images: r.images.map(img => img.url),
       product: {
         id: r.product.id,
         name: r.product.name,
@@ -239,7 +336,8 @@ export class StorefrontReviewService {
       }
     }));
   }
-  static async checkEligibility(productId: string, mobile: string) {
+
+  static async checkGuestEligibility(productId: string, mobile: string) {
     const normalizedMobile = normalizePhone(mobile);
     if (!normalizedMobile) {
       return { eligible: false, availableSlots: 0, qualifyingOrderIds: [] };
@@ -265,5 +363,103 @@ export class StorefrontReviewService {
       availableSlots: eligibleItems.length,
       qualifyingOrderIds: eligibleItems.map(item => item.orderId)
     };
+  }
+
+  static async checkAuthenticatedEligibility(productId: string, customerId: string) {
+    const eligibleItems = await prisma.orderItem.findMany({
+      where: {
+        productId,
+        order: {
+          customerId: customerId,
+          status: "Delivered"
+        },
+        review: null
+      },
+      select: { orderId: true }
+    });
+
+    return {
+      eligible: eligibleItems.length > 0,
+      availableSlots: eligibleItems.length,
+      qualifyingOrderIds: eligibleItems.map(item => item.orderId)
+    };
+  }
+
+  static async getMyReviews(customerId: string, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+    
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { customerId },
+        include: { images: true, product: true },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.review.count({ where: { customerId } }),
+    ]);
+
+    return {
+      reviews: reviews.map(r => ({
+        id: r.id,
+        productName: r.product.name,
+        productId: r.product.id,
+        rating: r.rating,
+        headline: r.headline,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        status: r.status,
+        isVerifiedPurchase: r.isVerifiedPurchase,
+        adminResponse: r.adminResponse,
+        images: r.images.map(img => img.url)
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      }
+    };
+  }
+
+  static async uploadReviewImage(fileBuffer: Buffer) {
+    if (!isCloudinaryConfigured()) {
+      throw new AppError("Cloudinary is not configured", 500, "CONFIG_ERROR");
+    }
+    
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "reviews",
+          resource_type: "image",
+          allowed_formats: ["jpg", "jpeg", "png", "webp"],
+          transformation: [{ width: 1000, height: 1000, crop: "limit" }]
+        },
+        async (error, result) => {
+          if (error) {
+            return reject(new AppError("Failed to upload image", 500, "UPLOAD_ERROR"));
+          }
+          
+          try {
+            await prisma.uploadTracker.create({
+              data: {
+                publicId: result?.public_id,
+                url: result?.secure_url,
+                status: "PENDING"
+              }
+            });
+            resolve({
+              url: result?.secure_url,
+              public_id: result?.public_id,
+              width: result?.width,
+              height: result?.height
+            });
+          } catch (e) {
+            reject(new AppError("Failed to track upload", 500, "UPLOAD_ERROR"));
+          }
+        }
+      );
+      uploadStream.end(fileBuffer);
+    });
   }
 }

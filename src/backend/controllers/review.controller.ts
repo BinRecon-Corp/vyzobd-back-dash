@@ -42,6 +42,27 @@ export const updateReviewStatus = async (req: Request, res: Response, next: Next
   }
 };
 
+
+export const updateAdminResponse = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let { response } = req.body;
+    
+    if (response !== null && response !== undefined) {
+      response = String(response).trim();
+      if (response === "") {
+        response = null;
+      } else if (response.length > 1000) {
+        throw new AppError("Admin response cannot exceed 1000 characters", 400, "VALIDATION_ERROR");
+      }
+    }
+
+    const review = await AdminReviewService.updateAdminResponse(req.params.id, response);
+    res.json({ status: "success", data: review, message: "Admin response updated" });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteReview = async (req: Request, res: Response, next: NextFunction) => {
   try {
     await AdminReviewService.deleteReview(req.params.id);
