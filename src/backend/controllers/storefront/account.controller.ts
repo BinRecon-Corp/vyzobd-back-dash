@@ -24,24 +24,14 @@ export const getDashboard = async (req: CustomerAuthRequest, res: Response, next
 
 export const getMyProfile = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id: req.customer!.id },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        emailVerified: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
+    const customer = await StorefrontAccountService.getProfile(req.customer!.id);
 
     res.status(200).json({
       status: "success",
-      data: { customer },
+      data: {
+        profile: customer,
+        customer,
+      },
     });
   } catch (error) {
     next(error);
@@ -52,26 +42,18 @@ export const updateMyProfile = async (req: CustomerAuthRequest, res: Response, n
   try {
     const { firstName, lastName, avatarUrl } = req.body;
 
-    const customer = await prisma.customer.update({
-      where: { id: req.customer!.id },
-      data: { firstName, lastName, avatarUrl },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        avatarUrl: true,
-        emailVerified: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-      }
+    const customer = await StorefrontAccountService.updateProfile(req.customer!.id, {
+      firstName,
+      lastName,
+      avatarUrl,
     });
 
     res.status(200).json({
       status: "success",
-      data: { customer },
+      data: {
+        profile: customer,
+        customer,
+      },
     });
   } catch (error) {
     next(error);

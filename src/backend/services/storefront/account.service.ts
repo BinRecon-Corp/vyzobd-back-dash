@@ -264,4 +264,62 @@ export class StorefrontAccountService {
       data: { revokedAt: new Date() },
     });
   }
+
+  static async getProfile(customerId: string) {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        emailVerified: true,
+        phoneVerified: true,
+        phoneVerifiedAt: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!customer) {
+      throw new AppError("Customer profile not found", 404, "CUSTOMER_NOT_FOUND");
+    }
+
+    return customer;
+  }
+
+  static async updateProfile(
+    customerId: string,
+    data: { firstName?: string; lastName?: string | null; avatarUrl?: string | null }
+  ) {
+    // Ensure only safe fields are updated
+    const updatePayload: { firstName?: string; lastName?: string | null; avatarUrl?: string | null } = {};
+    if (data.firstName !== undefined) updatePayload.firstName = data.firstName;
+    if (data.lastName !== undefined) updatePayload.lastName = data.lastName;
+    if (data.avatarUrl !== undefined) updatePayload.avatarUrl = data.avatarUrl;
+
+    const customer = await prisma.customer.update({
+      where: { id: customerId },
+      data: updatePayload,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        emailVerified: true,
+        phoneVerified: true,
+        phoneVerifiedAt: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return customer;
+  }
 }

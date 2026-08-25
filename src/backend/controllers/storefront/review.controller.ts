@@ -98,6 +98,31 @@ export const getMyReviews = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+export const getEligibleReviews = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const customerId = (req as any).customer.id;
+    const result = await StorefrontReviewService.getEligibleReviews(customerId);
+    res.json({ status: "success", data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createCustomerReview = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const customerId = (req as any).customer.id;
+    const payload = req.body;
+    const review = await StorefrontReviewService.submitAuthenticatedReview(payload, customerId);
+    res.status(201).json({
+      status: "success",
+      data: review,
+      message: "Review submitted successfully and is pending approval",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const uploadReviewImage = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {

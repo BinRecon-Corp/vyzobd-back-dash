@@ -4,6 +4,7 @@ import {
   getMyOrderById,
   getMyOrderTimeline,
   getMyOrderShipments,
+  getMyOrderTracking,
 } from "../../controllers/storefront/order.controller";
 import { getOrderPayments } from "../../controllers/storefront/payment.controller";
 import { getOrderRefunds } from "../../controllers/storefront/refund.controller";
@@ -20,7 +21,7 @@ router.get("/:id", validateParamsUUID(["id"]), getMyOrderById);
 router.get("/:id/timeline", validateParamsUUID(["id"]), getMyOrderTimeline);
 
 router.get("/:id/shipments", validateParamsUUID(["id"]), getMyOrderShipments);
-router.get("/:id/tracking", validateParamsUUID(["id"]), getMyOrderShipments);
+router.get("/:id/tracking", validateParamsUUID(["id"]), getMyOrderTracking);
 
 router.get("/:id/payments", validateParamsUUID(["id"]), getOrderPayments);
 router.get("/:id/refunds", validateParamsUUID(["id"]), getOrderRefunds);

@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { CustomerAuthRequest } from "../../middlewares/customerAuth";
 import { StorefrontOrderService } from "../../services/storefront/order.service";
+import { StorefrontShipmentService } from "../../services/storefront/shipment.service";
 
 export const getMyOrders = async (
   req: CustomerAuthRequest,
@@ -73,9 +74,20 @@ export const getMyOrderTimeline = async (
 export const getMyOrderShipments = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
   try {
     const customerId = req.customer!.id;
-    const { id } = req.params;
-    const shipments = await StorefrontOrderService.getOrderShipments(customerId, id);
-    res.status(200).json({ status: "success", data: { shipments } });
+    const orderId = req.params.id || req.params.orderId;
+    const result = await StorefrontShipmentService.getOrderShipments(customerId, orderId);
+    res.status(200).json({ status: "success", data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyOrderTracking = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const customerId = req.customer!.id;
+    const orderId = req.params.id || req.params.orderId;
+    const result = await StorefrontShipmentService.getOrderTracking(customerId, orderId);
+    res.status(200).json({ status: "success", data: result });
   } catch (error) {
     next(error);
   }

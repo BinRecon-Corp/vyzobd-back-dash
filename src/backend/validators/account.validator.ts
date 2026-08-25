@@ -2,11 +2,12 @@ import { z } from "zod";
 import { customerStrongPasswordSchema } from "./storefront-auth.validator";
 
 export const updateProfileSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  avatarUrl: z.string().url().optional().nullable(),
+  firstName: z.string().trim().min(1, "First name cannot be empty").optional(),
+  lastName: z.string().trim().optional().nullable(),
+  avatarUrl: z.string().trim().url("Invalid avatar URL format").optional().nullable(),
 });
+
+export const updateCustomerProfileSchema = updateProfileSchema;
 
 export const updateEmailSchema = z.object({
   newEmail: z.string().email("Invalid email address"),
