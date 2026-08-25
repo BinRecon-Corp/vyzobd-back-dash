@@ -21,6 +21,9 @@ import {
   requestMobileChange,
   verifyMobileChange,
 } from "../../controllers/storefront/account-mobile.controller";
+import { getMyPayments, getOrderPayments } from "../../controllers/storefront/payment.controller";
+import { getMyRefunds, getOrderRefunds } from "../../controllers/storefront/refund.controller";
+import { getMyReturns, getOrderReturns } from "../../controllers/storefront/return.controller";
 import { requireCustomerAuth } from "../../middlewares/customerAuth";
 import { verifyEmailLimiter } from "../../middlewares/rateLimiter";
 import { validateBody, validateParamsUUID } from "../../middlewares/validation";
@@ -64,5 +67,15 @@ router.delete("/sessions", revokeAllOtherSessions);
 
 router.get("/notification-preferences", getNotificationPreferences);
 router.put("/notification-preferences", validateBody(updateNotificationPrefSchema), updateNotificationPreferences);
+
+// Customer Payments, Refunds, Returns
+router.get("/payments", getMyPayments);
+router.get("/refunds", getMyRefunds);
+router.get("/returns", getMyReturns);
+
+// Customer Order Payments, Refunds, Returns
+router.get("/orders/:orderId/payments", validateParamsUUID(["orderId"]), getOrderPayments);
+router.get("/orders/:orderId/refunds", validateParamsUUID(["orderId"]), getOrderRefunds);
+router.get("/orders/:orderId/returns", validateParamsUUID(["orderId"]), getOrderReturns);
 
 export default router;

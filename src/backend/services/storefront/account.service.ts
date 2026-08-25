@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db";
+import { AppError } from "../../utils/AppError";
 
 export class StorefrontAccountService {
   static async getDashboard(customerId: string) {
@@ -9,80 +10,207 @@ export class StorefrontAccountService {
           where: { isDefault: true },
           take: 1,
         },
-        _count: {
-          select: {
-            orders: { where: { deletedAt: null } },
-          }
-        },
         wishlist: {
           include: {
             _count: {
-              select: { items: true }
-            }
-          }
-        }
-      }
+              select: { items: true },
+            },
+          },
+        },
+      },
     });
 
-    const recentSession = await prisma.customerRefreshToken.findFirst({
-      where: { customerId, revokedAt: null },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true,
-        expiresAt: true,
-      }
-    });
+    if (!customer) {
+      throw new AppError("Customer profile not found", 404, "CUSTOMER_NOT_FOUND");
+    }
 
-    const [recentOrders, recentActivity, orderStatusCounts, totalSpendingAgg] = await Promise.all([
+    const [
+      orders,
+      recentActivity,
+      paymentsAgg,
+      refundsAgg,
+      unreadNotificationsCount,
+      deliveredOrderItems,
+      reviewedOrderItemIds,
+      recentSession,
+    ] = await Promise.all([
+      // 1. Fetch all non-deleted orders for user
       prisma.order.findMany({
         where: { customerId, deletedAt: null },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: { id: true, orderNumber: true, status: true, totalAmount: true, createdAt: true }
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          paymentStatus: true,
+          totalAmount: true,
+          createdAt: true,
+          items: {
+            select: {
+              id: true,
+              productName: true,
+              quantity: true,
+              price: true,
+            },
+          },
+        },
       }),
+
+      // 2. Fetch recent activity log
       prisma.customerActivity.findMany({
         where: { customerId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 5,
-        select: { id: true, type: true, description: true, ipAddress: true, createdAt: true }
+        select: { id: true, type: true, description: true, ipAddress: true, createdAt: true },
       }),
-      prisma.order.groupBy({
-        by: ['status'],
-        where: { customerId, deletedAt: null },
-        _count: { id: true }
+
+      // 3. Financial aggregation for completed payments
+      prisma.payment.aggregate({
+        where: { customerId, status: "PAID" },
+        _sum: { amount: true },
       }),
-      prisma.order.aggregate({
-        where: { customerId, deletedAt: null, status: 'Delivered', paymentStatus: 'PAID' },
-        _sum: { totalAmount: true }
-      })
+
+      // 4. Financial aggregation for completed refunds
+      prisma.refund.aggregate({
+        where: { customerId, status: "COMPLETED" },
+        _sum: { amount: true },
+      }),
+
+      // 5. Unread notifications
+      prisma.notification.count({
+        where: { customerId, status: { not: "READ" } },
+      }),
+
+      // 6. Delivered order items for review entitlement
+      prisma.orderItem.findMany({
+        where: {
+          order: {
+            customerId,
+            deletedAt: null,
+            status: { in: ["Delivered", "DELIVERED", "Completed", "COMPLETED"] },
+          },
+        },
+        select: { id: true },
+      }),
+
+      // 7. Reviewed order item IDs
+      prisma.review.findMany({
+        where: { customerId, orderItemId: { not: null } },
+        select: { orderItemId: true },
+      }),
+
+      // 8. Recent session
+      prisma.customerRefreshToken.findFirst({
+        where: { customerId, revokedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, ipAddress: true, userAgent: true, createdAt: true, expiresAt: true },
+      }),
     ]);
 
-    const orderStatusMap: Record<string, number> = {};
-    orderStatusCounts.forEach(c => { orderStatusMap[c.status] = c._count.id; });
+    // Compute Order Summaries
+    const totalOrders = orders.length;
+    let completedOrdersCount = 0;
+    let cancelledOrdersCount = 0;
+    let activeOrdersCount = 0;
+    let totalOrderValue = 0;
+
+    const activeOrdersList: typeof orders = [];
+
+    const cancelledStatuses = new Set(["Cancelled", "CANCELLED"]);
+    const completedStatuses = new Set(["Delivered", "DELIVERED", "Completed", "COMPLETED"]);
+
+    for (const ord of orders) {
+      const isCancelled = cancelledStatuses.has(ord.status);
+      const isCompleted = completedStatuses.has(ord.status);
+
+      if (isCancelled) {
+        cancelledOrdersCount++;
+      } else if (isCompleted) {
+        completedOrdersCount++;
+        totalOrderValue += Number(ord.totalAmount || 0);
+      } else {
+        activeOrdersCount++;
+        totalOrderValue += Number(ord.totalAmount || 0);
+        if (activeOrdersList.length < 10) {
+          activeOrdersList.push(ord);
+        }
+      }
+    }
+
+    const totalPaid = Number(paymentsAgg._sum.amount || 0);
+    const totalRefunded = Number(refundsAgg._sum.amount || 0);
+    const totalDue = Math.max(0, totalOrderValue - totalPaid + totalRefunded);
+
+    // Compute Pending Reviews Count
+    const reviewedSet = new Set(reviewedOrderItemIds.map((r) => r.orderItemId));
+    const pendingReviewCount = deliveredOrderItems.filter((item) => !reviewedSet.has(item.id)).length;
+
+    // Structured DTO
+    const customerSummary = {
+      id: customer.id,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      phone: customer.phone,
+      email: customer.email,
+      avatarUrl: customer.avatarUrl,
+      verificationStatus: {
+        phoneVerified: customer.phoneVerified,
+        phoneVerifiedAt: customer.phoneVerifiedAt,
+        emailVerified: customer.emailVerified,
+        emailVerifiedAt: null,
+      },
+    };
+
+    const orderSummary = {
+      totalOrders,
+      activeOrders: activeOrdersCount,
+      completedOrders: completedOrdersCount,
+      cancelledOrders: cancelledOrdersCount,
+    };
+
+    const financialSummary = {
+      totalOrderValue,
+      totalPaid,
+      totalDue,
+      totalRefunded,
+    };
+
+    const engagement = {
+      unreadNotifications: unreadNotificationsCount,
+      pendingReviewCount,
+    };
+
+    const recent = {
+      recentOrders: orders.slice(0, 5),
+      activeOrders: activeOrdersList,
+    };
 
     return {
+      customerSummary,
+      orderSummary,
+      financialSummary,
+      engagement,
+      recent,
+      // Backward compatibility fields
       profile: {
-        id: customer?.id,
-        firstName: customer?.firstName,
-        lastName: customer?.lastName,
-        email: customer?.email,
-        phone: customer?.phone,
-        avatarUrl: customer?.avatarUrl,
-        emailVerified: customer?.emailVerified,
-        lastLoginAt: customer?.lastLoginAt,
-        createdAt: customer?.createdAt,
+        id: customer.id,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        email: customer.email,
+        phone: customer.phone,
+        avatarUrl: customer.avatarUrl,
+        emailVerified: customer.emailVerified,
+        phoneVerified: customer.phoneVerified,
+        lastLoginAt: customer.lastLoginAt,
+        createdAt: customer.createdAt,
       },
-      defaultAddress: customer?.addresses[0] || null,
+      defaultAddress: customer.addresses[0] || null,
       stats: {
-        orders: customer?._count.orders || 0,
-        wishlist: customer?.wishlist?._count.items || 0,
-        totalSpending: totalSpendingAgg._sum.totalAmount ? Number(totalSpendingAgg._sum.totalAmount) : 0,
-        ordersByStatus: orderStatusMap,
+        orders: totalOrders,
+        wishlist: customer.wishlist?._count.items || 0,
+        totalSpending: totalOrderValue,
       },
-      recentOrders,
+      recentOrders: orders.slice(0, 5),
       recentActivity,
       recentSession,
     };

@@ -138,6 +138,148 @@ export class StorefrontPaymentService {
     });
   }
 
+  static async getCustomerPayments(
+    customerId: string,
+    options: { page?: number; limit?: number; status?: string }
+  ) {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(50, Math.max(1, options.limit || 10));
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      customerId,
+      order: { deletedAt: null },
+    };
+
+    if (options.status && options.status !== "ALL") {
+      where.status = options.status as PaymentStatus;
+    }
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        include: {
+          order: { select: { id: true, orderNumber: true } },
+          transactions: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { providerTransactionId: true, providerReference: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.payment.count({ where }),
+    ]);
+
+    const mappedPayments = payments.map((p) => {
+      const txn = p.transactions[0];
+      const transactionReference =
+        p.transactionReference ||
+        txn?.providerTransactionId ||
+        txn?.providerReference ||
+        p.id;
+
+      return {
+        id: p.id,
+        orderId: p.orderId,
+        orderNumber: p.order?.orderNumber || null,
+        amount: Number(p.amount),
+        currency: p.currency,
+        status: p.status,
+        method: p.provider,
+        transactionReference,
+        createdAt: p.createdAt,
+        paidAt: p.paidAt,
+      };
+    });
+
+    return {
+      payments: mappedPayments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  static async getOrderPayments(customerId: string, orderId: string) {
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, customerId, deletedAt: null },
+      include: {
+        payments: {
+          where: { status: PaymentStatus.PAID },
+          select: { amount: true },
+        },
+        refunds: {
+          where: { status: "COMPLETED" },
+          select: { amount: true },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+    }
+
+    const totalAmount = Number(order.totalAmount || 0);
+    const paidSum = order.payments.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+    const refundSum = order.refunds.reduce((acc, r) => acc + Number(r.amount || 0), 0);
+    const dueAmount = Math.max(0, totalAmount - paidSum + refundSum);
+
+    const payments = await prisma.payment.findMany({
+      where: { orderId, customerId },
+      include: {
+        order: { select: { id: true, orderNumber: true } },
+        transactions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { providerTransactionId: true, providerReference: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const mappedPayments = payments.map((p) => {
+      const txn = p.transactions[0];
+      const transactionReference =
+        p.transactionReference ||
+        txn?.providerTransactionId ||
+        txn?.providerReference ||
+        p.id;
+
+      return {
+        id: p.id,
+        orderId: p.orderId,
+        orderNumber: p.order?.orderNumber || null,
+        amount: Number(p.amount),
+        currency: p.currency,
+        status: p.status,
+        method: p.provider,
+        transactionReference,
+        createdAt: p.createdAt,
+        paidAt: p.paidAt,
+      };
+    });
+
+    return {
+      order: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        summary: {
+          total: totalAmount,
+          paid: paidSum,
+          due: dueAmount,
+          status: order.paymentStatus || order.status,
+        },
+      },
+      payments: mappedPayments,
+    };
+  }
+
   static async getPaymentStatus(customerId: string, paymentId: string) {
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId, customerId },

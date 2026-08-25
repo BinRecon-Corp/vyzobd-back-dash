@@ -12,11 +12,13 @@ export const getMyOrders = async (
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
     const status = req.query.status as string | undefined;
+    const search = req.query.search as string | undefined;
 
     const result = await StorefrontOrderService.getCustomerOrders(customerId, {
       page,
       limit,
       status,
+      search,
     });
 
     res.status(200).json({

@@ -127,13 +127,156 @@ export class StorefrontReturnService {
     return mapReturnRequestToStorefrontDTO(returnRequestTransaction);
   }
 
-  static async getReturns(customerId: string) {
+  static async getReturns(
+    customerId: string,
+    options: { page?: number; limit?: number; status?: string } = {}
+  ) {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(50, Math.max(1, options.limit || 10));
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      customerId,
+      order: { deletedAt: null },
+    };
+
+    if (options.status && options.status !== "ALL") {
+      where.status = options.status as ReturnStatus;
+    }
+
+    const [returns, total] = await Promise.all([
+      prisma.returnRequest.findMany({
+        where,
+        include: {
+          order: { select: { id: true, orderNumber: true } },
+          items: {
+            include: {
+              orderItem: {
+                include: {
+                  product: {
+                    select: {
+                      name: true,
+                      images: { select: { url: true, isPrimary: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.returnRequest.count({ where }),
+    ]);
+
+    const mappedReturns = returns.map((r) => {
+      return {
+        returnId: r.id,
+        id: r.id,
+        order: {
+          id: r.orderId,
+          orderNumber: r.order?.orderNumber || null,
+        },
+        items: r.items.map((i) => {
+          const imgs = i.orderItem?.product?.images || [];
+          const primaryImg = imgs.find((img) => img.isPrimary) || imgs[0];
+          return {
+            id: i.id,
+            orderItemId: i.orderItemId,
+            quantity: i.quantity,
+            reason: i.reason,
+            condition: i.condition,
+            productName: i.orderItem?.product?.name || null,
+            productImage: primaryImg?.url || null,
+          };
+        }),
+        reason: r.reason,
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      };
+    });
+
+    return {
+      returns: mappedReturns,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  static async getOrderReturns(customerId: string, orderId: string) {
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, customerId, deletedAt: null },
+      select: { id: true, orderNumber: true },
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+    }
+
     const returns = await prisma.returnRequest.findMany({
-      where: { customerId },
-      include: { items: { include: { orderItem: { include: { product: true } } } } },
+      where: { orderId, customerId },
+      include: {
+        order: { select: { id: true, orderNumber: true } },
+        items: {
+          include: {
+            orderItem: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    images: { select: { url: true, isPrimary: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
-    return returns.map(mapReturnRequestToStorefrontDTO);
+
+    const mappedReturns = returns.map((r) => {
+      return {
+        returnId: r.id,
+        id: r.id,
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+        },
+        items: r.items.map((i) => {
+          const imgs = i.orderItem?.product?.images || [];
+          const primaryImg = imgs.find((img) => img.isPrimary) || imgs[0];
+          return {
+            id: i.id,
+            orderItemId: i.orderItemId,
+            quantity: i.quantity,
+            reason: i.reason,
+            condition: i.condition,
+            productName: i.orderItem?.product?.name || null,
+            productImage: primaryImg?.url || null,
+          };
+        }),
+        reason: r.reason,
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      };
+    });
+
+    return {
+      order: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+      },
+      returns: mappedReturns,
+    };
   }
 
   static async getReturnById(customerId: string, id: string) {

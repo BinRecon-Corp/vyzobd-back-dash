@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from "../../config/db";
 import { emailService } from "../../services/email.service";
 import { AppError } from "../../utils/AppError";
+import { normalizePhone } from "../../utils/phone";
 import { CartIdentifier, StorefrontCartService } from "./cart.service";
 import { calculateCouponDiscount } from "../../utils/couponCalculator";
 import { calculateShippingFee } from "../../utils/shippingCalculator";
@@ -22,7 +23,8 @@ export class StorefrontCheckoutService {
     const state = address.state || "";
     const postalCode = address.postalCode || address.zipCode || "";
     const country = address.country || "";
-    const phone = address.phone || "N/A";
+    const rawPhone = address.phone || address.mobile || "";
+    const phone = normalizePhone(rawPhone) || rawPhone || "N/A";
 
     return `${name}\n${line1}${line2}\n${city}${state ? ", " + state : ""} ${postalCode}\n${country}\nPhone: ${phone}`;
   }

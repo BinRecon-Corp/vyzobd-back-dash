@@ -5,6 +5,9 @@ import {
   getMyOrderTimeline,
   getMyOrderShipments,
 } from "../../controllers/storefront/order.controller";
+import { getOrderPayments } from "../../controllers/storefront/payment.controller";
+import { getOrderRefunds } from "../../controllers/storefront/refund.controller";
+import { getOrderReturns } from "../../controllers/storefront/return.controller";
 import { requireCustomerAuth } from "../../middlewares/customerAuth";
 import { validateParamsUUID } from "../../middlewares/validation";
 
@@ -18,5 +21,9 @@ router.get("/:id/timeline", validateParamsUUID(["id"]), getMyOrderTimeline);
 
 router.get("/:id/shipments", validateParamsUUID(["id"]), getMyOrderShipments);
 router.get("/:id/tracking", validateParamsUUID(["id"]), getMyOrderShipments);
+
+router.get("/:id/payments", validateParamsUUID(["id"]), getOrderPayments);
+router.get("/:id/refunds", validateParamsUUID(["id"]), getOrderRefunds);
+router.get("/:id/returns", validateParamsUUID(["id"]), getOrderReturns);
 
 export default router;

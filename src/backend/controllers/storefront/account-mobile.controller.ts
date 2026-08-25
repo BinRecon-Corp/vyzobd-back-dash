@@ -5,6 +5,7 @@ import { AppError } from "../../utils/AppError";
 import { CustomerAuthRequest } from "../../middlewares/customerAuth";
 import { OtpService } from "../../services/otp.service";
 import { MockSmsProvider } from "../../services/sms/mock.sms.provider";
+import { StorefrontAuthService } from "../../services/storefront/auth.service";
 
 const smsProvider = new MockSmsProvider();
 const otpService = new OtpService(smsProvider);
@@ -81,6 +82,9 @@ export const verifyMobileChange = async (req: CustomerAuthRequest, res: Response
         phoneVerifiedAt: new Date(),
       }
     });
+
+    // Safely associate eligible historical guest orders belonging to this verified phone number
+    await StorefrontAuthService.linkHistoricalGuestOrders(customerId, normalizedPhone, req.customer?.email);
 
     res.status(200).json({
       status: "success",

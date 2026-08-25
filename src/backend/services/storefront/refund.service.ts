@@ -139,13 +139,108 @@ export class StorefrontRefundService {
     return mapRefundToStorefrontDTO(refundTransaction);
   }
 
-  static async getCustomerRefunds(customerId: string) {
+  static async getCustomerRefunds(
+    customerId: string,
+    options: { page?: number; limit?: number; status?: string } = {}
+  ) {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(50, Math.max(1, options.limit || 10));
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      customerId,
+      order: { deletedAt: null },
+    };
+
+    if (options.status && options.status !== "ALL") {
+      where.status = options.status as RefundStatus;
+    }
+
+    const [refunds, total] = await Promise.all([
+      prisma.refund.findMany({
+        where,
+        include: {
+          order: { select: { id: true, orderNumber: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.refund.count({ where }),
+    ]);
+
+    const mappedRefunds = refunds.map((r) => {
+      const processedAt =
+        r.completedAt ||
+        (["COMPLETED", "REJECTED", "FAILED"].includes(r.status) ? r.updatedAt : null);
+
+      return {
+        id: r.id,
+        orderId: r.orderId,
+        orderNumber: r.order?.orderNumber || null,
+        amount: Number(r.amount),
+        currency: r.currency,
+        status: r.status,
+        reason: r.reason,
+        createdAt: r.createdAt,
+        processedAt,
+      };
+    });
+
+    return {
+      refunds: mappedRefunds,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  static async getOrderRefunds(customerId: string, orderId: string) {
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, customerId, deletedAt: null },
+      select: { id: true, orderNumber: true },
+    });
+
+    if (!order) {
+      throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+    }
+
     const refunds = await prisma.refund.findMany({
-      where: { customerId },
-      include: { payment: true },
+      where: { orderId, customerId },
+      include: {
+        order: { select: { id: true, orderNumber: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
-    return refunds.map(mapRefundToStorefrontDTO);
+
+    const mappedRefunds = refunds.map((r) => {
+      const processedAt =
+        r.completedAt ||
+        (["COMPLETED", "REJECTED", "FAILED"].includes(r.status) ? r.updatedAt : null);
+
+      return {
+        id: r.id,
+        orderId: r.orderId,
+        orderNumber: order.orderNumber,
+        amount: Number(r.amount),
+        currency: r.currency,
+        status: r.status,
+        reason: r.reason,
+        createdAt: r.createdAt,
+        processedAt,
+      };
+    });
+
+    return {
+      order: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+      },
+      refunds: mappedRefunds,
+    };
   }
 }
 
