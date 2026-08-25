@@ -25,6 +25,7 @@ import {
   registerLimiter,
   verifyEmailLimiter,
   resendVerificationLimiter,
+  otpRequestLimiter,
 } from "../../middlewares/rateLimiter";
 import { validateBody } from "../../middlewares/validation";
 import {
@@ -44,9 +45,9 @@ router.post("/register", registerLimiter, validateBody(customerRegisterSchema), 
 router.post("/login", loginLimiter, validateBody(customerLoginSchema), login);
 
 // Mobile flows
-router.post("/register-mobile", registerLimiter, validateBody(customerMobileRegisterSchema), registerMobile);
+router.post("/register-mobile", otpRequestLimiter, validateBody(customerMobileRegisterSchema), registerMobile);
 router.post("/verify-mobile-registration", registerLimiter, validateBody(customerMobileVerifySchema), verifyMobileRegistration);
-router.post("/login-mobile", loginLimiter, validateBody(customerMobileLoginSchema), loginMobile);
+router.post("/login-mobile", otpRequestLimiter, validateBody(customerMobileLoginSchema), loginMobile);
 router.post("/verify-mobile-login", loginLimiter, validateBody(customerMobileVerifySchema), verifyMobileLogin);
 
 // Token / Session

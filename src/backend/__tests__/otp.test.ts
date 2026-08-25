@@ -10,6 +10,15 @@ import { prisma } from "../config/db";
 let mockDb: any[] = [];
 let customerDb: any[] = [];
 
+
+(prisma as any).$transaction = async (arr: any[]) => {
+  const results = [];
+  for (const p of arr) {
+    results.push(await p);
+  }
+  return results;
+};
+
 (prisma.customerOtp as any) = {
   findFirst: async (args: any) => {
     const sorted = [...mockDb].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());

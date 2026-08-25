@@ -17,12 +17,12 @@ export class StorefrontSettingService {
     }
 
     const [branding, seo, analytics, store, shipping, tax] = await Promise.all([
-      prisma.brandingSetting.findFirst(),
-      prisma.sEOSetting.findFirst(),
-      prisma.analyticsSetting.findFirst(),
-      prisma.storeSetting.findFirst(),
-      prisma.shippingSetting.findFirst(),
-      prisma.taxSetting.findFirst()
+      prisma.brandingSetting.findFirst().catch(e => { console.error("Branding DB drift", e); return null; }),
+      prisma.sEOSetting.findFirst().catch(e => { console.error("SEO DB drift", e); return null; }),
+      prisma.analyticsSetting.findFirst().catch(e => { console.error("Analytics DB drift", e); return null; }),
+      prisma.storeSetting.findFirst().catch(e => { console.error("Store DB drift", e); return null; }),
+      prisma.shippingSetting.findFirst().catch(e => { console.error("Shipping DB drift", e); return null; }),
+      prisma.taxSetting.findFirst().catch(e => { console.error("Tax DB drift", e); return null; })
     ]);
 
     const result = {

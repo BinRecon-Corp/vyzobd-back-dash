@@ -1,3 +1,4 @@
+import { normalizePhone } from "../../utils/phone";
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
@@ -5,7 +6,7 @@ import { OtpService } from "../../services/otp.service";
 import { generateCustomerAccessToken, generateCustomerRefreshToken } from "../../utils/customerJwt";
 import { StorefrontAuthService } from "../../services/storefront/auth.service";
 import { env } from "../../config/env";
-import { MockSmsProvider } from "../../services/sms/mock-sms.provider";
+import { MockSmsProvider } from "../../services/sms/mock.sms.provider";
 
 // Initialize OTP service
 const smsProvider = new MockSmsProvider();
@@ -16,7 +17,10 @@ export const registerMobile = async (req: Request, res: Response, next: NextFunc
     const { firstName, lastName, phone } = req.body;
     
     // Normalize phone via OTP service logic or do it here
-    const normalizedPhone = (phone as string).startsWith('+880') ? phone : (phone.startsWith('01') ? `+88${phone}` : phone);
+    const normalizedPhone = normalizePhone(phone as string);
+    if (!normalizedPhone) {
+      return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+    }
 
     // Check if phone already in use
     const existingCustomer = await prisma.customer.findUnique({
@@ -30,7 +34,8 @@ export const registerMobile = async (req: Request, res: Response, next: NextFunc
       // If unverified, they can still request OTP
     }
 
-    const otpResult = await otpService.requestOtp(normalizedPhone, "REGISTRATION");
+    const ip = (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || "Unknown";
+    const otpResult = await otpService.requestOtp(normalizedPhone, "REGISTRATION", ip);
     if (!otpResult.success) {
       return next(new AppError(otpResult.message, 400, "BAD_REQUEST"));
     }
@@ -47,7 +52,10 @@ export const registerMobile = async (req: Request, res: Response, next: NextFunc
 export const verifyMobileRegistration = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone, otp, firstName, lastName } = req.body;
-    const normalizedPhone = (phone as string).startsWith('+880') ? phone : (phone.startsWith('01') ? `+88${phone}` : phone);
+    const normalizedPhone = normalizePhone(phone as string);
+    if (!normalizedPhone) {
+      return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+    }
 
     const otpResult = await otpService.verifyOtp(normalizedPhone, "REGISTRATION", otp);
     if (!otpResult.success) {
@@ -117,24 +125,25 @@ export const verifyMobileRegistration = async (req: Request, res: Response, next
 export const loginMobile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone } = req.body;
-    const normalizedPhone = (phone as string).startsWith('+880') ? phone : (phone.startsWith('01') ? `+88${phone}` : phone);
+    const normalizedPhone = normalizePhone(phone as string);
+    if (!normalizedPhone) {
+      return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+    }
 
     const customer = await prisma.customer.findUnique({
       where: { phone: normalizedPhone },
     });
 
     if (!customer || !customer.isActive || customer.deletedAt) {
-      // Return a generic response to prevent phone enumeration
-      return next(new AppError("If this number is registered, an OTP will be sent.", 401, "UNAUTHORIZED"));
+      return next(new AppError("Account not found or inactive", 401, "UNAUTHORIZED"));
     }
 
     if (!customer.phoneVerified) {
-       // Should we send OTP for login anyway? The prompt says "Do NOT allow login with unverified mobile"
-       // But if we just say "OTP sent" we don't leak state. Let's just return a generic error or generic success
-       return next(new AppError("If this number is registered and verified, an OTP will be sent.", 401, "UNAUTHORIZED"));
+      return next(new AppError("Phone number not verified", 401, "UNAUTHORIZED"));
     }
 
-    const otpResult = await otpService.requestOtp(normalizedPhone, "LOGIN");
+    const ip = (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || "Unknown";
+    const otpResult = await otpService.requestOtp(normalizedPhone, "LOGIN", ip);
     if (!otpResult.success) {
       // For security, still return success to not leak
       console.warn("OTP Request failed:", otpResult.message);
@@ -152,7 +161,10 @@ export const loginMobile = async (req: Request, res: Response, next: NextFunctio
 export const verifyMobileLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { phone, otp } = req.body;
-    const normalizedPhone = (phone as string).startsWith('+880') ? phone : (phone.startsWith('01') ? `+88${phone}` : phone);
+    const normalizedPhone = normalizePhone(phone as string);
+    if (!normalizedPhone) {
+      return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+    }
 
     const customer = await prisma.customer.findUnique({
       where: { phone: normalizedPhone },

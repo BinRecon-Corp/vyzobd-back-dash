@@ -141,3 +141,11 @@ export const resendVerificationLimiter = createLimiter({
   minutes: 60,
   actionName: "RESEND_VERIFICATION_ATTEMPT",
 });
+
+// Dedicated OTP Request limiter (5 requests/minute per IP, NO skipping successes to prevent timing enumeration attacks)
+export const otpRequestLimiter = createLimiter({
+  max: 5,
+  minutes: 1,
+  actionName: "OTP_REQUEST_ATTEMPT",
+  skipSuccessfulRequests: false
+});

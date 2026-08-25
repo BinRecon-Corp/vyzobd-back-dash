@@ -11,7 +11,8 @@ import { env } from "../../config/env";
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, password } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     const existingCustomer = await prisma.customer.findUnique({
       where: { email },
@@ -68,7 +69,8 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     const customer = await prisma.customer.findUnique({
       where: { email },
@@ -217,7 +219,7 @@ export const logout = async (req: CustomerAuthRequest, res: Response, next: Next
 
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
 
     const customer = await prisma.customer.findUnique({
       where: { email },
@@ -339,7 +341,7 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
 
 export const resendVerificationEmail = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email?.trim().toLowerCase();
     
     const customer = await prisma.customer.findUnique({
       where: { email },

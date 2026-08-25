@@ -32,7 +32,10 @@ export const verifyCustomerToken = (token: string) => {
       issuer: "vyzobd-storefront",
       audience: "customer",
     }) as { id: string; email: string; tokenType: string };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === "TokenExpiredError") {
+      throw new AppError("jwt expired", 401, "UNAUTHORIZED");
+    }
     throw new AppError("Invalid or expired customer token", 401, "UNAUTHORIZED");
   }
 };

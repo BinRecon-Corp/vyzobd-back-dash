@@ -1,3 +1,4 @@
+import { normalizePhone } from "../utils/phone";
 import { Response, NextFunction } from "express";
 import { prisma } from "../config/db";
 import { AuthRequest } from "../middlewares/auth";
@@ -259,7 +260,10 @@ export const updateCustomerMobileStatus = async (req: AuthRequest, res: Response
     const { phoneVerified, phone } = req.body;
     let normalizedPhone = phone;
     if (normalizedPhone) {
-      normalizedPhone = normalizedPhone.startsWith('+880') ? normalizedPhone : (normalizedPhone.startsWith('01') ? `+88${normalizedPhone}` : normalizedPhone);
+      normalizedPhone = normalizePhone(normalizedPhone);
+      if (!normalizedPhone) {
+        return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+      }
     }
 
     const customer = await prisma.customer.findFirst({ where: { id, deletedAt: null } });

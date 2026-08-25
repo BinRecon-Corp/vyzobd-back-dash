@@ -1,9 +1,10 @@
+import { normalizePhone } from "../../utils/phone";
 import { Response, NextFunction } from "express";
 import { prisma } from "../../config/db";
 import { AppError } from "../../utils/AppError";
 import { CustomerAuthRequest } from "../../middlewares/customerAuth";
 import { OtpService } from "../../services/otp.service";
-import { MockSmsProvider } from "../../services/sms/mock-sms.provider";
+import { MockSmsProvider } from "../../services/sms/mock.sms.provider";
 
 const smsProvider = new MockSmsProvider();
 const otpService = new OtpService(smsProvider);
@@ -13,7 +14,10 @@ export const requestMobileChange = async (req: CustomerAuthRequest, res: Respons
     const customerId = req.customer!.id;
     const { newPhone } = req.body;
 
-    const normalizedPhone = newPhone.startsWith('+880') ? newPhone : (newPhone.startsWith('01') ? `+88${newPhone}` : newPhone);
+    const normalizedPhone = normalizePhone(newPhone);
+    if (!normalizedPhone) {
+      return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+    }
 
     // Check if newPhone is already registered and verified by someone else
     const existing = await prisma.customer.findUnique({
@@ -24,7 +28,8 @@ export const requestMobileChange = async (req: CustomerAuthRequest, res: Respons
       return next(new AppError("This mobile number is already verified on another account.", 400, "BAD_REQUEST"));
     }
 
-    const otpResult = await otpService.requestOtp(normalizedPhone, "CHANGE_MOBILE");
+    const ip = (req.headers["x-forwarded-for"] as string) || req.ip || req.socket.remoteAddress || "Unknown";
+    const otpResult = await otpService.requestOtp(normalizedPhone, "CHANGE_MOBILE", ip);
     if (!otpResult.success) {
       return next(new AppError(otpResult.message, 400, "BAD_REQUEST"));
     }
@@ -43,7 +48,10 @@ export const verifyMobileChange = async (req: CustomerAuthRequest, res: Response
     const customerId = req.customer!.id;
     const { newPhone, otp } = req.body;
 
-    const normalizedPhone = newPhone.startsWith('+880') ? newPhone : (newPhone.startsWith('01') ? `+88${newPhone}` : newPhone);
+    const normalizedPhone = normalizePhone(newPhone);
+    if (!normalizedPhone) {
+      return next(new AppError("Invalid Bangladesh mobile number format", 400, "BAD_REQUEST"));
+    }
 
     // Verify OTP
     const otpResult = await otpService.verifyOtp(normalizedPhone, "CHANGE_MOBILE", otp);

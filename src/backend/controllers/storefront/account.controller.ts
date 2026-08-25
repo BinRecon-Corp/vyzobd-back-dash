@@ -80,7 +80,9 @@ export const updateMyProfile = async (req: CustomerAuthRequest, res: Response, n
 
 export const updateEmail = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { newEmail, currentPassword } = req.body;
+    const { currentPassword } = req.body;
+    let newEmail = req.body.newEmail;
+    if (newEmail) newEmail = newEmail.trim().toLowerCase();
     const customerId = req.customer!.id;
 
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
