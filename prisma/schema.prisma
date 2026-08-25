@@ -83,10 +83,12 @@ enum AuthProvider {
 
 model Customer {
   id              String         @id @default(uuid())
-  email           String         @unique
+  email           String?        @unique
   firstName       String
   lastName        String?
-  phone           String?
+  phone           String?        @unique
+  phoneVerified   Boolean        @default(false)
+  phoneVerifiedAt DateTime?
   isActive        Boolean        @default(true)
   notes           String?
   shippingAddress String?
@@ -1474,17 +1476,19 @@ model SMTPSetting {
 }
 
 model AnalyticsSetting {
-  id                 String   @id @default(uuid())
-  googleAnalyticsId  String?
-  googleTagManagerId String?
-  facebookPixelId    String?
-  tiktokPixelId      String?
-  googleAdsId        String?
-  ga4ApiSecret       String?
-  hotjarId           String?
-  enableAnalytics    Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  googleAnalyticsId        String?
+  googleTagManagerId       String?
+  facebookPixelId          String?
+  tiktokPixelId            String?
+  googleAdsId              String?
+  googleAdsConversionId    String?
+  googleAdsConversionLabel String?
+  ga4ApiSecret             String?
+  hotjarId                 String?
+  enableAnalytics          Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 model SecuritySetting {
@@ -1541,9 +1545,34 @@ model StoreSetting {
 }
 
 model UploadTracker {
-  id         String   @id @default(uuid())
-  publicId   String   @unique
-  url        String
-  status     String   @default("PENDING")
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  publicId  String   @unique
+  url       String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
+
+enum OtpPurpose {
+  REGISTRATION
+  LOGIN
+  CHANGE_MOBILE
+  ACCOUNT_RECOVERY
+}
+
+model CustomerOtp {
+  id                String     @id @default(uuid())
+  identifier        String
+  otpHash           String
+  purpose           OtpPurpose
+  attempts          Int        @default(0)
+  maxAttempts       Int        @default(5)
+  expiresAt         DateTime
+  resendAvailableAt DateTime?
+  isUsed            Boolean    @default(false)
+  ipAddress         String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([identifier, purpose, isUsed])
+  @@index([expiresAt])
 }

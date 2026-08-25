@@ -42,3 +42,12 @@ export const updateNotificationPrefSchema = z.object({
   sms: z.boolean().optional(),
   inApp: z.boolean().optional(),
 });
+
+export const requestMobileChangeSchema = z.object({
+  newPhone: z.string().min(1, "New phone is required"),
+});
+
+export const verifyMobileChangeSchema = z.object({
+  newPhone: z.string().min(1, "New phone is required"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
+});

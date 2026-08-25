@@ -168,6 +168,8 @@ export class SettingService {
       "facebookPixelId",
       "tiktokPixelId",
       "googleAdsId",
+      "googleAdsConversionId",
+      "googleAdsConversionLabel",
       "ga4ApiSecret",
       "hotjarId",
       "enableAnalytics",

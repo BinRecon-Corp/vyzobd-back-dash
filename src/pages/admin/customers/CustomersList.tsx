@@ -190,8 +190,24 @@ export function CustomersList() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-foreground">{cust.email}</p>
-                      <p className="text-xs text-muted-foreground">{cust.phone || "No phone"}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-foreground">{cust.email}</p>
+                        {cust.emailVerified ? (
+                          <CheckCircle className="w-3 h-3 text-emerald-500" />
+                        ) : (
+                          <AlertCircle className="w-3 h-3 text-amber-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                        <p>{cust.phone || "No phone"}</p>
+                        {cust.phone ? (
+                          cust.phoneVerified ? (
+                            <CheckCircle className="w-3 h-3 text-emerald-500" />
+                          ) : (
+                            <AlertCircle className="w-3 h-3 text-amber-500" />
+                          )
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {cust.isActive ? (
@@ -219,7 +235,7 @@ export function CustomersList() {
                           variant="ghost"
                           size="sm"
                           onClick={() => navigate(`/customers/${cust.id}`)}
-                          title="View Customer Profile"
+                         
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -230,7 +246,7 @@ export function CustomersList() {
                               variant="ghost"
                               size="sm"
                               onClick={() => { setSelectedCust(cust); setNoteModalOpen(true); }}
-                              title="Add Note"
+                             
                             >
                               <FileText className="w-4 h-4 text-blue-600" />
                             </Button>
@@ -238,7 +254,7 @@ export function CustomersList() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setCustomerToReset(cust)}
-                              title="Force Password Reset"
+                             
                             >
                               <Key className="w-4 h-4 text-amber-600" />
                             </Button>
@@ -322,9 +338,10 @@ export function CustomersList() {
       )}
 
       <ConfirmDialog
+        title="Reset Customer Password"
         isOpen={!!customerToReset}
         onOpenChange={(open) => !open && setCustomerToReset(null)}
-        title="Reset Customer Password"
+       
         description={
           <>
             Are you sure you want to trigger a password reset for customer <strong>{customerToReset?.email}</strong>? An automated reset instructions email will be sent.

@@ -59,6 +59,8 @@ export const updateAnalyticsSettingsSchema = z.object({
   metaPixelId: z.string().optional(),
   tiktokPixelId: z.string().optional(),
   googleAdsId: z.string().optional(),
+  googleAdsConversionId: z.string().optional(),
+  googleAdsConversionLabel: z.string().optional(),
   ga4ApiSecret: z.string().optional(),
   hotjarId: z.string().optional(),
   enableAnalytics: z.boolean().optional(),

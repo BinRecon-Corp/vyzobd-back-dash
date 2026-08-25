@@ -50,11 +50,11 @@ export const getMyProfile = async (req: CustomerAuthRequest, res: Response, next
 
 export const updateMyProfile = async (req: CustomerAuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { firstName, lastName, phone, avatarUrl } = req.body;
+    const { firstName, lastName, avatarUrl } = req.body;
 
     const customer = await prisma.customer.update({
       where: { id: req.customer!.id },
-      data: { firstName, lastName, phone, avatarUrl },
+      data: { firstName, lastName, avatarUrl },
       select: {
         id: true,
         firstName: true,

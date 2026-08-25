@@ -65,8 +65,10 @@ export class StorefrontSettingService {
         metaPixelId: analytics.facebookPixelId,
         tiktokPixelId: analytics.tiktokPixelId,
         googleAdsId: analytics.googleAdsId,
+        googleAdsConversionId: analytics.googleAdsConversionId || analytics.googleAdsId || null,
+        googleAdsConversionLabel: analytics.googleAdsConversionLabel || null,
         hotjarId: analytics.hotjarId,
-        enableAnalytics: analytics.enableAnalytics
+        enableAnalytics: Boolean(analytics.enableAnalytics)
       } : {
         googleAnalyticsId: process.env.GA_MEASUREMENT_ID || null,
         ga4MeasurementId: process.env.GA_MEASUREMENT_ID || null,
@@ -75,7 +77,9 @@ export class StorefrontSettingService {
         facebookPixelId: null,
         metaPixelId: null,
         tiktokPixelId: null,
-        googleAdsId: null,        
+        googleAdsId: null,
+        googleAdsConversionId: null,
+        googleAdsConversionLabel: null,
         hotjarId: null,
         enableAnalytics: false
       },

@@ -2,9 +2,9 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 import { AppError } from "./AppError";
 
-export const generateCustomerAccessToken = (customerId: string, email: string) => {
+export const generateCustomerAccessToken = (customerId: string, email?: string | null) => {
   return jwt.sign(
-    { id: customerId, email, tokenType: "access" },
+    { id: customerId, email: email || "", tokenType: "access" },
     env.JWT_SECRET,
     {
       expiresIn: env.JWT_EXPIRES_IN as any,
@@ -14,9 +14,9 @@ export const generateCustomerAccessToken = (customerId: string, email: string) =
   );
 };
 
-export const generateCustomerRefreshToken = (customerId: string, email: string) => {
+export const generateCustomerRefreshToken = (customerId: string, email?: string | null) => {
   return jwt.sign(
-    { id: customerId, email, tokenType: "refresh" },
+    { id: customerId, email: email || "", tokenType: "refresh" },
     env.JWT_SECRET,
     {
       expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,

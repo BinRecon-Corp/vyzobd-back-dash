@@ -18,6 +18,7 @@ import {
 import {
   getCustomerById,
   updateCustomerStatus,
+  updateCustomerMobileStatus,
   resetCustomerPassword,
   addCustomerNote
 } from "../../../services/customer.service";
@@ -60,13 +61,27 @@ export function CustomerDetail() {
 
   const handleToggleStatus = async () => {
     if (!id || !customer) return;
-    const newStatus = !customer.isActive;
     try {
-      const updated = await updateCustomerStatus(id, newStatus);
-      setCustomer({ ...customer, isActive: updated.isActive });
-      notify.success("Status Updated", `Customer account ${updated.isActive ? "activated" : "deactivated"}.`);
+      await updateCustomerStatus(id, !customer.isActive);
+      notify.success("Status Updated", `Customer account ${!customer.isActive ? 'activated' : 'deactivated'} successfully.`);
+      fetchCustomerDetails();
     } catch (err: any) {
-      notify.apiError(err, "Failed to update customer status.");
+      notify.apiError(err, "Failed to update status.");
+    }
+  };
+
+  const handleToggleMobileVerification = async () => {
+    if (!id || !customer) return;
+    const isVerified = !customer.phoneVerified;
+    if (isVerified && !window.confirm("Are you sure you want to manually mark this mobile number as verified? This action will be recorded in the audit log.")) {
+      return;
+    }
+    try {
+      await updateCustomerMobileStatus(id, { phoneVerified: isVerified });
+      notify.success("Mobile Status Updated", `Customer mobile marked as ${isVerified ? 'verified' : 'unverified'}.`);
+      fetchCustomerDetails();
+    } catch (err: any) {
+      notify.apiError(err, "Failed to update mobile status.");
     }
   };
 
@@ -147,7 +162,27 @@ export function CustomerDetail() {
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">{customer.email} • {customer.phone || "No phone listed"}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                {customer.email}
+                {customer.emailVerified ? (
+                  <CheckCircle className="w-3 h-3 text-emerald-500" />
+                ) : (
+                  <AlertCircle className="w-3 h-3 text-amber-500" />
+                )}
+              </span>
+              <span className="text-xs text-muted-foreground">•</span>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                {customer.phone || "No phone listed"}
+                {customer.phone && (
+                  customer.phoneVerified ? (
+                    <CheckCircle className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <AlertCircle className="w-3 h-3 text-amber-500" />
+                  )
+                )}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -308,16 +343,58 @@ export function CustomerDetail() {
             <h3 className="font-bold text-base border-b pb-2">Customer Profile Summary</h3>
             <div className="space-y-2 text-xs">
               <div>
-                <span className="text-muted-foreground block font-semibold uppercase">Email</span>
+                <span className="text-muted-foreground flex items-center gap-2 font-semibold uppercase">
+                  Email
+                  {customer.emailVerified ? (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                      <CheckCircle className="w-2.5 h-2.5" /> Verified
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-2.5 h-2.5" /> Unverified
+                    </span>
+                  )}
+                </span>
                 <span className="font-medium text-foreground">{customer.email}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground block font-semibold uppercase">Phone</span>
-                <span className="font-medium text-foreground">{customer.phone || "Not provided"}</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-muted-foreground flex items-center gap-2 font-semibold uppercase">
+                    Phone
+                    {customer.phone && (
+                      customer.phoneVerified ? (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                          <CheckCircle className="w-2.5 h-2.5" /> Verified
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                          <AlertCircle className="w-2.5 h-2.5" /> Unverified
+                        </span>
+                      )
+                    )}
+                  </span>
+                  <span className="font-medium text-foreground">{customer.phone || "Not provided"}</span>
+                  {customer.phoneVerifiedAt && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Verified on: {new Date(customer.phoneVerifiedAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+                {customer.phone && hasPermission("Customers", "write") && (
+                   <Button variant="ghost" size="sm" onClick={handleToggleMobileVerification} className="h-7 text-xs border">
+                     {customer.phoneVerified ? 'Mark Unverified' : 'Mark Verified'}
+                   </Button>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground block font-semibold uppercase">Member Since</span>
                 <span className="font-medium text-foreground">{new Date(customer.createdAt).toLocaleDateString()}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block font-semibold uppercase">Last Login</span>
+                <span className="font-medium text-foreground">
+                  {customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString() : "Never logged in"}
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground block font-semibold uppercase">Default Shipping Address</span>
@@ -331,9 +408,10 @@ export function CustomerDetail() {
       </div>
 
       <ConfirmDialog
+        title="Reset Customer Password"
         isOpen={showResetConfirm}
         onOpenChange={setShowResetConfirm}
-        title="Reset Customer Password"
+       
         description={
           <>
             Are you sure you want to trigger a password reset for <strong>{customer?.email}</strong>? An automated reset instructions email will be sent immediately.
